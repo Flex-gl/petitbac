@@ -30,8 +30,8 @@ return 1
 `;
 
 function configuration() {
-  const url = process.env.UPSTASH_REDIS_REST_URL;
-  const token = process.env.UPSTASH_REDIS_REST_TOKEN;
+  const url = process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL;
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN;
   if (!url || !token) {
     const error = new Error('Le serveur de jeu n’est pas configuré : ajoutez les variables Upstash REST dans Vercel.');
     error.status = 503;
