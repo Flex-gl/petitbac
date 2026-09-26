@@ -1,4 +1,4 @@
-const VERSION = 'arena-shell-v3';
+const VERSION = 'arena-shell-v4';
 const SHELL = ['/', '/index.html', '/manifest.webmanifest', '/css/app.css', '/css/animations.css', '/css/splash.css', '/css/controls.css', '/js/app.js', '/js/api.js', '/js/ui.js', '/js/screens/home.js', '/js/dict.js', '/js/i18n/fr.json', '/icons/icon-192.png', '/icons/icon-512.png', '/icons/icon-maskable.png'];
 
 self.addEventListener('install', event => {

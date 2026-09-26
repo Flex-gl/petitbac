@@ -1,5 +1,5 @@
 import { api } from './api.js';
-import { esc, haptic, icon, showSheet, toast } from './ui.js';
+import { esc, haptic, icon, pageHead, shell, showSheet, toast } from './ui.js';
 import { homeScreen, rankingsScreen } from './screens/home.js';
 
 const root = document.querySelector('#app');
@@ -58,6 +58,8 @@ async function render() {
     root.innerHTML = setupScreen(state.name);
   } else if (state.page === 'rankings') {
     root.innerHTML = rankingsScreen(state.top, state.profile);
+  } else if (state.page === 'invite') {
+    root.innerHTML = inviteScreen(state.code);
   } else if (state.page === 'room' && state.game) {
     await loadGameFeatures();
     const screens = await import('./screens/room.js');
@@ -255,9 +257,9 @@ function openJoinSheet(initialCode = '') {
   const code = roomCode(initialCode);
   const locked = code.length === 6;
   const codeField = locked
-    ? `<input type="hidden" name="code" value="${esc(code)}"><p class="form-note">Salle <strong>${esc(code)}</strong>. Choisis ton prénom pour entrer.</p>`
+    ? `<input type="hidden" name="code" value="${esc(code)}">`
     : `<label class="field"><span class="field-label">Code de la salle</span><input class="text-input" name="code" maxlength="6" autocapitalize="characters" autocomplete="off" placeholder="ABC123" value="${esc(initialCode)}" required style="text-transform:uppercase;letter-spacing:.16em;font-weight:800"></label>`;
-  const inner = `<form id="join-form" novalidate><label class="field"><span class="field-label">Ton prénom</span><input class="text-input" name="name" maxlength="18" autocomplete="nickname" placeholder="Ex. Alex" value="${esc(state.name)}" required></label>${codeField}<div class="error-note" data-form-error role="status"></div><button class="btn btn-primary btn-full" type="submit">Entrer dans la salle ${icon('arrow', 17)}</button></form>`;
+  const inner = `<form id="join-form" novalidate><label class="field"><span class="field-label">Pseudo ou nom complet</span><input class="text-input" name="name" maxlength="40" minlength="2" autocomplete="name" placeholder="Ex. Alex Martin" value="${esc(state.name)}" required></label>${codeField}<div class="error-note" data-form-error role="status"></div><button class="btn btn-primary btn-full" type="submit">Entrer dans la salle ${icon('arrow', 17)}</button></form>`;
   state.sheet = showSheet(locked ? `Rejoindre ${code}` : 'Rejoindre une salle', inner, () => { state.sheet = null; });
 }
 
@@ -275,17 +277,17 @@ async function followInvite(rawCode) {
       toast('La partie a déjà commencé.');
       return;
     }
-    const name = state.name.trim();
-    if (name.length >= 2 && game.status === 'lobby') {
-      const joined = await api.action({ action: 'join', code, playerId, name });
-      enterRoom(joined.game);
-      toast(`Salle rejointe en tant que ${name}.`);
-      return;
-    }
-    openJoinSheet(code);
+    state.page = 'invite';
+    state.code = code;
+    await render();
   } catch (error) {
     toast(error.message);
   }
+}
+
+function inviteScreen(code) {
+  const content = `${pageHead('Tu es invité', 'Entre ton pseudo ou ton nom. Le code de la salle est déjà dans le lien.')}<form id="join-form" novalidate><p class="notice">Salle <strong>${esc(code)}</strong></p><label class="field"><span class="field-label">Pseudo ou nom complet</span><input class="text-input" name="name" maxlength="40" minlength="2" autocomplete="name" placeholder="Ex. Alex Martin" value="${esc(state.name)}" required autofocus></label><input type="hidden" name="code" value="${esc(code)}"><div class="error-note" data-form-error role="status"></div><div class="form-footer"><button class="btn btn-primary btn-full" type="submit">Rejoindre la salle ${icon('arrow', 17)}</button></div></form>`;
+  return shell(content, { nav: false });
 }
 
 function openRules() {
@@ -349,7 +351,7 @@ async function joinRoom(form) {
   const name = String(form.elements.name.value || '').trim();
   const code = String(form.elements.code.value || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6);
   const errorNode = form.querySelector('[data-form-error]');
-  if (name.length < 2) { errorNode.textContent = 'Entre un prénom d’au moins deux lettres.'; return; }
+  if (name.length < 2) { errorNode.textContent = 'Entre un pseudo ou un nom d’au moins deux lettres.'; return; }
   if (code.length !== 6) { errorNode.textContent = 'Le code de salle doit contenir six caractères.'; return; }
   errorNode.textContent = '';
   const submit = form.querySelector('[type="submit"]');
@@ -411,7 +413,11 @@ async function handleAction(button) {
     return render();
   }
   if (action === 'back') {
-    if (state.page === 'setup' || state.page === 'rankings') { state.page = 'home'; return render(); }
+    if (state.page === 'setup' || state.page === 'rankings' || state.page === 'invite') {
+      state.page = 'home';
+      history.replaceState(null, '', '/');
+      return render();
+    }
     if (state.page === 'room') { clearTimeout(state.pollTimer); closeSse(); state.page = 'home'; history.replaceState(null, '', '/'); return render(); }
   }
   if (action === 'install') {

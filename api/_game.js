@@ -11,8 +11,8 @@ export class GameError extends Error {
 }
 
 function cleanName(value) {
-  const name = String(value || '').replace(/[<>\u0000-\u001f]/g, '').trim().replace(/\s+/g, ' ').slice(0, 18);
-  if (name.length < 2) throw new GameError('Choisis un prénom d’au moins deux lettres.');
+  const name = String(value || '').replace(/[<>\u0000-\u001f]/g, '').trim().replace(/\s+/g, ' ').slice(0, 40);
+  if (name.length < 2) throw new GameError('Choisis un pseudo ou un nom d’au moins deux lettres.');
   return name;
 }
 
