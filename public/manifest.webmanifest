@@ -1,8 +1,8 @@
 {
   "id": "/",
-  "name": "Petit Bac Arena",
-  "short_name": "Bac Arena",
-  "description": "Le Petit Bac multijoueur, en direct avec tes amis.",
+  "name": "Poséidon - Del'Hiver",
+  "short_name": "Poséidon",
+  "description": "Petit Bac signé Poséidon - Del'Hiver. Multijoueur, en direct.",
   "lang": "fr-FR",
   "start_url": "/",
   "scope": "/",

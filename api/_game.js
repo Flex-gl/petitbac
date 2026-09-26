@@ -64,66 +64,94 @@ function prepareCorrection(game, now) {
 }
 
 function categoryEvaluations(game, category) {
-  const answers = game.players.map(entry => {
+  return game.players.map(entry => {
     const raw = game.submissions[entry.id]?.answers?.[category] || '';
+    const word = String(raw).trim();
     const normalized = normalizeAnswer(raw);
-    const begins = normalized && normalized.startsWith(game.letter.toLocaleLowerCase('fr'));
+    const begins = Boolean(normalized && normalized.startsWith(game.letter.toLocaleLowerCase('fr')));
     const exists = begins && hasWord(category, raw);
-    return { playerId: entry.id, playerName: entry.name, word: String(raw).trim(), normalized, begins: Boolean(begins), exists: Boolean(exists) };
+    const empty = !word;
+    return {
+      playerId: entry.id,
+      playerName: entry.name,
+      word,
+      normalized,
+      begins,
+      exists: Boolean(exists),
+      hint: empty ? 'empty' : !begins ? 'letter' : exists ? 'known' : 'unknown',
+      points: 0,
+      badge: empty ? 'missed' : 'pending',
+      label: empty ? 'Manqué' : 'En correction',
+      needsHost: !empty,
+      decided: empty,
+      hostValid: null,
+      accepted: false,
+      locked: empty,
+      appealable: false,
+      votes: {}
+    };
   });
-  const counts = new Map();
-  for (const answer of answers) if (answer.exists) counts.set(answer.normalized, (counts.get(answer.normalized) || 0) + 1);
-  return answers.map(answer => {
-    let points = 0;
-    let badge = 'missed';
-    let label = 'Manqué';
-    let appealable = false;
-    if (answer.word && !answer.begins) { badge = 'invalid'; label = 'Mauvaise lettre'; }
-    else if (answer.word && !answer.exists) { badge = 'unknown'; label = 'À voter'; appealable = true; }
-    else if (answer.exists && counts.get(answer.normalized) > 1) { points = 1; badge = 'duplicate'; label = 'Doublon'; }
-    else if (answer.exists) { points = Object.keys(game.submissions).length > 1 ? 2 : 1; badge = 'unique'; label = 'Unique'; }
-    return { ...answer, points, badge, label, appealable, votes: {} };
-  });
+}
+
+function settlePoints(game, category, result) {
+  const results = game.correction.categoryResults[category] || [];
+  const peers = results.filter(entry => entry !== result && entry.accepted && entry.normalized === result.normalized);
+  if (!peers.length) return Object.keys(game.submissions).length > 1 ? 2 : 1;
+  for (const peer of peers) {
+    if (peer.points <= 1) continue;
+    const delta = peer.points - 1;
+    const peerPlayer = requirePlayer(game, peer.playerId);
+    peerPlayer.roundScore -= delta;
+    peerPlayer.score -= delta;
+    peer.points = 1;
+    peer.badge = 'duplicate';
+    peer.label = 'Doublon';
+  }
+  return 1;
+}
+
+function lockDecision(game, accepted, source = 'host') {
+  const active = game.correction?.activeWord;
+  const result = active?.result;
+  if (!result || result.locked) return;
+  result.locked = true;
+  result.accepted = Boolean(accepted) && Boolean(result.word);
+  result.appealable = false;
+  if (result.accepted) {
+    const points = settlePoints(game, active.category, result);
+    result.points = points;
+    result.badge = points > 1 ? 'unique' : 'duplicate';
+    const voted = source === 'vote';
+    result.label = points > 1 ? (voted ? 'Validé par vote' : 'Validé') : 'Doublon';
+  } else if (!result.word) {
+    result.points = 0;
+    result.badge = 'missed';
+    result.label = 'Manqué';
+  } else {
+    result.points = 0;
+    result.badge = 'invalid';
+    result.label = source === 'vote' ? 'Refusé par vote' : 'Refusé';
+  }
+  const participant = requirePlayer(game, result.playerId);
+  participant.roundScore += result.points;
+  participant.score += result.points;
+}
+
+function resolveAppeal(game) {
+  const active = game.correction.activeWord;
+  const result = active.result;
+  const votes = result.votes || {};
+  const approval = Object.values(votes).filter(Boolean).length;
+  const rejection = Object.values(votes).filter(vote => vote === false).length;
+  const threshold = Math.floor(game.players.length / 2) + 1;
+  if (approval >= threshold) lockDecision(game, true, 'vote');
+  else if (rejection >= threshold) lockDecision(game, false, 'vote');
+  else lockDecision(game, Boolean(result.hostValid), 'host');
+  active.appealClosedAt = Date.now();
 }
 
 function currentCategory(game) {
   return game.config.categories[game.correction.categoryIndex];
-}
-
-function finalizeAppeal(game) {
-  const active = game.correction?.activeWord;
-  if (!active?.result?.appealable) return;
-  const voters = Object.keys(active.result.votes || {}).length;
-  const approval = Object.values(active.result.votes || {}).filter(Boolean).length;
-  const threshold = Math.ceil(game.players.length / 2);
-  if (approval >= threshold) {
-    const results = game.correction.categoryResults[active.category] || [];
-    const peers = results.filter(result => result !== active.result && result.normalized === active.result.normalized && result.points > 0);
-    const acceptedPoints = peers.length ? 1 : (Object.keys(game.submissions).length > 1 ? 2 : 1);
-    const submitter = requirePlayer(game, active.result.playerId);
-    submitter.roundScore += acceptedPoints - active.result.points;
-    submitter.score += acceptedPoints - active.result.points;
-    active.result.points = acceptedPoints;
-    active.result.badge = peers.length ? 'duplicate' : 'accepted';
-    active.result.label = peers.length ? 'Doublon' : 'Appel accepté';
-    active.result.appealable = false;
-    for (const peer of peers) {
-      if (peer.badge !== 'accepted' || peer.points <= 1) continue;
-      const peerPlayer = requirePlayer(game, peer.playerId);
-      peerPlayer.roundScore -= peer.points - 1;
-      peerPlayer.score -= peer.points - 1;
-      peer.points = 1;
-      peer.badge = 'duplicate';
-      peer.label = 'Doublon';
-    }
-  } else {
-    active.result.badge = 'unknown';
-    active.result.label = 'Inconnu';
-    active.result.appealable = false;
-  }
-  active.appealClosedAt = Date.now();
-  active.voteCount = voters;
-  active.approvalCount = approval;
 }
 
 function advanceCorrection(game, now) {
@@ -158,17 +186,28 @@ function tick(game, now) {
       const category = currentCategory(game);
       const results = correction.categoryResults[category] || (correction.categoryResults[category] = categoryEvaluations(game, category));
       const result = results[correction.playerIndex];
-      correction.activeWord = { category, result, revealedAt: now, appealEndsAt: result.appealable ? now + 15000 : null };
-      const participant = requirePlayer(game, result.playerId);
-      participant.roundScore += result.points;
-      participant.score += result.points;
+      correction.activeWord = {
+        category,
+        result,
+        revealedAt: now,
+        phase: result.needsHost ? 'review' : 'skip',
+        autoAdvanceAt: result.needsHost ? null : now + 900
+      };
     } else {
       const active = correction.activeWord;
-      const votes = Object.keys(active.result.votes || {}).length;
-      if (active.result.appealable && (votes >= game.players.length || now >= active.appealEndsAt)) {
-        finalizeAppeal(game);
+      const votes = active.result.votes || {};
+      const cast = Object.keys(votes).length;
+      const approval = Object.values(votes).filter(Boolean).length;
+      const rejection = Object.values(votes).filter(vote => vote === false).length;
+      const threshold = Math.floor(game.players.length / 2) + 1;
+      const remaining = game.players.length - cast;
+      const decided = (approval >= threshold && approval > rejection + remaining) || (rejection >= threshold && rejection > approval + remaining) || cast >= game.players.length;
+      if (active.phase === 'skip' && now >= active.autoAdvanceAt) advanceCorrection(game, now);
+      else if (active.phase === 'contest' && !active.contested && now >= active.contestEndsAt) {
+        lockDecision(game, Boolean(active.result.hostValid), 'host');
         advanceCorrection(game, now);
-      } else if (!active.result.appealable && now - active.revealedAt >= 1000) {
+      } else if (active.phase === 'appeal' && (decided || now >= active.appealEndsAt)) {
+        resolveAppeal(game);
         advanceCorrection(game, now);
       }
     }
@@ -249,14 +288,44 @@ export async function mutateGame(input) {
         for (const category of game.config.categories) answers[category] = String(input.answers?.[category] || '').trim().slice(0, 45);
         game.submissions[playerId] = { answers, submittedAt: Date.now() };
         if (game.players.every(entry => game.submissions[entry.id])) prepareCorrection(game, Date.now());
+      } else if (action === 'judge') {
+        if (game.hostId !== playerId) throw new GameError('Seul l’hôte corrige les réponses.', 403);
+        const active = game.correction?.activeWord;
+        if (game.status !== 'correcting' || !active || active.phase !== 'review' || !active.result.needsHost) throw new GameError('Aucune réponse n’attend ta correction.');
+        active.result.decided = true;
+        active.result.hostValid = Boolean(input.valid);
+        active.result.badge = active.result.hostValid ? 'unique' : 'invalid';
+        active.result.label = active.result.hostValid ? 'Validé par l’hôte' : 'Refusé par l’hôte';
+        active.phase = 'contest';
+        active.contestEndsAt = Date.now() + 10000;
+      } else if (action === 'contest') {
+        const active = game.correction?.activeWord;
+        if (game.status !== 'correcting' || !active || active.phase !== 'contest') throw new GameError('Cette correction ne peut plus être contestée.');
+        if (playerId === game.hostId) throw new GameError('L’hôte ne conteste pas sa propre correction.', 403);
+        active.contested = true;
+        active.phase = 'appeal';
+        active.result.appealable = true;
+        active.result.votes = {};
+        active.appealEndsAt = Date.now() + 15000;
+        active.result.label = 'Contesté';
+        active.result.badge = 'unknown';
+      } else if (action === 'next') {
+        if (game.hostId !== playerId) throw new GameError('Seul l’hôte passe à la réponse suivante.', 403);
+        const active = game.correction?.activeWord;
+        if (!active || active.phase !== 'contest' || active.contested) throw new GameError('Une contestation est en cours.');
+        lockDecision(game, Boolean(active.result.hostValid), 'host');
+        advanceCorrection(game, Date.now());
       } else if (action === 'vote') {
-        if (game.status !== 'correcting' || !game.correction?.activeWord?.result?.appealable) throw new GameError('Aucun appel n’est ouvert.');
-        const active = game.correction.activeWord;
-        const vote = Boolean(input.valid);
-        active.result.votes[playerId] = vote;
+        const active = game.correction?.activeWord;
+        if (game.status !== 'correcting' || !active || active.phase !== 'appeal') throw new GameError('Aucun appel n’est ouvert.');
+        active.result.votes[playerId] = Boolean(input.valid);
         const approvals = Object.values(active.result.votes).filter(Boolean).length;
-        if (approvals >= Math.ceil(game.players.length / 2) || Object.keys(active.result.votes).length >= game.players.length) {
-          finalizeAppeal(game);
+        const rejections = Object.values(active.result.votes).filter(vote => vote === false).length;
+        const threshold = Math.floor(game.players.length / 2) + 1;
+        const remaining = game.players.length - Object.keys(active.result.votes).length;
+        const decided = (approvals >= threshold && approvals > rejections + remaining) || (rejections >= threshold && rejections > approvals + remaining) || Object.keys(active.result.votes).length >= game.players.length;
+        if (decided) {
+          resolveAppeal(game);
           advanceCorrection(game, Date.now());
         }
       } else if (action === 'chat') {

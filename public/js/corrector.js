@@ -1,6 +1,6 @@
 import { CATEGORIES } from './dict.js';
 
-export function categoryInfo(id) { return CATEGORIES.find(category => category.id === id) || { id, label: id, emoji: '✦' }; }
+export function categoryInfo(id) { return CATEGORIES.find(category => category.id === id) || { id, label: id, icon: 'tag' }; }
 
 export function playRevealTone(kind = 'reveal') {
   try {

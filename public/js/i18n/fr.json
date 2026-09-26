@@ -1,5 +1,5 @@
 {
-  "app": { "name": "Petit Bac Arena", "tagline": "Le jeu des mots, en direct." },
+  "app": { "name": "Poséidon - Del'Hiver", "tagline": "Le Petit Bac, en direct." },
   "actions": { "create": "Créer une partie", "join": "Rejoindre une salle", "rules": "Règles du jeu", "rankings": "Classement" },
   "game": { "round": "Manche", "waiting": "En attente des autres joueurs…", "correcting": "Correction en direct", "unknown": "À voter", "missed": "Manqué" }
 }

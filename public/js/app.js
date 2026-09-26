@@ -34,7 +34,7 @@ async function loadGameFeatures() {
 }
 
 function splash() {
-  root.innerHTML = `<div class="splash"><div class="splash-mark"><span>P</span><span>B</span><span>A</span></div><p>TON ARÈNE SE PRÉPARE</p></div>`;
+  root.innerHTML = `<div class="splash"><div class="splash-mark"><span>P</span></div><p>POSÉIDON · DEL'HIVER</p></div>`;
 }
 
 function roomSignature(game) {
@@ -43,7 +43,7 @@ function roomSignature(game) {
   if (game.status === 'playing') return `playing:${game.round}:${Boolean(game.submissions?.[playerId])}`;
   if (game.status === 'correcting') {
     const active = game.correction?.activeWord;
-    return `correcting:${game.round}:${game.correction?.categoryIndex}:${game.correction?.playerIndex}:${active?.revealedAt || ''}:${active?.voteCount || 0}:${active?.result?.badge || ''}:${game.players.map(player => player.score).join(',')}`;
+    return `correcting:${game.round}:${game.correction?.categoryIndex}:${game.correction?.playerIndex}:${active?.revealedAt || ''}:${active?.phase || ''}:${active?.result?.hostValid ?? ''}:${active?.contested ? 1 : 0}:${active?.voteCount || 0}:${active?.result?.badge || ''}:${active?.result?.points || 0}:${game.players.map(player => player.score).join(',')}`;
   }
   if (game.status === 'between') return `between:${game.round}`;
   return `finished:${game.matchId}`;
@@ -108,6 +108,9 @@ function updateTimers() {
   });
   const between = document.querySelector('[data-between-countdown]');
   if (between && state.game) between.textContent = String(Math.max(0, Math.ceil((state.game.nextRoundAt - now) / 1000)));
+  document.querySelectorAll('[data-decision-end]').forEach(node => {
+    node.textContent = String(Math.max(0, Math.ceil((Number(node.dataset.decisionEnd) - now) / 1000)));
+  });
 }
 
 async function refreshScores(force = false) {
@@ -244,12 +247,12 @@ function openJoinSheet(initialCode = '') {
 }
 
 function openRules() {
-  const inner = `<p class="sheet-copy">Le Petit Bac se joue en manches. L’hôte choisit les catégories, le temps et le nombre de tours. Une lettre apparaît : trouve un mot par catégorie avant la fin du compte à rebours.</p><ol class="rules-list"><li>Au moins deux catégories sont sélectionnées avant le départ.</li><li>Chaque mot doit commencer par la lettre de la manche.</li><li>Valide ta grille pour rejoindre l’attente. La correction démarre quand tout le monde a fini ou quand le temps est écoulé.</li><li>Une réponse reconnue et unique vaut 2 points ; une réponse en doublon vaut 1 point.</li><li>Un mot rare peut être contesté : la majorité des joueurs décide s’il rapporte 2 points.</li><li>Les manches s’enchaînent, puis le classement final est sauvegardé au classement global.</li></ol><p class="sheet-copy">Astuce : tu peux rejoindre depuis le lien ou le QR de la salle. Un navigateur conserve ton identité pour retrouver tes statistiques.</p>`;
+  const inner = `<p class="sheet-copy">Le Petit Bac se joue en manches. L’hôte choisit les catégories, le temps et le nombre de tours. Une lettre apparaît : trouve un mot par catégorie avant la fin du compte à rebours.</p><ol class="rules-list"><li>Au moins deux catégories sont sélectionnées avant le départ.</li><li>Chaque mot doit commencer par la lettre de la manche.</li><li>Valide ta grille pour rejoindre l’attente. La correction démarre quand tout le monde a fini ou quand le temps est écoulé.</li><li>Celui qui a lancé le salon corrige chaque réponse, joueur après joueur. Tout le monde voit la correction en direct.</li><li>Les autres joueurs peuvent contester. Le vote du groupe tranche alors : une réponse unique vaut 2 points, un doublon 1 point.</li><li>Les manches s’enchaînent, puis le classement final est sauvegardé au classement global.</li></ol><p class="sheet-copy">Une arène signée Poséidon - Del'Hiver. Rejoins une salle avec le lien ou le QR.</p>`;
   state.sheet = showSheet('Règles du jeu', inner, () => { state.sheet = null; });
 }
 
 function openChat() {
-  const messages = (state.game?.chat || []).map(item => `<div class="chat-line"><b>${esc(item.name)}</b>${esc(item.message)}</div>`).join('') || '<div class="empty-state">Lance une petite discussion 👋</div>';
+  const messages = (state.game?.chat || []).map(item => `<div class="chat-line"><b>${esc(item.name)}</b>${esc(item.message)}</div>`).join('') || '<div class="empty-state">Aucun message pour le moment.</div>';
   const inner = `<div class="chat-list" id="chat-messages">${messages}</div><form class="chat-send" id="chat-form"><input class="text-input" name="message" maxlength="180" autocomplete="off" placeholder="Écrire un message…" aria-label="Message"><button class="btn btn-primary btn-sm" type="submit">Envoyer</button></form>`;
   state.sheet = showSheet('Chat de la salle', inner, () => { state.sheet = null; });
 }
@@ -258,7 +261,7 @@ function updateChatIfOpen() {
   const list = document.querySelector('#chat-messages');
   if (!list || !state.game) return;
   const nearBottom = list.scrollHeight - list.scrollTop - list.clientHeight < 30;
-  list.innerHTML = state.game.chat?.map(item => `<div class="chat-line"><b>${esc(item.name)}</b>${esc(item.message)}</div>`).join('') || '<div class="empty-state">Lance une petite discussion 👋</div>';
+  list.innerHTML = state.game.chat?.map(item => `<div class="chat-line"><b>${esc(item.name)}</b>${esc(item.message)}</div>`).join('') || '<div class="empty-state">Aucun message pour le moment.</div>';
   if (nearBottom) list.scrollTop = list.scrollHeight;
 }
 
@@ -371,11 +374,14 @@ async function handleAction(button) {
   }
   if (action === 'install') {
     if (state.deferredPrompt) { state.deferredPrompt.prompt(); await state.deferredPrompt.userChoice; state.deferredPrompt = null; await render(); }
-    else state.sheet = showSheet('Installer Petit Bac Arena', `<p class="sheet-copy">Sur iPhone ou iPad, touche <strong>Partager</strong> puis <strong>Sur l’écran d’accueil</strong>. Sur Android, ouvre le menu du navigateur et choisis <strong>Installer l’application</strong> ou <strong>Ajouter à l’écran d’accueil</strong>.</p>`, () => { state.sheet = null; });
+    else state.sheet = showSheet('Installer Poséidon - Del\'Hiver', `<p class="sheet-copy">Sur iPhone ou iPad, touche <strong>Partager</strong> puis <strong>Sur l’écran d’accueil</strong>. Sur Android, ouvre le menu du navigateur et choisis <strong>Installer l’application</strong> ou <strong>Ajouter à l’écran d’accueil</strong>.</p>`, () => { state.sheet = null; });
     return;
   }
   if (action === 'start') return runAction('start');
   if (action === 'replay') return runAction('replay');
+  if (action === 'judge') return runAction('judge', { valid: button.dataset.valid === 'true' });
+  if (action === 'contest') return runAction('contest');
+  if (action === 'next') return runAction('next');
   if (action === 'vote') return runAction('vote', { valid: button.dataset.valid === 'true' });
   if (action === 'chat') return openChat();
   if (action === 'copy-code' || action === 'copy-link') {

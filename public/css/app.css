@@ -92,8 +92,10 @@ a {
   min-height:100svh;
   margin:0 auto;
   padding:env(safe-area-inset-top) 20px calc(94px + env(safe-area-inset-bottom));
-  position:relative;
-  overflow:hidden
+  position:relative
+}
+.app-shell:not(:has(.bottom-nav)) {
+  padding-bottom:calc(28px + env(safe-area-inset-bottom))
 }
 .app-shell.wide {
   width:min(100%,900px)
@@ -386,8 +388,8 @@ a {
   position:absolute;
   right:11px;
   bottom:7px;
-  font-size:30px;
-  opacity:.12
+  opacity:.16;
+  color:var(--gold)
 }
 .online-pill {
   display:flex;
@@ -531,8 +533,14 @@ a {
   font-size:12px;
   transition:all .2s
 }
-.category-chip span:first-child {
-  font-size:16px
+.chip-icon,.cat-icon {
+  display:inline-grid;
+  place-items:center;
+  color:var(--accent);
+  flex:none
+}
+.chip-check svg {
+  display:block
 }
 .category-chip[aria-pressed="true"] {
   border-color:rgba(173,142,255,.57);
@@ -578,10 +586,13 @@ a {
   margin:8px 1px 0
 }
 .form-footer {
-  position:sticky;
-  bottom:calc(75px + env(safe-area-inset-bottom));
-  padding-top:17px;
-  background:linear-gradient(0deg,var(--bg) 72%,transparent)
+  position:static;
+  margin-top:22px;
+  padding-top:4px
+}
+#create-form .field:last-of-type {
+  position:relative;
+  z-index:1
 }
 .error-note {
   min-height:16px;
@@ -776,8 +787,15 @@ a {
   font-size:11px;
   font-weight:800
 }
-.answer-top .emoji {
-  font-size:16px
+.answer-top .cat-icon {
+  color:var(--cyan)
+}
+.correction-category .cat-icon {
+  color:var(--accent)
+}
+.appeal-head svg,.waiting-banner svg {
+  vertical-align:-3px;
+  margin-right:6px
 }
 .answer-input {
   width:100%;
@@ -823,6 +841,10 @@ a {
   font-weight:800
 }
 .correction-category {
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:10px;
   font:700 clamp(27px,8vw,39px)/1.1 'Space Grotesk';
   letter-spacing:-1px;
   margin:8px 0 3px
@@ -898,7 +920,7 @@ a {
   color:#e2a7ff;
   background:rgba(226,167,255,.11)
 }
-.result-badge.missed {
+.result-badge.missed,.result-badge.pending {
   color:var(--muted2)
 }
 .points {
@@ -1043,11 +1065,24 @@ a {
   margin:7px 0
 }
 .medal {
-  font-size:17px;
+  width:28px;
+  height:28px;
+  display:grid;
+  place-items:center;
   position:absolute;
-  top:-27px;
+  top:-16px;
   left:50%;
-  transform:translateX(-50%)
+  transform:translateX(-50%);
+  border-radius:50%;
+  background:#2a2438;
+  border:1px solid rgba(255,255,255,.16);
+  font:700 12px 'Space Grotesk';
+  color:#fff
+}
+.podium-place.first .medal {
+  background:linear-gradient(145deg,#ffe7a3,#e2b34a);
+  color:#2a2110;
+  border-color:transparent
 }
 .skeleton {
   background:linear-gradient(90deg,rgba(255,255,255,.04),rgba(255,255,255,.1),rgba(255,255,255,.04));

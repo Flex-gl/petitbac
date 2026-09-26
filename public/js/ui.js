@@ -14,14 +14,25 @@ const ICONS = {
   check: '<path d="m5 12 4 4L19 6"/>',
   install: '<path d="M12 3v12m-5-5 5 5 5-5M5 21h14"/>',
   wifi: '<path d="M5 12.5a11 11 0 0 1 14 0M8.5 16a5.5 5.5 0 0 1 7 0M12 19h.01"/>',
-  wifiOff: '<path d="m3 3 18 18M5 12.5a11 11 0 0 1 12-1.6M8.5 16a5.5 5.5 0 0 1 5-.9M12 19h.01"/>'
+  wifiOff: '<path d="m3 3 18 18M5 12.5a11 11 0 0 1 12-1.6M8.5 16a5.5 5.5 0 0 1 5-.9M12 19h.01"/>',
+  user: '<circle cx="12" cy="8" r="3.2"/><path d="M5.5 19.5a6.5 6.5 0 0 1 13 0"/>',
+  globe: '<circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17M12 3.5c2.4 2.6 3.6 5.5 3.6 8.5s-1.2 5.9-3.6 8.5c-2.4-2.6-3.6-5.5-3.6-8.5s1.2-5.9 3.6-8.5Z"/>',
+  city: '<path d="M4 20V9.5L9 7v13M10 20V5l6 2.5V20M3 20h18M12.2 9h.01M12.2 12.5h.01M12.2 16h.01"/>',
+  paw: '<circle cx="7.2" cy="9" r="1.35"/><circle cx="10.6" cy="6.6" r="1.35"/><circle cx="14.4" cy="7.4" r="1.35"/><circle cx="16.8" cy="10.6" r="1.25"/><path d="M8.4 13.8c.7-1.5 2-2.3 3.6-2.3s2.9.8 3.6 2.3c.7 1.4.1 3.1-1.7 3.8-.9.4-1.9.2-1.9.2s-1 .2-1.9-.2c-1.8-.7-2.4-2.4-1.7-3.8Z"/>',
+  briefcase: '<rect x="3" y="7" width="18" height="12" rx="2"/><path d="M8 7V5.5A1.5 1.5 0 0 1 9.5 4h5A1.5 1.5 0 0 1 16 5.5V7M3 12h18"/>',
+  leaf: '<path d="M5 19c7.5 0 14-7 14-14-7 0-14 6.5-14 14Z"/><path d="M8.5 15.5c2-2 4.5-4.5 7.5-6.5"/>',
+  cube: '<path d="m12 3 8 4.5v9L12 21l-8-4.5v-9L12 3Z"/><path d="m12 12-8-4.5M12 12l8-4.5M12 12v9"/>',
+  palette: '<path d="M12 3.5a8.5 8.5 0 1 0 0 17h1.2a2.2 2.2 0 0 0 0-4.4H12a1.8 1.8 0 0 1 0-3.6 8.5 8.5 0 0 0 0-9Z"/><circle cx="8" cy="10" r=".7" fill="currentColor" stroke="none"/><circle cx="9.2" cy="7.2" r=".7" fill="currentColor" stroke="none"/><circle cx="12.4" cy="6.6" r=".7" fill="currentColor" stroke="none"/>',
+  tag: '<path d="M20 13.2 12.8 20a1.8 1.8 0 0 1-2.5 0L4 13.7V4h9.7l6.3 6.3a1.8 1.8 0 0 1 0 2.5Z"/><circle cx="8.2" cy="8.2" r="1.1"/>',
+  sport: '<circle cx="12" cy="12" r="8.5"/><path d="M12 3.5c2.2 2.4 3.3 5.3 3.3 8.5S14.2 18.1 12 20.5C9.8 18.1 8.7 15.2 8.7 12S9.8 5.9 12 3.5ZM3.8 9.2h16.4M3.8 14.8h16.4"/>',
+  scale: '<path d="M12 4v15M8 20h8M12 7l6.5 3.2L16 16.2a3.1 3.1 0 0 1-5.9 0L12 10.2M12 7 5.5 10.2 8 16.2a3.1 3.1 0 0 0 5.9 0"/>'
 };
 
 export function icon(name, size = 20) { return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name] || ICONS.spark}</svg>`; }
 export function esc(value) { return String(value ?? '').replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character]); }
 export function shell(content, options = {}) {
   const nav = options.nav === false ? '' : `<nav class="bottom-nav" aria-label="Navigation principale"><button class="nav-item ${options.active === 'home' ? 'active' : ''}" data-action="home">${icon('home')}<span>Accueil</span></button><button class="nav-item ${options.active === 'rank' ? 'active' : ''}" data-action="rankings">${icon('trophy')}<span>Scores</span></button><button class="nav-item" data-action="rules">${icon('rules')}<span>Règles</span></button></nav>`;
-  return `<div class="app-shell ${options.wide ? 'wide' : ''}"><header class="topbar"><a class="brand" href="/" data-action="home" aria-label="Petit Bac Arena, accueil"><span class="brand-mark">B</span><span class="brand-name">PETIT BAC<span class="brand-tag">ARENA</span></span></a>${options.right || ''}</header><main id="main" class="view-enter">${content}</main>${nav}</div><div class="toast" role="status" aria-live="polite"></div>`;
+  return `<div class="app-shell ${options.wide ? 'wide' : ''}"><header class="topbar"><a class="brand" href="/" data-action="home" aria-label="Poséidon - Del'Hiver, accueil"><span class="brand-mark">P</span><span class="brand-name">Poséidon<span class="brand-tag">Del'Hiver</span></span></a>${options.right || ''}</header><main id="main" class="view-enter">${content}</main>${nav}</div><div class="toast" role="status" aria-live="polite"></div>`;
 }
 export function pageHead(title, subtitle, back = true) { return `<div class="page-head">${back ? `<button class="back-btn" data-action="back" aria-label="Retour">${icon('back')}</button>` : ''}<div><h1>${esc(title)}</h1><p>${esc(subtitle)}</p></div></div>`; }
 export function button(label, action, style = 'primary', extra = '') { return `<button class="btn btn-${style} ${extra}" data-action="${action}">${label}</button>`; }
@@ -30,7 +41,7 @@ export function toast(message) { const node = document.querySelector('.toast'); 
 export function navIcon(name) { return icon(name, 19); }
 export function scoreCard(player, index) {
   const medals = ['01', '02', '03'];
-  return `<article class="leader-card"><span class="leader-rank">${medals[index] || `#${index + 1}`}</span><span class="leader-score">${Number(player.totalScore || 0)} pts</span><b class="leader-name">${esc(player.name)}</b><span class="leader-meta">${Number(player.wins || 0)} victoire${player.wins === 1 ? '' : 's'} · ${Number(player.games || 0)} parties</span><span class="leader-crown">♛</span></article>`;
+  return `<article class="leader-card"><span class="leader-rank">${medals[index] || `#${index + 1}`}</span><span class="leader-score">${Number(player.totalScore || 0)} pts</span><b class="leader-name">${esc(player.name)}</b><span class="leader-meta">${Number(player.wins || 0)} victoire${player.wins === 1 ? '' : 's'} · ${Number(player.games || 0)} parties</span><span class="leader-crown">${icon('crown', 28)}</span></article>`;
 }
 export function showSheet(title, inner, onClose) {
   const backdrop = document.createElement('div');

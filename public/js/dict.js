@@ -1,10 +1,10 @@
 // Lexique français embarqué. Les réponses rares passent par le vote d'appel.
 export const CATEGORIES = [
-  { id: 'prenom', label: 'Prénom', emoji: '🧑' }, { id: 'pays', label: 'Pays', emoji: '🌍' },
-  { id: 'ville', label: 'Ville', emoji: '🏙️' }, { id: 'animal', label: 'Animal', emoji: '🐾' },
-  { id: 'metier', label: 'Métier', emoji: '🧰' }, { id: 'fruit', label: 'Fruit / légume', emoji: '🥑' },
-  { id: 'objet', label: 'Objet', emoji: '🪄' }, { id: 'couleur', label: 'Couleur', emoji: '🎨' },
-  { id: 'marque', label: 'Marque', emoji: '✨' }, { id: 'sport', label: 'Sport', emoji: '🏅' }
+  { id: 'prenom', label: 'Prénom', icon: 'user' }, { id: 'pays', label: 'Pays', icon: 'globe' },
+  { id: 'ville', label: 'Ville', icon: 'city' }, { id: 'animal', label: 'Animal', icon: 'paw' },
+  { id: 'metier', label: 'Métier', icon: 'briefcase' }, { id: 'fruit', label: 'Fruit / légume', icon: 'leaf' },
+  { id: 'objet', label: 'Objet', icon: 'cube' }, { id: 'couleur', label: 'Couleur', icon: 'palette' },
+  { id: 'marque', label: 'Marque', icon: 'tag' }, { id: 'sport', label: 'Sport', icon: 'sport' }
 ];
 
 const WORDS = {
