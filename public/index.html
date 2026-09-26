@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#100e1c">
+    <meta name="description" content="L'arène du Petit Bac. Crée une partie, invite tes amis et joue en direct.">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="manifest" href="/manifest.webmanifest">
+    <link rel="icon" href="/icons/icon-192.png" type="image/png">
+    <link rel="apple-touch-icon" href="/icons/icon-192.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&display=swap&subset=latin" rel="stylesheet">
+    <style>
+      :root{color-scheme:dark;background:#100e1c;color:#f8f6ff;font-family:'Inter',system-ui,sans-serif}*{box-sizing:border-box}html,body{margin:0;min-height:100%;background:#100e1c}body{min-height:100svh}button,input{font:inherit}button{color:inherit}#app{min-height:100svh}
+    </style>
+    <link rel="preload" href="/css/app.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
+    <noscript><link rel="stylesheet" href="/css/app.css"></noscript>
+    <link rel="preload" href="/css/animations.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
+    <noscript><link rel="stylesheet" href="/css/animations.css"></noscript>
+    <link rel="preload" href="/css/splash.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
+    <noscript><link rel="stylesheet" href="/css/splash.css"></noscript>
+    <link rel="preload" href="/css/controls.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
+    <noscript><link rel="stylesheet" href="/css/controls.css"></noscript>
+    <title>Petit Bac Arena</title>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Aller au contenu</a>
+    <div id="app" aria-live="polite"></div>
+    <script type="module" src="/js/app.js"></script>
+    <script>if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('/sw.js').catch(()=>{}));</script>
+  </body>
+</html>

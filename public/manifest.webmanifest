@@ -1,0 +1,19 @@
+{
+  "id": "/",
+  "name": "Petit Bac Arena",
+  "short_name": "Bac Arena",
+  "description": "Le Petit Bac multijoueur, en direct avec tes amis.",
+  "lang": "fr-FR",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#100e1c",
+  "theme_color": "#100e1c",
+  "categories": ["games", "social"],
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
