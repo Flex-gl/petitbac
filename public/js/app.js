@@ -84,7 +84,7 @@ function renderQr() {
   const paint = () => {
     if (!window.QRCode || !document.body.contains(box)) return;
     box.replaceChildren();
-    new window.QRCode(box, { text: `${location.origin}/?join=${state.game.code}`, width: 108, height: 108, colorDark: '#171425', colorLight: '#ffffff', correctLevel: window.QRCode.CorrectLevel.M });
+    new window.QRCode(box, { text: `${location.origin}/s/${state.game.code}`, width: 108, height: 108, colorDark: '#171425', colorLight: '#ffffff', correctLevel: window.QRCode.CorrectLevel.M });
   };
   if (window.QRCode) return paint();
   const script = document.createElement('script');
@@ -236,14 +236,56 @@ function enterRoom(game) {
   state.pollFailures = 0;
   closeSse();
   state.sheet = null;
-  history.replaceState(null, '', `/?room=${encodeURIComponent(game.code)}`);
+  history.replaceState(null, '', `/s/${encodeURIComponent(game.code)}`);
   render();
   schedulePoll(100);
 }
 
+function roomCode(value) {
+  return String(value || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6);
+}
+
+function inviteCode() {
+  const params = new URL(location.href).searchParams;
+  const fromPath = location.pathname.match(/^\/s\/([A-Za-z0-9]{6})\/?$/);
+  return roomCode(params.get('join') || params.get('room') || fromPath?.[1] || '');
+}
+
 function openJoinSheet(initialCode = '') {
-  const inner = `<form id="join-form" novalidate><label class="field"><span class="field-label">Ton prénom</span><input class="text-input" name="name" maxlength="18" autocomplete="nickname" placeholder="Ex. Alex" value="${esc(state.name)}" required></label><label class="field"><span class="field-label">Code de la salle</span><input class="text-input" name="code" maxlength="6" autocapitalize="characters" autocomplete="off" placeholder="ABC123" value="${esc(initialCode)}" required style="text-transform:uppercase;letter-spacing:.16em;font-weight:800"></label><div class="error-note" data-form-error role="status"></div><button class="btn btn-primary btn-full" type="submit">Entrer dans la salle ${icon('arrow', 17)}</button></form><p class="form-note">Tu peux aussi scanner le QR avec l’appareil photo de ton téléphone.</p>`;
-  state.sheet = showSheet('Rejoindre une salle', inner, () => { state.sheet = null; });
+  const code = roomCode(initialCode);
+  const locked = code.length === 6;
+  const codeField = locked
+    ? `<input type="hidden" name="code" value="${esc(code)}"><p class="form-note">Salle <strong>${esc(code)}</strong>. Choisis ton prénom pour entrer.</p>`
+    : `<label class="field"><span class="field-label">Code de la salle</span><input class="text-input" name="code" maxlength="6" autocapitalize="characters" autocomplete="off" placeholder="ABC123" value="${esc(initialCode)}" required style="text-transform:uppercase;letter-spacing:.16em;font-weight:800"></label>`;
+  const inner = `<form id="join-form" novalidate><label class="field"><span class="field-label">Ton prénom</span><input class="text-input" name="name" maxlength="18" autocomplete="nickname" placeholder="Ex. Alex" value="${esc(state.name)}" required></label>${codeField}<div class="error-note" data-form-error role="status"></div><button class="btn btn-primary btn-full" type="submit">Entrer dans la salle ${icon('arrow', 17)}</button></form>`;
+  state.sheet = showSheet(locked ? `Rejoindre ${code}` : 'Rejoindre une salle', inner, () => { state.sheet = null; });
+}
+
+async function followInvite(rawCode) {
+  const code = roomCode(rawCode);
+  if (code.length !== 6) return;
+  try {
+    const data = await api.game(code, playerId);
+    const game = data.game;
+    if (game.players.some(player => player.id === playerId)) {
+      enterRoom(game);
+      return;
+    }
+    if (game.status !== 'lobby') {
+      toast('La partie a déjà commencé.');
+      return;
+    }
+    const name = state.name.trim();
+    if (name.length >= 2 && game.status === 'lobby') {
+      const joined = await api.action({ action: 'join', code, playerId, name });
+      enterRoom(joined.game);
+      toast(`Salle rejointe en tant que ${name}.`);
+      return;
+    }
+    openJoinSheet(code);
+  } catch (error) {
+    toast(error.message);
+  }
 }
 
 function openRules() {
@@ -361,7 +403,7 @@ async function handleAction(button) {
     state.page = 'setup';
     return render();
   }
-  if (action === 'join') return openJoinSheet(new URL(location.href).searchParams.get('join') || '');
+  if (action === 'join') return openJoinSheet(inviteCode());
   if (action === 'rules') return openRules();
   if (action === 'rankings') {
     state.page = 'rankings';
@@ -385,9 +427,17 @@ async function handleAction(button) {
   if (action === 'vote') return runAction('vote', { valid: button.dataset.valid === 'true' });
   if (action === 'chat') return openChat();
   if (action === 'copy-code' || action === 'copy-link') {
-    const value = action === 'copy-code' ? state.game?.code : `${location.origin}/?join=${state.game?.code}`;
+    const value = action === 'copy-code' ? state.game?.code : `${location.origin}/s/${state.game?.code}`;
+    if (action === 'copy-link' && navigator.share) {
+      try {
+        await navigator.share({ title: 'Poséidon - Del\'Hiver', text: `Rejoins la salle ${state.game?.code}`, url: value });
+        return;
+      } catch (error) {
+        if (error?.name === 'AbortError') return;
+      }
+    }
     try { await navigator.clipboard.writeText(value); toast(action === 'copy-code' ? 'Code copié !' : 'Lien d’invitation copié !'); }
-    catch { toast(`Code de salle : ${state.game?.code}`); }
+    catch { toast(action === 'copy-code' ? `Code de salle : ${state.game?.code}` : value); }
     return;
   }
 }
@@ -451,11 +501,6 @@ setTimeout(async () => {
     else setTimeout(prefetch, 1400);
   }
   refreshScores(true);
-  const params = new URL(location.href).searchParams;
-  if (params.has('join')) openJoinSheet(params.get('join'));
-  else if (params.has('room')) {
-    state.page = 'room';
-    state.code = params.get('room').toUpperCase();
-    pollRoom();
-  }
+  const code = inviteCode();
+  if (code.length === 6) followInvite(code);
 }, 620);

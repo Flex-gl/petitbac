@@ -614,6 +614,13 @@ a {
   font-size:12px;
   margin:5px 0 14px
 }
+.invite-url {
+  margin:0 0 12px;
+  color:var(--cyan);
+  font-size:12px;
+  line-height:1.4;
+  word-break:break-all
+}
 .code-card,.surface {
   border:1px solid var(--line);
   border-radius:var(--radius);
