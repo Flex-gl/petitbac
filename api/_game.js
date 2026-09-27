@@ -1,7 +1,7 @@
 import { createIfAbsent, getJson, updateVersioned, recordResults } from './_redis.js';
 import { hasWord, CATEGORIES } from '../public/js/dict.js';
 
-const GAME_TTL = 86400;
+const GAME_TTL = 604800;
 const ROOM_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const ALLOWED_DURATIONS = [60, 90, 120, 180];
 const ALLOWED_ROUNDS = [3, 5, 10];
@@ -95,7 +95,7 @@ function categoryEvaluations(game, category) {
 
 function settlePoints(game, category, result) {
   const results = game.correction.categoryResults[category] || [];
-  const peers = results.filter(entry => entry !== result && entry.accepted && entry.normalized === result.normalized);
+  const peers = results.filter(entry => entry.playerId !== result.playerId && entry.accepted && entry.normalized === result.normalized);
   if (!peers.length) return Object.keys(game.submissions).length > 1 ? 2 : 1;
   for (const peer of peers) {
     if (peer.points <= 1) continue;
@@ -111,6 +111,7 @@ function settlePoints(game, category, result) {
 }
 
 function lockDecision(game, accepted, source = 'host') {
+  syncCorrection(game);
   const active = game.correction?.activeWord;
   const result = active?.result;
   if (!result || result.locked) return;
@@ -154,6 +155,17 @@ function currentCategory(game) {
   return game.config.categories[game.correction.categoryIndex];
 }
 
+function syncCorrection(game) {
+  const active = game.correction?.activeWord;
+  if (!active?.category) return;
+  const list = game.correction.categoryResults?.[active.category];
+  if (!Array.isArray(list)) return;
+  const canonical = list[game.correction.playerIndex];
+  if (!canonical) return;
+  if (active.result && active.result !== canonical) Object.assign(canonical, active.result);
+  active.result = canonical;
+}
+
 function advanceCorrection(game, now) {
   const correction = game.correction;
   correction.activeWord = null;
@@ -177,6 +189,7 @@ function advanceCorrection(game, now) {
 }
 
 function tick(game, now) {
+  syncCorrection(game);
   if (game.status === 'playing' && (now >= game.roundEndsAt || game.players.every(entry => game.submissions[entry.id]))) {
     prepareCorrection(game, now);
   }
@@ -231,6 +244,7 @@ export async function getGame(codeValue) {
       if (game.status === 'finished') await recordResults(game);
       return game;
     }
+    syncCorrection(game);
     if (await updateVersioned(key, { version }, game, GAME_TTL)) {
       if (game.status === 'finished') await recordResults(game);
       return game;
@@ -250,7 +264,7 @@ export async function createGame(input) {
   const playerInfo = { id, name, score: 0, roundScore: 0, roundsPlayed: 0, joinedAt: Date.now() };
   for (let attempt = 0; attempt < 8; attempt += 1) {
     const roomCode = code();
-    const game = { code: roomCode, matchId: crypto.randomUUID(), version: 0, status: 'lobby', hostId: id, config: { categories, duration, rounds }, players: [playerInfo], round: 0, submissions: {}, chat: [], createdAt: Date.now() };
+    const game = { code: roomCode, matchId: crypto.randomUUID(), version: 0, status: 'lobby', hostId: id, hostSecret: crypto.randomUUID(), config: { categories, duration, rounds }, players: [playerInfo], round: 0, submissions: {}, chat: [], createdAt: Date.now() };
     if (await createIfAbsent(`arena:game:${roomCode}`, game, GAME_TTL)) return game;
   }
   throw new GameError('Impossible de réserver un code de salle. Réessaie.', 503);
@@ -267,7 +281,25 @@ export async function mutateGame(input) {
     const version = game.version || 0;
     tick(game, Date.now());
     const action = String(input.action || '');
-    if (action === 'join') {
+    if (action === 'reclaim') {
+      if (!game.hostSecret || String(input.hostSecret || '') !== game.hostSecret) throw new GameError('Tu ne peux pas reprendre ce salon.', 403);
+      const oldId = game.hostId;
+      const previous = game.players.find(entry => entry.id === oldId);
+      const name = input.name ? cleanName(input.name) : previous?.name;
+      if (previous) {
+        previous.id = playerId;
+        if (name) previous.name = name;
+      } else game.players.unshift({ id: playerId, name: name || 'Hôte', score: 0, roundScore: 0, roundsPlayed: 0, joinedAt: Date.now() });
+      if (oldId !== playerId && game.submissions?.[oldId]) {
+        game.submissions[playerId] = game.submissions[oldId];
+        delete game.submissions[oldId];
+      }
+      for (const list of Object.values(game.correction?.categoryResults || {})) {
+        for (const result of list || []) if (result.playerId === oldId) result.playerId = playerId;
+      }
+      if (game.correction?.activeWord?.result?.playerId === oldId) game.correction.activeWord.result.playerId = playerId;
+      game.hostId = playerId;
+    } else if (action === 'join') {
       const name = cleanName(input.name);
       if (game.status !== 'lobby') throw new GameError('La partie a déjà commencé.');
       const returningPlayer = player(game, playerId);
@@ -350,6 +382,7 @@ export async function mutateGame(input) {
         throw new GameError('Action de jeu inconnue.');
       }
     }
+    syncCorrection(game);
     if (await updateVersioned(key, { version }, game, GAME_TTL)) {
       if (game.status === 'finished') await recordResults(game);
       return game;
@@ -365,8 +398,9 @@ export function publicGame(game, viewerId = '') {
     const category = game.config.categories[correction.categoryIndex];
     const all = correction.categoryResults?.[category] || [];
     const visibleResults = all.map((result, index) => {
+      const current = index === correction.playerIndex && correction.activeWord?.result ? correction.activeWord.result : result;
       const revealed = index < correction.playerIndex || (index === correction.playerIndex && Boolean(correction.activeWord));
-      if (revealed) return { ...result, votes: undefined, revealed: true };
+      if (revealed) return { ...current, votes: undefined, revealed: true };
       return { playerId: result.playerId, playerName: result.playerName, revealed: false };
     });
     const activeWord = correction.activeWord ? {
@@ -378,7 +412,8 @@ export function publicGame(game, viewerId = '') {
     } : null;
     correction = { categoryIndex: correction.categoryIndex, playerIndex: correction.playerIndex, activeWord, visibleResults, startedAt: correction.startedAt };
   }
-  return { ...game, correction, submissions: Object.fromEntries(Object.entries(game.submissions || {}).map(([id, submission]) => [id, { submittedAt: submission.submittedAt }])), serverNow: Date.now() };
+  const viewerIsHost = game.hostId === viewerId;
+  return { ...game, hostSecret: viewerIsHost ? game.hostSecret : undefined, correction, submissions: Object.fromEntries(Object.entries(game.submissions || {}).map(([id, submission]) => [id, { submittedAt: submission.submittedAt }])), serverNow: Date.now() };
 }
 
 export const config = { runtime: 'edge' };

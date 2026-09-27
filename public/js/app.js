@@ -6,21 +6,31 @@ const root = document.querySelector('#app');
 const idStorage = 'petitbac.playerId';
 const nameStorage = 'petitbac.playerName';
 const rankStorage = 'petitbac.leaderboard';
+const sessionKey = 'petitbac.session';
+const profileKey = 'petitbac.profile';
 const playerId = localStorage.getItem(idStorage) || crypto.randomUUID();
 localStorage.setItem(idStorage, playerId);
 
+function readJson(key) {
+  try { return JSON.parse(localStorage.getItem(key) || 'null'); }
+  catch { return null; }
+}
+function loadStoredRanks() {
+  const stored = readJson(rankStorage);
+  return Array.isArray(stored) ? stored : [];
+}
+function loadSession() { return readJson(sessionKey); }
+
 const state = {
   page: 'home', name: localStorage.getItem(nameStorage) || '', game: null, code: '',
-  top: loadStoredRanks(), profile: null,
+  top: loadStoredRanks(), profile: readJson(profileKey),
+  scoresState: loadStoredRanks().length ? 'ready' : 'loading',
+  savedRoom: null,
   online: navigator.onLine, deferredPrompt: null, sheet: null, pollTimer: null,
   roomSignature: '', pollBusy: false, priorGameStatus: null, lastReveal: '',
   lastRankRefresh: 0, roomError: '', pollFailures: 0, eventSource: null, usingSse: false,
   clockOffset: 0
 };
-function loadStoredRanks() {
-  try { return JSON.parse(localStorage.getItem(rankStorage) || '[]'); }
-  catch { return []; }
-}
 let validateAnswer = null;
 let celebrate = () => {};
 let playRevealTone = () => {};
@@ -51,7 +61,7 @@ function roomSignature(game) {
 
 async function render() {
   if (state.page === 'home') {
-    root.innerHTML = homeScreen({ top: state.top, online: state.online, canInstall: Boolean(state.deferredPrompt) || !matchMedia('(display-mode: standalone)').matches, profile: state.profile });
+    root.innerHTML = homeScreen({ top: state.top, scoresState: state.scoresState, online: state.online, canInstall: Boolean(state.deferredPrompt) || !matchMedia('(display-mode: standalone)').matches, profile: state.profile, savedRoom: state.savedRoom });
   } else if (state.page === 'setup') {
     await loadGameFeatures();
     const { setupScreen } = await import('./screens/setup.js');
@@ -69,6 +79,7 @@ async function render() {
     else if (state.game.status === 'between') root.innerHTML = screens.betweenScreen(state.game);
     else root.innerHTML = screens.finalScreen(state.game, playerId);
     if (state.game.status === 'lobby') renderQr();
+    else if (state.game.status === 'playing') restoreDraft(state.game);
   }
   if (state.roomError && state.page === 'room') {
     const main = root.querySelector('#main');
@@ -120,13 +131,16 @@ async function refreshScores(force = false) {
   try {
     const data = await api.scores(playerId);
     state.top = data.top || [];
-    state.profile = data.profile || null;
+    state.profile = data.profile || state.profile;
+    state.scoresState = 'ready';
     state.lastRankRefresh = Date.now();
     localStorage.setItem(rankStorage, JSON.stringify(state.top));
+    if (state.profile) localStorage.setItem(profileKey, JSON.stringify(state.profile));
     if (state.page === 'home' || state.page === 'rankings') await render();
   } catch {
+    state.scoresState = state.top.length ? 'ready' : 'error';
     state.online = navigator.onLine;
-    if (state.page === 'home') await render();
+    if (state.page === 'home' || state.page === 'rankings') await render();
   }
 }
 
@@ -142,6 +156,7 @@ async function pollRoom() {
   try {
     const data = await api.game(state.code, playerId);
     const next = data.game;
+    if (state.page !== 'room') return;
     state.clockOffset = (next.serverNow || Date.now()) - Date.now();
     state.pollFailures = 0;
     state.roomError = '';
@@ -151,6 +166,8 @@ async function pollRoom() {
     state.game = next;
     state.roomSignature = signature;
     state.online = true;
+    rememberRoom(next);
+    if (state.page !== 'room') return;
     if (changedView) {
       const active = next.correction?.activeWord;
       if (active && `${next.matchId}:${next.round}:${active.revealedAt}` !== state.lastReveal) {
@@ -186,9 +203,11 @@ function acceptStreamGame(game) {
   const signature = roomSignature(game);
   const changedView = signature !== state.roomSignature;
   const wasFinished = state.game?.status === 'finished';
+  if (state.page !== 'room') return;
   state.game = game;
   state.clockOffset = (game.serverNow || Date.now()) - Date.now();
   state.roomSignature = signature;
+  rememberRoom(game);
   state.roomError = '';
   state.online = true;
   if (changedView) {
@@ -236,11 +255,56 @@ function enterRoom(game) {
   state.roomSignature = roomSignature(game);
   state.roomError = '';
   state.pollFailures = 0;
+  state.savedRoom = null;
+  rememberRoom(game);
   closeSse();
+  state.sheet?.close?.();
   state.sheet = null;
   history.replaceState(null, '', `/s/${encodeURIComponent(game.code)}`);
   render();
   schedulePoll(100);
+}
+
+function rememberRoom(game) {
+  if (!game?.code || state.page !== 'room') return;
+  if (game.hostSecret) localStorage.setItem(`petitbac.hostSecret.${game.code}`, game.hostSecret);
+  const secret = localStorage.getItem(`petitbac.hostSecret.${game.code}`) || '';
+  localStorage.setItem(sessionKey, JSON.stringify({ code: game.code, host: game.hostId === playerId, name: state.name || game.players?.find(entry => entry.id === playerId)?.name || '', paused: false, savedAt: Date.now(), secret }));
+}
+
+function draftKey(game) {
+  return `petitbac.draft.${game.code}.${game.matchId}.${game.round}`;
+}
+
+function restoreDraft(game) {
+  if (game.submissions?.[playerId]) return;
+  const draft = readJson(draftKey(game));
+  if (!draft || typeof draft !== 'object') return;
+  for (const input of document.querySelectorAll('[data-answer]')) {
+    const value = draft[input.dataset.answer];
+    if (value && !input.value) input.value = String(value);
+  }
+}
+
+function pauseSession() {
+  const session = loadSession();
+  if (!session?.code) return;
+  session.paused = true;
+  localStorage.setItem(sessionKey, JSON.stringify(session));
+  state.savedRoom = session;
+}
+
+function goHome(pauseRoom = false) {
+  clearTimeout(state.pollTimer);
+  closeSse();
+  state.sheet?.close?.();
+  state.sheet = null;
+  state.page = 'home';
+  state.game = null;
+  if (pauseRoom) pauseSession();
+  else state.savedRoom = loadSession();
+  history.replaceState(null, '', '/');
+  return render();
 }
 
 function roomCode(value) {
@@ -273,6 +337,18 @@ async function followInvite(rawCode) {
       enterRoom(game);
       return;
     }
+    const stored = loadSession();
+    const secret = localStorage.getItem(`petitbac.hostSecret.${code}`) || (stored?.code === code ? stored.secret : '');
+    if (secret) {
+      try {
+        const reclaimed = await api.action({ action: 'reclaim', code, playerId, name: state.name || undefined, hostSecret: secret });
+        enterRoom(reclaimed.game);
+        toast('Tu as repris le salon en tant qu’hôte.');
+        return;
+      } catch (error) {
+        if (game.status !== 'lobby') { toast(error.message); return; }
+      }
+    }
     if (game.status !== 'lobby') {
       toast('La partie a déjà commencé.');
       return;
@@ -281,7 +357,16 @@ async function followInvite(rawCode) {
     state.code = code;
     await render();
   } catch (error) {
+    if (String(error.message || '').includes('n’existe plus')) {
+      const stored = loadSession();
+      if (stored?.code === code) {
+        localStorage.removeItem(sessionKey);
+        localStorage.removeItem(`petitbac.hostSecret.${code}`);
+        state.savedRoom = null;
+      }
+    }
     toast(error.message);
+    if (state.page === 'home') render();
   }
 }
 
@@ -314,8 +399,10 @@ async function runAction(action, extra = {}) {
   haptic();
   try {
     const data = await api.action({ action, code: state.code, playerId, ...extra });
+    if (state.page !== 'room') return false;
     state.game = data.game;
     state.roomSignature = roomSignature(data.game);
+    rememberRoom(data.game);
     if (action === 'chat') updateChatIfOpen();
     else await render();
     return true;
@@ -372,7 +459,9 @@ async function submitAnswers(form) {
   const answers = Object.fromEntries([...form.querySelectorAll('[data-answer]')].map(input => [input.dataset.answer, input.value.trim()]));
   const button = form.querySelector('[type="submit"]');
   button.disabled = true;
-  if (!await runAction('submit', { answers })) button.disabled = false;
+  if (await runAction('submit', { answers })) {
+    if (state.game) localStorage.removeItem(draftKey(state.game));
+  } else button.disabled = false;
 }
 
 async function handleSubmit(event) {
@@ -393,13 +482,15 @@ async function handleAction(button) {
   const action = button.dataset.action;
   if (!action) return;
   if (['home', 'create', 'join', 'rankings', 'rules', 'back', 'install'].includes(action)) haptic();
-  if (action === 'home') {
-    clearTimeout(state.pollTimer);
-    closeSse();
-    state.page = 'home';
-    history.replaceState(null, '', '/');
-    await render();
-    return;
+  if (action === 'home') return goHome(state.page === 'room');
+  if (action === 'leave') return goHome(true);
+  if (action === 'resume') {
+    const session = loadSession();
+    if (!session?.code) return;
+    session.paused = false;
+    localStorage.setItem(sessionKey, JSON.stringify(session));
+    state.savedRoom = null;
+    return followInvite(session.code);
   }
   if (action === 'create') {
     state.page = 'setup';
@@ -408,17 +499,21 @@ async function handleAction(button) {
   if (action === 'join') return openJoinSheet(inviteCode());
   if (action === 'rules') return openRules();
   if (action === 'rankings') {
+    if (state.page === 'room') { clearTimeout(state.pollTimer); closeSse(); }
     state.page = 'rankings';
     await refreshScores(true);
     return render();
   }
   if (action === 'back') {
     if (state.page === 'setup' || state.page === 'rankings' || state.page === 'invite') {
+      const session = loadSession();
+      if (state.page === 'rankings' && session?.code && !session.paused) return followInvite(session.code);
       state.page = 'home';
+      state.savedRoom = session?.code ? session : null;
       history.replaceState(null, '', '/');
       return render();
     }
-    if (state.page === 'room') { clearTimeout(state.pollTimer); closeSse(); state.page = 'home'; history.replaceState(null, '', '/'); return render(); }
+    if (state.page === 'room') return goHome(true);
   }
   if (action === 'install') {
     if (state.deferredPrompt) { state.deferredPrompt.prompt(); await state.deferredPrompt.userChoice; state.deferredPrompt = null; await render(); }
@@ -459,11 +554,17 @@ document.addEventListener('click', event => {
     return;
   }
   const button = event.target.closest('[data-action]');
-  if (button) handleAction(button);
+  if (button) {
+    if (button.tagName === 'A' || button.tagName === 'BUTTON') event.preventDefault();
+    handleAction(button);
+  }
 });
 document.addEventListener('input', event => {
   const input = event.target.closest('[data-answer]');
   if (!input || !state.game) return;
+  const draft = readJson(draftKey(state.game)) || {};
+  draft[input.dataset.answer] = input.value;
+  localStorage.setItem(draftKey(state.game), JSON.stringify(draft));
   const result = validateAnswer(input.dataset.answer, state.game.letter, input.value);
   const field = input.closest('.answer-field');
   field.classList.toggle('good', result.state === 'valid' || result.state === 'appeal');
@@ -509,4 +610,12 @@ setTimeout(async () => {
   refreshScores(true);
   const code = inviteCode();
   if (code.length === 6) followInvite(code);
+  else {
+    const session = loadSession();
+    if (session?.code && !session.paused) followInvite(session.code);
+    else if (session?.code) {
+      state.savedRoom = session;
+      if (state.page === 'home') render();
+    }
+  }
 }, 620);
