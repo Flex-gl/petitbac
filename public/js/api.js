@@ -18,6 +18,13 @@ export const api = {
   action(data) {
     return request('/api/game', { method: 'POST', body: JSON.stringify(data) });
   },
+  inter(code, playerId, signal) {
+    const query = new URLSearchParams({ code, playerId });
+    return request(`/api/inter?${query}`, { signal });
+  },
+  interAction(data) {
+    return request('/api/inter', { method: 'POST', body: JSON.stringify(data) });
+  },
   scores(playerId, signal) {
     const query = playerId ? `?playerId=${encodeURIComponent(playerId)}` : '';
     return request(`/api/scores${query}`, { signal });

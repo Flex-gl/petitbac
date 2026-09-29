@@ -1,0 +1,292 @@
+import { api } from './api.js';
+import { haptic, showSheet, toast } from './ui.js';
+import { playCue } from './inter-audio.js';
+import { interSetupScreen, interInviteScreen, interLobbyScreen, interTableScreen, interBetweenScreen, interFinalScreen, interRulesHtml } from './screens/inter.js';
+
+const sessionKey = 'petitbac.inter.session';
+const soundKey = 'petitbac.inter.sound';
+const hapticKey = 'petitbac.inter.haptic';
+let ctx = null;
+let selected = [];
+let lastLog = '';
+let pollTimer = null;
+let pollBusy = false;
+let source = null;
+
+function readSession() {
+  try { return JSON.parse(localStorage.getItem(sessionKey) || 'null'); }
+  catch { return null; }
+}
+
+export function attachInter(context) { ctx = context; }
+export function interPathCode() {
+  const match = location.pathname.match(/^\/i\/([A-Za-z0-9]{6})\/?$/);
+  return match ? match[1].toUpperCase() : '';
+}
+export function loadInterSession() { return readSession(); }
+
+function prefs() {
+  return { sound: localStorage.getItem(soundKey) !== '0', haptic: localStorage.getItem(hapticKey) !== '0' };
+}
+
+function remember(game, paused = false) {
+  if (!game?.code || ctx.state.page !== 'inter-room') return;
+  if (game.hostSecret) localStorage.setItem(`petitbac.inter.secret.${game.code}`, game.hostSecret);
+  const secret = localStorage.getItem(`petitbac.inter.secret.${game.code}`) || '';
+  const me = game.players?.find(player => player.id === ctx.playerId);
+  localStorage.setItem(sessionKey, JSON.stringify({ code: game.code, host: game.hostId === ctx.playerId, name: me?.name || ctx.state.name, paused, savedAt: Date.now(), secret }));
+}
+
+function signature(game) {
+  if (!game) return '';
+  const me = game.players?.find(player => player.id === ctx.playerId);
+  return [game.status, game.phase, game.round, game.turnPlayerId, game.pendingDraw, game.requestedRank, game.deckCount, me?.hand?.map(card => card.id).join('.') || '', game.players.map(player => `${player.id}:${player.cardCount}:${player.ready}:${player.connected}`).join('|'), game.log?.at(-1)?.at || ''].join('~');
+}
+
+function cueFor(game) {
+  const entry = game.log?.at(-1);
+  if (!entry || `${entry.type}:${entry.at}` === lastLog) return;
+  lastLog = `${entry.type}:${entry.at}`;
+  const enabled = prefs();
+  if (entry.type === 'PLAYER_PLAYED_CARD') {
+    const joker = entry.cards?.some(card => card.rank === 'JOKER');
+    playCue(joker ? 'joker' : 'play', enabled.sound);
+    if (enabled.haptic) haptic(joker ? [20, 30, 20] : 12);
+  } else if (entry.type === 'PLAYER_DREW_CARDS') {
+    playCue(entry.reason === 'penalty' ? 'penalty' : 'draw', enabled.sound);
+    if (enabled.haptic) haptic(entry.reason === 'penalty' ? [30, 40, 30] : 8);
+  } else if (entry.type === 'PLAYER_WON') {
+    playCue('win', enabled.sound);
+    if (enabled.haptic) haptic([20, 40, 20, 40, 60]);
+  } else if (entry.type === 'PLAYER_SKIPPED' && enabled.haptic) haptic(16);
+  if (game.yourTurn && game.turnPlayerId === ctx.playerId) playCue('turn', enabled.sound);
+}
+
+export function stopInter() {
+  clearTimeout(pollTimer);
+  source?.close();
+  source = null;
+  pollTimer = null;
+}
+
+function schedule(delay = 1000) {
+  clearTimeout(pollTimer);
+  if (ctx.state.page !== 'inter-room' || source) return;
+  pollTimer = setTimeout(poll, delay);
+}
+
+async function poll() {
+  if (pollBusy || ctx.state.page !== 'inter-room') return;
+  pollBusy = true;
+  try {
+    const data = await api.inter(ctx.state.code, ctx.playerId);
+    if (ctx.state.page !== 'inter-room') return;
+    const next = data.game;
+    const changed = signature(next) !== signature(ctx.state.interGame);
+    ctx.state.interGame = next;
+    remember(next, false);
+    if (changed) {
+      if (!next.playable?.some(id => selected.includes(id))) selected = selected.filter(id => next.playable?.includes(id));
+      cueFor(next);
+      await ctx.render();
+    }
+  } catch (error) {
+    toast(error.message);
+  } finally {
+    pollBusy = false;
+    if (!source) schedule(ctx.state.interGame?.status === 'playing' ? 700 : 1200);
+  }
+}
+
+function connectStream() {
+  if (source || !('EventSource' in window) || ctx.state.page !== 'inter-room') return;
+  const query = new URLSearchParams({ code: ctx.state.code, playerId: ctx.playerId, stream: '1' });
+  source = new EventSource(`/api/inter?${query}`);
+  source.onmessage = event => {
+    try {
+      const next = JSON.parse(event.data).game;
+      if (ctx.state.page !== 'inter-room' || !next) return;
+      const changed = signature(next) !== signature(ctx.state.interGame);
+      ctx.state.interGame = next;
+      remember(next, false);
+      if (changed) { cueFor(next); ctx.render(); }
+    } catch { /* message ignoré */ }
+  };
+  source.onerror = () => { source?.close(); source = null; schedule(1200); };
+}
+
+export async function openInter(game) {
+  ctx.state.page = 'inter-room';
+  ctx.state.interGame = game;
+  ctx.state.code = game.code;
+  ctx.state.savedInter = null;
+  selected = [];
+  remember(game, false);
+  stopInter();
+  history.replaceState(null, '', `/i/${encodeURIComponent(game.code)}`);
+  await ctx.render();
+  connectStream();
+  schedule(400);
+}
+
+export async function followInter(rawCode) {
+  const code = String(rawCode || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6);
+  if (code.length !== 6) return;
+  try {
+    const data = await api.inter(code, ctx.playerId);
+    const game = data.game;
+    if (game.players.some(player => player.id === ctx.playerId)) return openInter(game);
+    const stored = readSession();
+    const secret = localStorage.getItem(`petitbac.inter.secret.${code}`) || (stored?.code === code ? stored.secret : '');
+    if (secret) {
+      try {
+        const reclaimed = await api.interAction({ action: 'reclaim', code, playerId: ctx.playerId, name: ctx.state.name || undefined, hostSecret: secret });
+        toast('Tu as repris le salon INTER.');
+        return openInter(reclaimed.game);
+      } catch (error) {
+        if (game.status !== 'lobby') { toast(error.message); return; }
+      }
+    }
+    if (game.status !== 'lobby') { toast('La partie INTER a déjà commencé.'); return; }
+    ctx.state.page = 'inter-invite';
+    ctx.state.code = code;
+    await ctx.render();
+  } catch (error) {
+    if (String(error.message || '').includes('n’existe plus')) {
+      const stored = readSession();
+      if (stored?.code === code) localStorage.removeItem(sessionKey);
+    }
+    toast(error.message);
+    if (ctx.state.page === 'home') ctx.render();
+  }
+}
+
+export async function leaveInter(pause = true) {
+  stopInter();
+  const session = readSession();
+  if (pause && session?.code) {
+    session.paused = true;
+    localStorage.setItem(sessionKey, JSON.stringify(session));
+    ctx.state.savedInter = session;
+  }
+  ctx.state.page = 'home';
+  ctx.state.interGame = null;
+  selected = [];
+  history.replaceState(null, '', '/');
+  return ctx.render();
+}
+
+export function openInterRules() {
+  ctx.state.sheet?.close?.();
+  ctx.state.sheet = showSheet('Règles du jeu', interRulesHtml(), () => { ctx.state.sheet = null; });
+}
+
+async function run(action, extra = {}) {
+  try {
+    const data = await api.interAction({ action, code: ctx.state.code, playerId: ctx.playerId, ...extra });
+    if (ctx.state.page !== 'inter-room' && action !== 'join' && action !== 'create') return data.game;
+    ctx.state.interGame = data.game;
+    remember(data.game, false);
+    cueFor(data.game);
+    await ctx.render();
+    return data.game;
+  } catch (error) {
+    toast(error.message);
+    return null;
+  }
+}
+
+export async function handleInterAction(button) {
+  const action = button.dataset.action;
+  if (action === 'ix-toggle') {
+    const id = button.dataset.card;
+    const game = ctx.state.interGame;
+    const card = game?.players?.find(player => player.id === ctx.playerId)?.hand?.find(entry => entry.id === id);
+    if (!card || !game.playable?.includes(id)) return;
+    if (selected.includes(id)) selected = selected.filter(entry => entry !== id);
+    else {
+      const current = game.players.find(player => player.id === ctx.playerId).hand.find(entry => entry.id === selected[0]);
+      if (current && current.rank !== card.rank) selected = [id];
+      else selected = [...selected, id];
+    }
+    return ctx.render();
+  }
+  if (action === 'ix-play') {
+    const cards = selected.slice();
+    selected = [];
+    return run('play', { cardIds: cards });
+  }
+  if (action === 'ix-draw') return run('draw');
+  if (action === 'ix-pass') return run('pass');
+  if (action === 'ix-choose') { selected = []; return run('choose', { rank: button.dataset.rank }); }
+  if (action === 'ix-announce') return run('announce');
+  if (action === 'ix-ready') return run('ready');
+  if (action === 'ix-start') return run('start');
+  if (action === 'ix-abandon') return run('abandon');
+  if (action === 'ix-leave') return leaveInter(true);
+  if (action === 'ix-rules') return openInterRules();
+  if (action === 'ix-sound') {
+    localStorage.setItem(soundKey, prefs().sound ? '0' : '1');
+    toast(prefs().sound ? 'Son activé' : 'Son coupé');
+    return;
+  }
+  if (action === 'ix-haptic') {
+    localStorage.setItem(hapticKey, prefs().haptic ? '0' : '1');
+    toast(prefs().haptic ? 'Vibrations activées' : 'Vibrations coupées');
+    return;
+  }
+  if (action === 'ix-copy') {
+    const game = ctx.state.interGame;
+    const value = button.dataset.copy === 'link' ? `${location.origin}/i/${game?.code}` : game?.code;
+    try { await navigator.clipboard.writeText(value); toast('Copié'); }
+    catch { toast(value); }
+  }
+}
+
+export async function submitInterCreate(form) {
+  const name = String(form.elements.name.value || '').trim();
+  const errorNode = form.querySelector('[data-form-error]');
+  if (name.length < 2) { errorNode.textContent = 'Entre un pseudo ou un nom d’au moins deux lettres.'; return; }
+  const maxPlayers = Number(document.querySelector('[data-choice="maxPlayers"] .segment[aria-pressed="true"]')?.dataset.value || 4);
+  const rounds = Number(document.querySelector('[data-choice="rounds"] .segment[aria-pressed="true"]')?.dataset.value || 1);
+  ctx.state.name = name;
+  localStorage.setItem('petitbac.playerName', name);
+  form.querySelector('[type="submit"]').disabled = true;
+  try {
+    const data = await api.interAction({ action: 'create', playerId: ctx.playerId, name, maxPlayers, rounds, initialHand: 4 });
+    await openInter(data.game);
+  } catch (error) {
+    errorNode.textContent = error.message;
+    form.querySelector('[type="submit"]').disabled = false;
+  }
+}
+
+export async function submitInterJoin(form) {
+  const name = String(form.elements.name.value || '').trim();
+  const code = String(form.elements.code.value || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6);
+  const errorNode = form.querySelector('[data-form-error]');
+  if (name.length < 2) { errorNode.textContent = 'Entre un pseudo ou un nom d’au moins deux lettres.'; return; }
+  if (code.length !== 6) { errorNode.textContent = 'Le code doit contenir six caractères.'; return; }
+  ctx.state.name = name;
+  localStorage.setItem('petitbac.playerName', name);
+  form.querySelector('[type="submit"]').disabled = true;
+  try {
+    const data = await api.interAction({ action: 'join', playerId: ctx.playerId, name, code });
+    ctx.state.sheet?.close?.();
+    await openInter(data.game);
+  } catch (error) {
+    errorNode.textContent = error.message;
+    form.querySelector('[type="submit"]').disabled = false;
+  }
+}
+
+export async function renderInter(root) {
+  const game = ctx.state.interGame;
+  if (ctx.state.page === 'inter-setup') root.innerHTML = interSetupScreen(ctx.state.name);
+  else if (ctx.state.page === 'inter-invite') root.innerHTML = interInviteScreen(ctx.state.code);
+  else if (!game) root.innerHTML = interSetupScreen(ctx.state.name);
+  else if (game.status === 'lobby') root.innerHTML = interLobbyScreen(game, ctx.playerId);
+  else if (game.status === 'between') root.innerHTML = interBetweenScreen(game);
+  else if (game.status === 'finished') root.innerHTML = interFinalScreen(game);
+  else root.innerHTML = interTableScreen(game, ctx.playerId, selected);
+}

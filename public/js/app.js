@@ -1,6 +1,7 @@
 import { api } from './api.js';
 import { esc, haptic, icon, pageHead, shell, showSheet, toast } from './ui.js';
 import { homeScreen, rankingsScreen } from './screens/home.js';
+import { attachInter, followInter, handleInterAction, interPathCode, leaveInter, loadInterSession, openInterRules, renderInter, stopInter, submitInterCreate, submitInterJoin } from './inter-session.js';
 
 const root = document.querySelector('#app');
 const idStorage = 'petitbac.playerId';
@@ -25,7 +26,7 @@ const state = {
   page: 'home', name: localStorage.getItem(nameStorage) || '', game: null, code: '',
   top: loadStoredRanks(), profile: readJson(profileKey),
   scoresState: loadStoredRanks().length ? 'ready' : 'loading',
-  savedRoom: null,
+  savedRoom: null, gameMode: 'petitbac', interGame: null, savedInter: null,
   online: navigator.onLine, deferredPrompt: null, sheet: null, pollTimer: null,
   roomSignature: '', pollBusy: false, priorGameStatus: null, lastReveal: '',
   lastRankRefresh: 0, roomError: '', pollFailures: 0, eventSource: null, usingSse: false,
@@ -61,7 +62,7 @@ function roomSignature(game) {
 
 async function render() {
   if (state.page === 'home') {
-    root.innerHTML = homeScreen({ top: state.top, scoresState: state.scoresState, online: state.online, canInstall: Boolean(state.deferredPrompt) || !matchMedia('(display-mode: standalone)').matches, profile: state.profile, savedRoom: state.savedRoom });
+    root.innerHTML = homeScreen({ top: state.top, scoresState: state.scoresState, online: state.online, canInstall: Boolean(state.deferredPrompt) || !matchMedia('(display-mode: standalone)').matches, profile: state.profile, savedRoom: state.savedRoom, gameMode: state.gameMode, savedInter: state.savedInter });
   } else if (state.page === 'setup') {
     await loadGameFeatures();
     const { setupScreen } = await import('./screens/setup.js');
@@ -70,6 +71,8 @@ async function render() {
     root.innerHTML = rankingsScreen(state.top, state.profile);
   } else if (state.page === 'invite') {
     root.innerHTML = inviteScreen(state.code);
+  } else if (String(state.page).startsWith('inter')) {
+    await renderInter(root);
   } else if (state.page === 'room' && state.game) {
     await loadGameFeatures();
     const screens = await import('./screens/room.js');
@@ -317,6 +320,11 @@ function inviteCode() {
   return roomCode(params.get('join') || params.get('room') || fromPath?.[1] || '');
 }
 
+function openInterJoin() {
+  const inner = `<form id="inter-join" novalidate><label class="field"><span class="field-label">Pseudo ou nom complet</span><input class="text-input" name="name" maxlength="40" minlength="2" autocomplete="name" placeholder="Ex. Alex Martin" value="${esc(state.name)}" required></label><label class="field"><span class="field-label">Code de la salle</span><input class="text-input" name="code" maxlength="6" autocapitalize="characters" autocomplete="off" placeholder="ABC123" required style="text-transform:uppercase;letter-spacing:.16em;font-weight:800"></label><div class="error-note" data-form-error role="status"></div><button class="btn btn-primary btn-full" type="submit">Entrer dans le salon ${icon('arrow', 17)}</button></form>`;
+  state.sheet = showSheet('Rejoindre INTER', inner, () => { state.sheet = null; });
+}
+
 function openJoinSheet(initialCode = '') {
   const code = roomCode(initialCode);
   const locked = code.length === 6;
@@ -470,6 +478,8 @@ async function handleSubmit(event) {
   event.preventDefault();
   if (form.id === 'create-form') return createRoom(form);
   if (form.id === 'join-form') return joinRoom(form);
+  if (form.id === 'inter-create') return submitInterCreate(form);
+  if (form.id === 'inter-join') return submitInterJoin(form);
   if (form.id === 'answer-form') return submitAnswers(form);
   if (form.id === 'chat-form') {
     const input = form.elements.message;
@@ -482,7 +492,25 @@ async function handleAction(button) {
   const action = button.dataset.action;
   if (!action) return;
   if (['home', 'create', 'join', 'rankings', 'rules', 'back', 'install'].includes(action)) haptic();
-  if (action === 'home') return goHome(state.page === 'room');
+  if (action === 'pick-game') {
+    state.gameMode = button.dataset.game === 'inter' ? 'inter' : 'petitbac';
+    return render();
+  }
+  if (action === 'ix-setup') { state.page = 'inter-setup'; return render(); }
+  if (action === 'ix-join') return openInterJoin();
+  if (action === 'ix-resume') {
+    const session = loadInterSession();
+    if (!session?.code) return;
+    session.paused = false;
+    localStorage.setItem('petitbac.inter.session', JSON.stringify(session));
+    state.savedInter = null;
+    return followInter(session.code);
+  }
+  if (String(action).startsWith('ix-')) return handleInterAction(button);
+  if (action === 'home') {
+    if (String(state.page).startsWith('inter')) return leaveInter(state.page === 'inter-room');
+    return goHome(state.page === 'room');
+  }
   if (action === 'leave') return goHome(true);
   if (action === 'resume') {
     const session = loadSession();
@@ -497,7 +525,10 @@ async function handleAction(button) {
     return render();
   }
   if (action === 'join') return openJoinSheet(inviteCode());
-  if (action === 'rules') return openRules();
+  if (action === 'rules') {
+    if (state.gameMode === 'inter' || String(state.page).startsWith('inter')) return openInterRules();
+    return openRules();
+  }
   if (action === 'rankings') {
     if (state.page === 'room') { clearTimeout(state.pollTimer); closeSse(); }
     state.page = 'rankings';
@@ -505,6 +536,7 @@ async function handleAction(button) {
     return render();
   }
   if (action === 'back') {
+    if (String(state.page).startsWith('inter')) return leaveInter(state.page === 'inter-room');
     if (state.page === 'setup' || state.page === 'rankings' || state.page === 'invite') {
       const session = loadSession();
       if (state.page === 'rankings' && session?.code && !session.paused) return followInvite(session.code);
@@ -592,6 +624,7 @@ addEventListener('appinstalled', () => { state.deferredPrompt = null; if (state.
 
 setInterval(() => refreshScores(true), 30000);
 setInterval(updateTimers, 250);
+attachInter({ state, playerId, render });
 splash();
 setTimeout(async () => {
   state.page = 'home';
@@ -608,13 +641,19 @@ setTimeout(async () => {
     else setTimeout(prefetch, 1400);
   }
   refreshScores(true);
+  const interCode = interPathCode();
   const code = inviteCode();
-  if (code.length === 6) followInvite(code);
+  if (interCode) followInter(interCode);
+  else if (code.length === 6) followInvite(code);
   else {
     const session = loadSession();
-    if (session?.code && !session.paused) followInvite(session.code);
-    else if (session?.code) {
-      state.savedRoom = session;
+    const interSession = loadInterSession();
+    const interFirst = interSession?.code && !interSession.paused && (!session?.code || session.paused || interSession.savedAt > (session.savedAt || 0));
+    if (interFirst) followInter(interSession.code);
+    else if (session?.code && !session.paused) followInvite(session.code);
+    else {
+      if (session?.code) state.savedRoom = session;
+      if (interSession?.code) state.savedInter = interSession;
       if (state.page === 'home') render();
     }
   }

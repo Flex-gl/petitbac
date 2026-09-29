@@ -1,5 +1,5 @@
-const VERSION = 'arena-shell-v5';
-const SHELL = ['/', '/index.html', '/manifest.webmanifest', '/css/app.css', '/css/animations.css', '/css/splash.css', '/css/controls.css', '/js/app.js', '/js/api.js', '/js/ui.js', '/js/screens/home.js', '/js/dict.js', '/js/i18n/fr.json', '/icons/icon-192.png', '/icons/icon-512.png', '/icons/icon-maskable.png'];
+const VERSION = 'arena-shell-v6';
+const SHELL = ['/', '/index.html', '/manifest.webmanifest', '/css/app.css', '/css/animations.css', '/css/splash.css', '/css/controls.css', '/css/inter.css', '/js/app.js', '/js/api.js', '/js/ui.js', '/js/inter-session.js', '/js/inter-audio.js', '/js/screens/home.js', '/js/screens/inter.js', '/js/dict.js', '/js/i18n/fr.json', '/icons/icon-192.png', '/icons/icon-512.png', '/icons/icon-maskable.png'];
 
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(VERSION).then(cache => cache.addAll(SHELL)).then(() => self.skipWaiting()));
