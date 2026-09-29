@@ -218,6 +218,13 @@ test('le paquet compte 54 cartes', () => {
   assert.equal(new Set(pack.ids).size, 54);
 });
 
+test('un salon en attente n’a pas encore de défausse', () => {
+  const view = publicView({ status: 'lobby', phase: 'lobby', code: 'ABC123', hostId: 'h', rules: defaultRules(), players: [{ id: 'h', name: 'Hote', ready: false, hand: [] }], log: [] }, 'h');
+  assert.equal(view.center, null);
+  assert.equal(view.players[0].cardCount, 0);
+  assert.equal(view.deckCount, 0);
+});
+
 test('deal ne mélange pas la logique de salon', () => {
   const state = { round: 1, rules: defaultRules({ initialHand: 4 }), players: [{ id: 'a', name: 'A', abandoned: false }, { id: 'b', name: 'B', abandoned: false }], log: [] };
   deal(state, () => 0.3);

@@ -105,7 +105,8 @@ function playerById(state, playerId) {
 }
 
 function centerId(state) {
-  return state.discard[state.discard.length - 1] || null;
+  const pile = state.discard || [];
+  return pile[pile.length - 1] || null;
 }
 
 function centerCard(state) {
