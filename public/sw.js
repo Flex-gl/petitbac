@@ -1,4 +1,4 @@
-const VERSION = 'arena-shell-v7';
+const VERSION = 'arena-shell-v8';
 const SHELL = ['/', '/index.html', '/manifest.webmanifest', '/css/app.css', '/css/animations.css', '/css/splash.css', '/css/controls.css', '/css/inter.css', '/js/app.js', '/js/api.js', '/js/ui.js', '/js/inter-session.js', '/js/inter-audio.js', '/js/screens/home.js', '/js/screens/inter.js', '/js/dict.js', '/js/i18n/fr.json', '/icons/icon-192.png', '/icons/icon-512.png', '/icons/icon-maskable.png'];
 
 self.addEventListener('install', event => {
@@ -14,7 +14,7 @@ self.addEventListener('fetch', event => {
   event.respondWith((async () => {
     const cache = await caches.open(VERSION);
     try {
-      const response = await fetch(request);
+      const response = await fetch(request, { cache: 'no-cache' });
       if (response.ok && response.type === 'basic') cache.put(request, response.clone());
       return response;
     } catch {
