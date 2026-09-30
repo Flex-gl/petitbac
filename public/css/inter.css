@@ -109,6 +109,25 @@
     repeating-linear-gradient(45deg, #6d5bd0 0 6px, #5646b0 6px 12px);
   box-shadow:0 8px 18px rgba(0,0,0,.28)
 }
+button.card-back {
+  cursor:pointer;
+  color:#fff;
+  font:inherit;
+  display:grid;
+  place-items:end center;
+  padding:8px;
+  transition:transform .18s var(--ease)
+}
+button.card-back:hover { transform:translateY(-8px) }
+.card-back-label {
+  font-size:11px;
+  font-weight:800;
+  letter-spacing:.04em;
+  text-transform:uppercase;
+  background:rgba(12,8,28,.78);
+  border-radius:999px;
+  padding:3px 7px
+}
 .playing-card {
   display:flex;
   flex-direction:column;
@@ -186,7 +205,6 @@ div.playing-card { cursor:default }
   .playing-card, .card-back { width:58px; height:82px }
 }
 @media (prefers-reduced-motion: reduce) {
-  .playing-card.is-selected, .playing-card.is-playable:hover { transform:none }
-  .playing-card.is-selected { outline:3px solid var(--warning) }
-  .mini-card, .playing-card { transition:none }
+  .playing-card.is-playable:hover, button.card-back:hover { transform:none }
+  .mini-card, .playing-card, button.card-back { transition:none }
 }

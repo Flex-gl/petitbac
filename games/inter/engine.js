@@ -219,6 +219,7 @@ function passTurn(state) {
     state.turnIndex = order[cursor];
     state.turnCount += 1;
     state.mustResolveDraw = false;
+    state.drewThisTurn = false;
     return;
   }
 }
@@ -273,6 +274,7 @@ export function deal(state, random = Math.random) {
   state.openingDemand = false;
   state.demandOwnerId = null;
   state.mustResolveDraw = false;
+  state.drewThisTurn = false;
   state.lastPlayCount = 1;
   state.turnCount = 1;
   const handSize = Math.max(1, Number(state.rules.initialHand) || 4);
@@ -338,6 +340,7 @@ export function play(state, playerId, cardIds, random = Math.random) {
   player.cardsPlayed += cardIds.length;
   state.lastPlayCount = cardIds.length;
   state.mustResolveDraw = false;
+  state.drewThisTurn = false;
   const rank = chosen[0].rank;
   state.requestedRank = null;
   if (rank === 'A' && state.rules.aceSkips) state.pendingSkip += cardIds.length;
@@ -396,11 +399,12 @@ export function draw(state, playerId, random = Math.random) {
     passTurn(state);
     return state;
   }
-  if (hasAnyLegal(state, playerId)) throw new InterError('Tu peux poser une carte.');
+  if (state.drewThisTurn || state.mustResolveDraw) throw new InterError('Tu as déjà pioché. Pose une carte ou passe.');
   const drawn = take(state, Math.max(1, state.rules.drawCount), random);
   player.hand.push(...drawn);
   player.oneCard = player.hand.length === 1;
-  log(state, { type: 'PLAYER_DREW_CARDS', playerId, name: player.name, count: drawn.length, reason: 'empty' });
+  state.drewThisTurn = true;
+  log(state, { type: 'PLAYER_DREW_CARDS', playerId, name: player.name, count: drawn.length, reason: 'choice' });
   if (hasAnyLegal(state, playerId)) state.mustResolveDraw = true;
   else passTurn(state);
   return state;
@@ -508,6 +512,7 @@ export function publicView(state, viewerId = '') {
     demandOwnerId: state.demandOwnerId || null,
     openingDemand: Boolean(state.openingDemand),
     mustResolveDraw: Boolean(state.mustResolveDraw),
+    drewThisTurn: Boolean(state.drewThisTurn),
     playable: state.status === 'playing' ? playableIds(state, viewerId) : [],
     yourTurn: turnPlayer?.id === viewerId && state.status === 'playing',
     winnerId: state.winnerId || null,

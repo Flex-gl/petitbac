@@ -5,13 +5,13 @@ const DEMAND_RANKS = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q
 
 const RANK_ORDER = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'JOKER'];
 
-function cardFace(card, { playable = false, selected = false, dim = false, inert = false } = {}) {
-  const classes = ['playing-card', card.red ? 'is-red' : 'is-black', card.type !== 'normal' ? 'is-special' : '', playable ? 'is-playable' : '', selected ? 'is-selected' : '', dim ? 'is-dim' : ''].filter(Boolean).join(' ');
+function cardFace(card, { playable = false, dim = false, inert = false } = {}) {
+  const classes = ['playing-card', card.red ? 'is-red' : 'is-black', card.type !== 'normal' ? 'is-special' : '', playable ? 'is-playable' : '', dim ? 'is-dim' : ''].filter(Boolean).join(' ');
   const mark = card.rank === 'JOKER' ? '★' : card.rank;
   const inner = `<span class="card-corner">${esc(card.symbol)}<small>${esc(mark)}</small></span><span class="card-suit">${esc(card.symbol)}</span><span class="card-corner card-corner-br">${esc(card.symbol)}<small>${esc(mark)}</small></span>`;
   const label = `${card.symbol} ${RANK_LABELS[card.rank] || card.rank}`;
-  if (inert) return `<div class="${classes}" aria-label="${esc(label)}">${inner}</div>`;
-  return `<button type="button" class="${classes}" data-action="ix-toggle" data-card="${esc(card.id)}" aria-pressed="${selected}" aria-label="${esc(label)}">${inner}</button>`;
+  if (inert || !playable) return `<div class="${classes}" aria-label="${esc(label)}">${inner}</div>`;
+  return `<button type="button" class="${classes}" data-action="ix-play" data-card="${esc(card.id)}" aria-label="${esc(label)}">${inner}</button>`;
 }
 
 function seat(player, active) {
@@ -45,6 +45,7 @@ function banners(game, viewerId) {
   const turnName = game.players.find(player => player.id === game.turnPlayerId)?.name || '';
   const lines = [];
   if (game.phase === 'demand' && game.demandOwnerId === viewerId) lines.push(['Choisis la valeur demandée.', 'is-you']);
+  else if (game.mustResolveDraw && game.yourTurn) lines.push(['Tu as pioché. Pose une carte ou passe ton tour.', 'is-you']);
   else if (game.yourTurn) lines.push(['C’est ton tour', 'is-you']);
   else if (turnName) lines.push([`Tour de ${turnName}`, '']);
   if (game.pendingDraw > 0) lines.push([`+${game.pendingDraw} cartes à subir`, 'is-alert']);
@@ -69,24 +70,27 @@ function arranged(players, viewerId) {
   return buckets;
 }
 
-export function interTableScreen(game, viewerId, selected = []) {
+export function interTableScreen(game, viewerId) {
   const me = game.players.find(player => player.id === viewerId);
   const seats = arranged(game.players, viewerId);
   const zone = (list, area) => `<div class="seat seat-${area}">${list.map(player => seat(player, player.id === game.turnPlayerId)).join('')}</div>`;
   const hand = (me?.hand || []).slice().sort((a, b) => RANK_ORDER.indexOf(a.rank) - RANK_ORDER.indexOf(b.rank) || a.suit.localeCompare(b.suit));
   const playable = new Set(game.playable || []);
-  const chosen = new Set(selected);
-  const cards = hand.map(card => cardFace(card, { playable: playable.has(card.id), selected: chosen.has(card.id), dim: game.yourTurn && game.phase === 'play' && !playable.has(card.id) })).join('');
+  const canAct = game.yourTurn && game.phase === 'play';
+  const cards = hand.map(card => cardFace(card, { playable: canAct && playable.has(card.id), dim: canAct && !playable.has(card.id) })).join('');
   const demand = game.phase === 'demand' && game.demandOwnerId === viewerId
     ? `<div class="demand-grid" role="group" aria-label="Valeur demandée">${DEMAND_RANKS.map(rank => `<button type="button" data-action="ix-choose" data-rank="${rank}">${esc(RANK_LABELS[rank])}</button>`).join('')}</div>`
     : '';
   const center = game.center ? cardFace(game.center, { inert: true }) : '<div class="card-back" aria-hidden="true"></div>';
-  const canPlay = game.yourTurn && selected.length > 0 && game.phase === 'play';
-  const showDraw = game.yourTurn && game.phase === 'play' && !game.mustResolveDraw && (game.pendingDraw > 0 || !(game.playable || []).length);
+  const canDraw = canAct && !game.mustResolveDraw;
   const drawLabel = game.pendingDraw > 0 ? `Piocher ${game.pendingDraw}` : 'Piocher';
+  const drawFace = game.pendingDraw > 0 ? `+${game.pendingDraw}` : 'Piocher';
+  const pile = canDraw
+    ? `<button type="button" class="card-back" data-action="ix-draw" aria-label="${esc(drawLabel)}"><span class="card-back-label">${esc(drawFace)}</span></button>`
+    : `<div class="card-back" aria-hidden="true"></div>`;
   const tools = `<div class="inter-tools" style="display:flex;gap:8px;justify-content:flex-end">${iconButton('ix-sound', 'Son')}${iconButton('ix-haptic', 'Vibrations')}</div>`;
-  const actions = `<div class="inter-actions">${canPlay ? `<button class="btn btn-primary" data-action="ix-play">Poser ${selected.length > 1 ? selected.length + ' cartes' : ''}</button>` : ''}${showDraw ? `<button class="btn btn-secondary" data-action="ix-draw">${drawLabel}</button>` : ''}${game.mustResolveDraw && game.yourTurn ? '<button class="btn btn-secondary" data-action="ix-pass">Laisser la carte</button>' : ''}${me?.cardCount === 1 && !me.announced ? '<button class="btn btn-primary" data-action="ix-announce">INTER</button>' : ''}<button class="btn btn-secondary" data-action="ix-rules">Règles</button><button class="btn btn-secondary" data-action="ix-abandon">Abandonner</button></div>`;
-  const content = `${pageHead('INTER', `Manche ${game.round} / ${game.rules.rounds}`, false)}${tools}${banners(game, viewerId)}${demand}<div class="inter-table">${zone(seats.north, 'north')}${zone(seats.west, 'west')}<div class="felt"><div class="pile"><span>Défausse</span>${center}${game.lastPlayCount > 1 ? `<span>${game.lastPlayCount} cartes</span>` : ''}</div><div class="pile"><span>Pioche</span><div class="card-back" aria-label="Pioche"></div><span>${game.deckCount}</span></div></div>${zone(seats.east, 'east')}<div class="seat seat-me"><div class="hand-fan" aria-label="Tes cartes">${cards || '<p>Plus de cartes</p>'}</div>${actions}</div></div>`;
+  const actions = `<div class="inter-actions">${game.mustResolveDraw && game.yourTurn ? '<button class="btn btn-secondary" data-action="ix-pass">Passer mon tour</button>' : ''}${me?.cardCount === 1 && !me.announced ? '<button class="btn btn-primary" data-action="ix-announce">INTER</button>' : ''}<button class="btn btn-secondary" data-action="ix-rules">Règles</button><button class="btn btn-secondary" data-action="ix-abandon">Abandonner</button></div>`;
+  const content = `${pageHead('INTER', `Manche ${game.round} / ${game.rules.rounds}`, false)}${tools}${banners(game, viewerId)}${demand}<div class="inter-table">${zone(seats.north, 'north')}${zone(seats.west, 'west')}<div class="felt"><div class="pile"><span>Défausse</span>${center}${game.lastPlayCount > 1 ? `<span>${game.lastPlayCount} cartes</span>` : ''}</div><div class="pile"><span>Pioche</span>${pile}<span>${game.deckCount}</span></div></div>${zone(seats.east, 'east')}<div class="seat seat-me"><div class="hand-fan" aria-label="Tes cartes">${cards || '<p>Plus de cartes</p>'}</div>${actions}</div></div>`;
   return shell(content, { nav: false, wide: true });
 }
 
@@ -110,5 +114,5 @@ export function interFinalScreen(game) {
 }
 
 export function interRulesHtml() {
-  return `<p class="sheet-copy">Pose une carte de la même enseigne ou de la même valeur. Tu peux poser ensemble plusieurs cartes de la même valeur.</p><ol class="rules-list"><li>Chacun reçoit 4 cartes. Une carte est retournée au centre, le reste est la pioche.</li><li>As : bloque autant de joueurs que d’as posés.</li><li>2 : le suivant pioche 2 cartes, cumulables, et perd son tour.</li><li>8 : se pose sur tout. Tu demandes la valeur que le suivant doit jouer.</li><li>10 : le suivant pioche 4 cartes, cumulables, et perd son tour.</li><li>Joker : se pose à tout moment. Le suivant pioche 5 cartes, cumulables.</li><li>Valet, dame et roi se jouent comme des cartes normales.</li><li>Sans coup possible, tu pioches une carte. Si la pioche est vide, la défausse est mélangée, sauf la carte visible.</li><li>À une carte, annonce INTER. La manche s’arrête quand un joueur n’a plus de carte.</li><li>Score des cartes restantes : As 1, 8 vaut 25, têtes 10, Joker 50. Le plus bas total gagne.</li></ol>`;
+  return `<p class="sheet-copy">Pose une carte de la même enseigne ou de la même valeur. Tu peux poser ensemble plusieurs cartes de la même valeur.</p><ol class="rules-list"><li>Chacun reçoit 4 cartes. Une carte est retournée au centre, le reste est la pioche.</li><li>As : bloque autant de joueurs que d’as posés.</li><li>2 : le suivant pioche 2 cartes, cumulables, et perd son tour.</li><li>8 : se pose sur tout. Tu demandes la valeur que le suivant doit jouer.</li><li>10 : le suivant pioche 4 cartes, cumulables, et perd son tour.</li><li>Joker : se pose à tout moment. Le suivant pioche 5 cartes, cumulables.</li><li>Valet, dame et roi se jouent comme des cartes normales.</li><li>Tu peux piocher même si une carte est jouable. Une seule pioche par tour : ensuite tu poses ou tu passes. Si la pioche est vide, la défausse est mélangée, sauf la carte visible.</li><li>À une carte, annonce INTER. La manche s’arrête quand un joueur n’a plus de carte.</li><li>Score des cartes restantes : As 1, 8 vaut 25, têtes 10, Joker 50. Le plus bas total gagne.</li></ol>`;
 }

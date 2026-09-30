@@ -144,9 +144,14 @@ test('sans coup possible on pioche, et la pioche vide recycle la défausse sans 
   assert.ok(state.log.some(entry => entry.type === 'DECK_RECYCLED'));
 });
 
-test('la pioche est refusée quand une carte est jouable', () => {
+test('on peut piocher même avec une carte jouable, une seule fois', () => {
   const state = table([['7H'], ['4S']], '7C');
-  assert.throws(() => draw(state, 'p1'), /poser une carte/);
+  const before = state.turnIndex;
+  draw(state, 'p1');
+  assert.equal(state.players[0].hand.length, 2);
+  assert.equal(state.turnIndex, before);
+  assert.equal(state.mustResolveDraw, true);
+  assert.throws(() => draw(state, 'p1'), /déjà pioché/);
 });
 
 test('la dernière carte et la victoire', () => {

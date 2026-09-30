@@ -7,11 +7,11 @@ const sessionKey = 'petitbac.inter.session';
 const soundKey = 'petitbac.inter.sound';
 const hapticKey = 'petitbac.inter.haptic';
 let ctx = null;
-let selected = [];
 let lastLog = '';
 let pollTimer = null;
 let pollBusy = false;
 let source = null;
+let acting = false;
 
 function readSession() {
   try { return JSON.parse(localStorage.getItem(sessionKey) || 'null'); }
@@ -86,7 +86,6 @@ async function poll() {
     ctx.state.interGame = next;
     remember(next, false);
     if (changed) {
-      if (!next.playable?.some(id => selected.includes(id))) selected = selected.filter(id => next.playable?.includes(id));
       cueFor(next);
       await ctx.render();
     }
@@ -120,7 +119,6 @@ export async function openInter(game) {
   ctx.state.interGame = game;
   ctx.state.code = game.code;
   ctx.state.savedInter = null;
-  selected = [];
   remember(game, false);
   stopInter();
   history.replaceState(null, '', `/i/${encodeURIComponent(game.code)}`);
@@ -171,7 +169,6 @@ export async function leaveInter(pause = true) {
   }
   ctx.state.page = 'home';
   ctx.state.interGame = null;
-  selected = [];
   history.replaceState(null, '', '/');
   return ctx.render();
 }
@@ -182,6 +179,8 @@ export function openInterRules() {
 }
 
 async function run(action, extra = {}) {
+  if (acting) return null;
+  acting = true;
   try {
     const data = await api.interAction({ action, code: ctx.state.code, playerId: ctx.playerId, ...extra });
     if (ctx.state.page !== 'inter-room' && action !== 'join' && action !== 'create') return data.game;
@@ -193,32 +192,25 @@ async function run(action, extra = {}) {
   } catch (error) {
     toast(error.message);
     return null;
+  } finally {
+    acting = false;
   }
 }
 
 export async function handleInterAction(button) {
   const action = button.dataset.action;
-  if (action === 'ix-toggle') {
+  if (action === 'ix-play') {
     const id = button.dataset.card;
     const game = ctx.state.interGame;
-    const card = game?.players?.find(player => player.id === ctx.playerId)?.hand?.find(entry => entry.id === id);
+    const hand = game?.players?.find(player => player.id === ctx.playerId)?.hand || [];
+    const card = hand.find(entry => entry.id === id);
     if (!card || !game.playable?.includes(id)) return;
-    if (selected.includes(id)) selected = selected.filter(entry => entry !== id);
-    else {
-      const current = game.players.find(player => player.id === ctx.playerId).hand.find(entry => entry.id === selected[0]);
-      if (current && current.rank !== card.rank) selected = [id];
-      else selected = [...selected, id];
-    }
-    return ctx.render();
-  }
-  if (action === 'ix-play') {
-    const cards = selected.slice();
-    selected = [];
-    return run('play', { cardIds: cards });
+    const cardIds = hand.filter(entry => entry.rank === card.rank && game.playable.includes(entry.id)).map(entry => entry.id);
+    return run('play', { cardIds });
   }
   if (action === 'ix-draw') return run('draw');
   if (action === 'ix-pass') return run('pass');
-  if (action === 'ix-choose') { selected = []; return run('choose', { rank: button.dataset.rank }); }
+  if (action === 'ix-choose') return run('choose', { rank: button.dataset.rank });
   if (action === 'ix-announce') return run('announce');
   if (action === 'ix-ready') return run('ready');
   if (action === 'ix-start') return run('start');
@@ -288,5 +280,5 @@ export async function renderInter(root) {
   else if (game.status === 'lobby') root.innerHTML = interLobbyScreen(game, ctx.playerId);
   else if (game.status === 'between') root.innerHTML = interBetweenScreen(game);
   else if (game.status === 'finished') root.innerHTML = interFinalScreen(game);
-  else root.innerHTML = interTableScreen(game, ctx.playerId, selected);
+  else root.innerHTML = interTableScreen(game, ctx.playerId);
 }
