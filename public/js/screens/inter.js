@@ -44,7 +44,7 @@ export function interLobbyScreen(game, viewerId) {
 function banners(game, viewerId) {
   const turnName = game.players.find(player => player.id === game.turnPlayerId)?.name || '';
   const lines = [];
-  if (game.phase === 'demand' && game.demandOwnerId === viewerId) lines.push(['Choisis la valeur demandée.', 'is-you']);
+  if (game.phase === 'demand' && game.demandOwnerId === viewerId) lines.push(['Choisis une valeur que tu as en main.', 'is-you']);
   else if (game.mustResolveDraw && game.yourTurn) lines.push(['Tu as pioché. Pose une carte ou passe ton tour.', 'is-you']);
   else if (game.yourTurn && game.pendingDraw > 0) lines.push(['Pose la même pénalité, ou pioche.', 'is-you']);
   else if (game.yourTurn && !(game.playable || []).length) lines.push(['Aucune carte ne va. Pioche.', 'is-you']);
@@ -80,8 +80,9 @@ export function interTableScreen(game, viewerId) {
   const playable = new Set(game.playable || []);
   const canAct = game.yourTurn && game.phase === 'play';
   const cards = hand.map(card => cardFace(card, { playable: canAct && playable.has(card.id), dim: canAct && !playable.has(card.id) })).join('');
+  const ownedRanks = [...new Set(hand.map(card => card.rank).filter(rank => DEMAND_RANKS.includes(rank)))].sort((a, b) => DEMAND_RANKS.indexOf(a) - DEMAND_RANKS.indexOf(b));
   const demand = game.phase === 'demand' && game.demandOwnerId === viewerId
-    ? `<div class="demand-grid" role="group" aria-label="Valeur demandée">${DEMAND_RANKS.map(rank => `<button type="button" data-action="ix-choose" data-rank="${rank}">${esc(RANK_LABELS[rank])}</button>`).join('')}</div>`
+    ? `<div class="demand-grid" role="group" aria-label="Valeur demandée">${ownedRanks.map(rank => `<button type="button" data-action="ix-choose" data-rank="${rank}">${esc(RANK_LABELS[rank])}</button>`).join('')}</div>`
     : '';
   const center = game.center ? cardFace(game.center, { inert: true }) : '<div class="card-back" aria-hidden="true"></div>';
   const canDraw = canAct && !game.mustResolveDraw;
@@ -116,5 +117,5 @@ export function interFinalScreen(game) {
 }
 
 export function interRulesHtml() {
-  return `<p class="sheet-copy">Pose une carte de la même enseigne ou de la même valeur. Tu peux poser ensemble plusieurs cartes de la même valeur.</p><ol class="rules-list"><li>Chacun reçoit 4 cartes. Une carte est retournée au centre, le reste est la pioche.</li><li>As : bloque autant de joueurs que d’as posés.</li><li>2 : le suivant pioche 2 cartes, cumulables, et perd son tour.</li><li>8 : se pose sur tout. Tu demandes la valeur que le suivant doit jouer.</li><li>10 : le suivant pioche 4 cartes, cumulables, et perd son tour.</li><li>Joker : se pose à tout moment. Le suivant pioche 5 cartes, cumulables.</li><li>Valet, dame et roi se jouent comme des cartes normales.</li><li>Tu peux piocher même si une carte est jouable. Une seule pioche par tour : ensuite tu poses ou tu passes. Si la pioche est vide, la défausse est mélangée, sauf la carte visible.</li><li>À une carte, annonce INTER. La manche s’arrête quand un joueur n’a plus de carte.</li><li>Score des cartes restantes : As 1, 8 vaut 25, têtes 10, Joker 50. Le plus bas total gagne.</li></ol>`;
+  return `<p class="sheet-copy">Pose une carte de la même enseigne ou de la même valeur. Tu peux poser ensemble plusieurs cartes de la même valeur.</p><ol class="rules-list"><li>Chacun reçoit 4 cartes. Une carte est retournée au centre, le reste est la pioche.</li><li>As : bloque autant de joueurs que d’as posés.</li><li>2 : le suivant pioche 2 cartes, cumulables, et perd son tour.</li><li>8 : se pose sur tout. Tu demandes une valeur que tu as encore en main.</li><li>10 : le suivant pioche 4 cartes, cumulables, et perd son tour.</li><li>Joker : se pose à tout moment. Le suivant pioche 5 cartes, cumulables.</li><li>Valet, dame et roi se jouent comme des cartes normales.</li><li>Tu peux piocher même si une carte est jouable. Une seule pioche par tour : ensuite tu poses ou tu passes. Si la pioche est vide, la défausse est mélangée, sauf la carte visible.</li><li>À une carte, annonce INTER. La manche s’arrête quand un joueur n’a plus de carte.</li><li>Score des cartes restantes : As 1, 8 vaut 25, têtes 10, Joker 50. Le plus bas total gagne.</li></ol>`;
 }

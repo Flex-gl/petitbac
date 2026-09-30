@@ -99,10 +99,11 @@ test('les 2 se cumulent et le joueur suivant perd son tour', () => {
 });
 
 test('le 8 se pose librement et la valeur demandée s’impose', () => {
-  const state = table([['8D', '4C'], ['KH', '3S'], ['9D']], '7C');
+  const state = table([['8D', 'KS', '4C'], ['KH', '3S'], ['9D']], '7C');
   play(state, 'p1', [state.players[0].hand[0]]);
   assert.equal(state.phase, 'demand');
   assert.equal(state.players[state.turnIndex].id, 'p1');
+  assert.throws(() => chooseRank(state, 'p1', 'Q'), /possèdes/);
   chooseRank(state, 'p1', 'K');
   assert.equal(state.requestedRank, 'K');
   assert.equal(state.players[state.turnIndex].id, 'p2');

@@ -118,6 +118,17 @@ function isWild(rank, rules) {
   return (rank === '8' && rules.eightWild) || rank === 'JOKER';
 }
 
+function demandChoices(state, playerId) {
+  const player = state.players.find(entry => entry.id === playerId);
+  if (!player) return [];
+  const ranks = [];
+  for (const id of player.hand || []) {
+    const rank = state.cards[id]?.rank;
+    if (DEMAND_RANKS.includes(rank) && !ranks.includes(rank)) ranks.push(rank);
+  }
+  return ranks;
+}
+
 function isDemandEscape(rank, rules) {
   return isWild(rank, rules) || (rank === 'A' && rules.aceSkips) || rank === '2' || rank === '10';
 }
@@ -292,7 +303,7 @@ export function deal(state, random = Math.random) {
   if (!state.deck.length) throw new InterError('Le paquet est trop petit pour cette distribution.');
   state.discard.push(state.deck.pop());
   const opening = centerCard(state);
-  if (opening?.rank === '8' && state.rules.eightWild) {
+  if (opening?.rank === '8' && state.rules.eightWild && demandChoices(state, state.players[state.turnIndex].id).length) {
     state.phase = 'demand';
     state.openingDemand = true;
     state.demandOwnerId = state.players[state.turnIndex].id;
@@ -347,7 +358,7 @@ export function play(state, playerId, cardIds, random = Math.random) {
   else if (rank === '2') addPenalty(state, 'two', state.rules.twoDraw * cardIds.length);
   else if (rank === '10') addPenalty(state, 'ten', state.rules.tenDraw * cardIds.length);
   else if (rank === 'JOKER') addPenalty(state, 'joker', state.rules.jokerDraw * cardIds.length);
-  else if (rank === '8' && state.rules.eightWild) {
+  else if (rank === '8' && state.rules.eightWild && demandChoices(state, player.id).length) {
     state.phase = 'demand';
     state.openingDemand = false;
     state.demandOwnerId = player.id;
@@ -375,7 +386,7 @@ export function play(state, playerId, cardIds, random = Math.random) {
 export function chooseRank(state, playerId, rank) {
   if (state.status !== 'playing' || state.phase !== 'demand') throw new InterError('Aucune valeur n’est à demander.');
   if (state.demandOwnerId !== playerId) throw new InterError('Tu ne choisis pas la valeur.', 403);
-  if (!DEMAND_RANKS.includes(rank)) throw new InterError('Cette valeur n’existe pas.');
+  if (!demandChoices(state, playerId).includes(rank)) throw new InterError('Tu ne possèdes pas cette carte.');
   state.requestedRank = rank;
   state.phase = 'play';
   log(state, { type: 'PLAYER_REQUESTED_VALUE', playerId, name: playerById(state, playerId).name, rank });
