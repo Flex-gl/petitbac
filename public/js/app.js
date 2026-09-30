@@ -1,7 +1,11 @@
+import { APP_VERSION } from './version.js';
 import { api } from './api.js';
 import { esc, haptic, icon, pageHead, shell, showSheet, toast } from './ui.js';
 import { homeScreen, rankingsScreen } from './screens/home.js';
 import { attachInter, followInter, handleInterAction, interPathCode, leaveInter, loadInterSession, openInterRules, renderInter, stopInter, submitInterCreate, submitInterJoin } from './inter-session.js';
+
+document.documentElement.dataset.appVersion = APP_VERSION;
+window.dispatchEvent(new CustomEvent('petitbac-version', { detail: APP_VERSION }));
 
 const root = document.querySelector('#app');
 const idStorage = 'petitbac.playerId';

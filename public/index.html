@@ -14,7 +14,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&display=swap&subset=latin" rel="stylesheet">
     <style>
-      :root{color-scheme:dark;background:#100e1c;color:#f8f6ff;font-family:'Inter',system-ui,sans-serif}*{box-sizing:border-box}html,body{margin:0;min-height:100%;background:#100e1c}body{min-height:100svh}button,input{font:inherit}button{color:inherit}#app{min-height:100svh}
+      :root{color-scheme:dark;background:#100e1c;color:#f8f6ff;font-family:'Inter',system-ui,sans-serif}*{box-sizing:border-box}html,body{margin:0;min-height:100%;background:#100e1c}body{min-height:100svh}button,input{font:inherit}button{color:inherit}#app{min-height:100svh}#update-gate[hidden]{display:none !important}#update-gate{position:fixed;inset:0;z-index:200;display:grid;place-items:center;padding:24px;background:rgba(16,14,28,.94)}#update-gate .update-card{width:min(100%,420px);padding:28px 22px;border:1px solid rgba(204,192,245,.2);border-radius:22px;background:#171328;text-align:center}#update-gate .update-kicker{margin:0 0 8px;font:700 12px 'Space Grotesk',sans-serif;letter-spacing:.14em;text-transform:uppercase;color:#9d93c9}#update-gate h1{margin:0;font:700 32px 'Space Grotesk',sans-serif}#update-gate p{margin:12px 0 0;color:#ded8ec;line-height:1.5}#update-gate button{margin-top:22px;width:100%;border:0;border-radius:14px;padding:14px 18px;background:linear-gradient(100deg,#a47aff,#e987c7);color:#171020;font-weight:800;cursor:pointer}#update-gate button:disabled{opacity:.7;cursor:progress}
     </style>
     <link rel="preload" href="/css/app.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
     <noscript><link rel="stylesheet" href="/css/app.css"></noscript>
@@ -31,7 +31,85 @@
   <body>
     <a class="skip-link" href="#main">Aller au contenu</a>
     <div id="app" aria-live="polite"></div>
+    <div id="update-gate" hidden role="dialog" aria-modal="true" aria-labelledby="update-title">
+      <div class="update-card">
+        <p class="update-kicker">Poséidon · Del'Hiver</p>
+        <h1 id="update-title">Mise à jour</h1>
+        <p>Une nouvelle version est prête. Installe-la pour continuer. Tes salons restent en place, sans vider le cache du téléphone.</p>
+        <button type="button" id="update-now">Mettre à jour</button>
+        <p id="update-error" hidden>La mise à jour n’a pas abouti. Réessaie avec du réseau.</p>
+      </div>
+    </div>
     <script type="module" src="/js/app.js"></script>
-    <script>if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('/sw.js').catch(()=>{}));</script>
+    <script>
+      const UPDATE_SHELL = ['/', '/index.html', '/version.json', '/manifest.webmanifest', '/css/app.css', '/css/animations.css', '/css/splash.css', '/css/controls.css', '/css/inter.css', '/js/app.js', '/js/version.js', '/js/api.js', '/js/ui.js', '/js/inter-session.js', '/js/inter-audio.js', '/js/screens/home.js', '/js/screens/setup.js', '/js/screens/room.js', '/js/screens/inter.js', '/js/dict.js', '/js/corrector.js', '/js/i18n/fr.json', '/sw.js', '/icons/icon-192.png', '/icons/icon-512.png', '/icons/icon-maskable.png'];
+      let announced = '';
+      let remote = '';
+      let gateTimer = 0;
+      const gate = document.getElementById('update-gate');
+      function showUpdate() {
+        if (!gate.hidden) return;
+        gate.hidden = false;
+        document.getElementById('update-now').focus();
+      }
+      function decide() {
+        if (!remote) return;
+        if (announced === remote) {
+          clearTimeout(gateTimer);
+          return;
+        }
+        if (announced) showUpdate();
+      }
+      window.addEventListener('petitbac-version', event => {
+        announced = String(event.detail || '');
+        decide();
+      });
+      async function checkVersion() {
+        try {
+          const response = await fetch('/version.json', { cache: 'no-store' });
+          if (!response.ok) return;
+          remote = (await response.json()).version || '';
+        } catch { return; }
+        if (!remote) return;
+        decide();
+        clearTimeout(gateTimer);
+        gateTimer = setTimeout(() => { if (announced !== remote) showUpdate(); }, 8000);
+      }
+      document.getElementById('update-now').addEventListener('click', async () => {
+        const button = document.getElementById('update-now');
+        const error = document.getElementById('update-error');
+        button.disabled = true;
+        button.textContent = 'Mise à jour…';
+        error.hidden = true;
+        try {
+          if ('serviceWorker' in navigator) {
+            const regs = await navigator.serviceWorker.getRegistrations();
+            await Promise.all(regs.map(reg => reg.unregister()));
+          }
+          if (window.caches) {
+            const keys = await caches.keys();
+            await Promise.all(keys.map(key => caches.delete(key)));
+          }
+          const results = await Promise.all(UPDATE_SHELL.map(async url => {
+            const response = await fetch(url, { cache: 'reload' });
+            return response.ok;
+          }));
+          if (!results[UPDATE_SHELL.indexOf('/js/app.js')] || !results[UPDATE_SHELL.indexOf('/version.json')]) throw new Error('incomplete');
+          const next = new URL(location.href);
+          next.searchParams.set('maj', String(Date.now()));
+          location.replace(next.href);
+        } catch {
+          button.disabled = false;
+          button.textContent = 'Mettre à jour';
+          error.hidden = false;
+        }
+      });
+      checkVersion();
+      document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') checkVersion(); });
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.addEventListener('message', event => { if (event.data?.type === 'UPDATE_READY') checkVersion(); });
+        window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js').then(reg => reg.update()).catch(() => {}));
+      }
+    </script>
   </body>
 </html>
