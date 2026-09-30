@@ -43,27 +43,13 @@
     <script type="module" src="/js/app.js"></script>
     <script>
       const UPDATE_SHELL = ['/', '/index.html', '/version.json', '/manifest.webmanifest', '/css/app.css', '/css/animations.css', '/css/splash.css', '/css/controls.css', '/css/inter.css', '/js/app.js', '/js/version.js', '/js/api.js', '/js/ui.js', '/js/inter-session.js', '/js/inter-audio.js', '/js/screens/home.js', '/js/screens/setup.js', '/js/screens/room.js', '/js/screens/inter.js', '/js/dict.js', '/js/corrector.js', '/js/i18n/fr.json', '/sw.js', '/icons/icon-192.png', '/icons/icon-512.png', '/icons/icon-maskable.png'];
-      let announced = '';
+      const appliedKey = 'petitbac.appliedVersion';
       let remote = '';
-      let gateTimer = 0;
       const gate = document.getElementById('update-gate');
       function showUpdate() {
-        if (!gate.hidden) return;
         gate.hidden = false;
         document.getElementById('update-now').focus();
       }
-      function decide() {
-        if (!remote) return;
-        if (announced === remote) {
-          clearTimeout(gateTimer);
-          return;
-        }
-        if (announced) showUpdate();
-      }
-      window.addEventListener('petitbac-version', event => {
-        announced = String(event.detail || '');
-        decide();
-      });
       async function checkVersion() {
         try {
           const response = await fetch('/version.json', { cache: 'no-store' });
@@ -71,9 +57,7 @@
           remote = (await response.json()).version || '';
         } catch { return; }
         if (!remote) return;
-        decide();
-        clearTimeout(gateTimer);
-        gateTimer = setTimeout(() => { if (announced !== remote) showUpdate(); }, 8000);
+        if (localStorage.getItem(appliedKey) !== remote) showUpdate();
       }
       document.getElementById('update-now').addEventListener('click', async () => {
         const button = document.getElementById('update-now');
@@ -95,6 +79,7 @@
             return response.ok;
           }));
           if (!results[UPDATE_SHELL.indexOf('/js/app.js')] || !results[UPDATE_SHELL.indexOf('/version.json')]) throw new Error('incomplete');
+          localStorage.setItem(appliedKey, remote);
           const next = new URL(location.href);
           next.searchParams.set('maj', String(Date.now()));
           location.replace(next.href);
@@ -106,6 +91,7 @@
       });
       checkVersion();
       document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') checkVersion(); });
+      window.addEventListener('pageshow', checkVersion);
       if ('serviceWorker' in navigator) {
         navigator.serviceWorker.addEventListener('message', event => { if (event.data?.type === 'UPDATE_READY') checkVersion(); });
         window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js').then(reg => reg.update()).catch(() => {}));
