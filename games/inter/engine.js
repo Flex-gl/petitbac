@@ -166,9 +166,7 @@ export function isLegal(state, playerId, cardIds) {
   if (state.requestedRank) return rank === state.requestedRank || isDemandEscape(rank, state.rules);
   if (isWild(rank, state.rules)) return true;
   if (rank === center.rank) return true;
-  if (chosen.length === 1 && chosen[0].suit === center.suit && center.suit !== 'joker') return true;
-  const stackable = rank === 'A' || rank === '2' || rank === '10';
-  return stackable && chosen.some(card => card.suit === center.suit && card.suit !== 'joker');
+  return chosen.some(card => card.suit === center.suit && center.suit !== 'joker' && card.suit !== 'joker');
 }
 
 export function playableIds(state, playerId) {

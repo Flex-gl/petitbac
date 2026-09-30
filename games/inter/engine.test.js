@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { beginMatch, play, draw, chooseRank, announce, abandon, continueMatch, publicView, isLegal, createDeck, deal, defaultRules, transferPlayer, passDrawn } from './engine.js';
+import { beginMatch, play, draw, chooseRank, announce, abandon, continueMatch, publicView, isLegal, playableIds, createDeck, deal, defaultRules, transferPlayer, passDrawn } from './engine.js';
 
 function table(hands, center, options = {}) {
   const pack = createDeck();
@@ -57,6 +57,19 @@ test('une carte de même enseigne ou de même valeur est acceptée', () => {
   assert.equal(isLegal(state, 'p1', [state.players[0].hand[1]]), true);
   assert.equal(isLegal(state, 'p1', [state.players[0].hand[0]]), true);
   assert.equal(isLegal(state, 'p1', [state.players[0].hand[2]]), false);
+});
+
+test('deux 4 de trèfle et de pique se reconnaissent ensemble', () => {
+  const state = table([['4C', '4S', '9H'], ['3D']], '7C');
+  const fours = state.players[0].hand.slice(0, 2);
+  assert.equal(isLegal(state, 'p1', [fours[0]]), true);
+  assert.equal(isLegal(state, 'p1', [fours[1]]), false);
+  assert.equal(isLegal(state, 'p1', fours), true);
+  const allowed = playableIds(state, 'p1');
+  assert.ok(fours.every(id => allowed.includes(id)));
+  play(state, 'p1', fours);
+  assert.equal(state.players[0].hand.length, 1);
+  assert.equal(state.players[state.turnIndex].id, 'p2');
 });
 
 test('plusieurs cartes de même valeur se posent ensemble', () => {
