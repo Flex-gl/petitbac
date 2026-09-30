@@ -83,19 +83,14 @@ test('deux as bloquent deux joueurs sur trois', () => {
   assert.equal(state.log.filter(entry => entry.type === 'PLAYER_SKIPPED').length, 2);
 });
 
-test('les 2 se cumulent et le joueur suivant perd son tour', () => {
+test('les 2 se cumulent et le suivant les reçoit tout de suite', () => {
   const state = table([['2C', '2H', '9C'], ['2D', '4S'], ['6D', '6S']], '7C');
   play(state, 'p1', state.players[0].hand.slice(0, 2));
-  assert.equal(state.pendingDraw, 4);
-  assert.equal(state.players[state.turnIndex].id, 'p2');
-  play(state, 'p2', [state.players[1].hand[0]]);
-  assert.equal(state.pendingDraw, 6);
-  assert.equal(state.players[state.turnIndex].id, 'p3');
-  draw(state, 'p3');
-  assert.equal(state.players[2].hand.length, 8);
-  assert.equal(state.players[2].penaltiesReceived, 6);
   assert.equal(state.pendingDraw, 0);
-  assert.notEqual(state.players[state.turnIndex].id, 'p3');
+  assert.equal(state.players[1].hand.length, 6);
+  assert.equal(state.players[1].penaltiesReceived, 4);
+  assert.equal(state.players[state.turnIndex].id, 'p3');
+  assert.ok(state.log.some(entry => entry.type === 'PLAYER_DREW_CARDS' && entry.reason === 'penalty' && entry.count === 4));
 });
 
 test('le 8 se pose librement et la valeur demandée s’impose', () => {
@@ -113,14 +108,18 @@ test('le 8 se pose librement et la valeur demandée s’impose', () => {
   assert.equal(state.requestedRank, null);
 });
 
-test('les 10 et les jokers se cumulent', () => {
-  const tens = table([['10C', '10H', '3C'], ['9D'], ['6S']], '10D');
+test('les 10 et les jokers arrivent tout de suite au suivant', () => {
+  const deck = ['3H', '4H', '5D', '5C', '5S', '6D', '7H', '7S', '9H', '9C', 'QS', 'QD'];
+  const tens = table([['10C', '10H', '3C'], ['9D'], ['6S']], '10D', { deck });
   play(tens, 'p1', tens.players[0].hand.slice(0, 2));
-  assert.equal(tens.pendingDraw, 8);
-  const jokers = table([['JR', 'JB', '4C'], ['9D'], ['6S']], '7C');
+  assert.equal(tens.pendingDraw, 0);
+  assert.equal(tens.players[1].hand.length, 9);
+  assert.equal(tens.players[tens.turnIndex].id, 'p3');
+  const jokers = table([['JR', 'JB', '4C'], ['9D'], ['6S']], '7C', { deck });
   play(jokers, 'p1', jokers.players[0].hand.slice(0, 2));
-  assert.equal(jokers.pendingDraw, 10);
-  assert.equal(jokers.penaltyKind, 'joker');
+  assert.equal(jokers.pendingDraw, 0);
+  assert.equal(jokers.players[1].hand.length, 11);
+  assert.equal(jokers.players[jokers.turnIndex].id, 'p3');
 });
 
 test('valet, dame et roi n’ont pas d’effet', () => {

@@ -1,5 +1,5 @@
 import { createIfAbsent, getJson, updateVersioned, redis } from './_redis.js';
-import { InterError, beginMatch, play, chooseRank, draw, passDrawn, announce, abandon, continueMatch, publicView, transferPlayer, defaultRules } from '../games/inter/engine.js';
+import { InterError, beginMatch, play, chooseRank, draw, passDrawn, announce, abandon, continueMatch, publicView, transferPlayer, defaultRules, absorbPending } from '../games/inter/engine.js';
 
 const GAME_TTL = 604800;
 const ROOM_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -131,12 +131,15 @@ export async function getInter(codeValue) {
   for (let attempt = 0; attempt < 4; attempt += 1) {
     const game = await getJson(key);
     if (!game) throw new InterError('Ce salon n’existe plus. Vérifie le code.', 404);
-    if (game.status !== 'between' || Date.now() < (game.nextRoundAt || 0)) {
+    const penaltyDue = game.status === 'playing' && game.phase !== 'demand' && game.pendingDraw > 0;
+    const roundDue = game.status === 'between' && Date.now() >= (game.nextRoundAt || 0);
+    if (!penaltyDue && !roundDue) {
       if (game.status === 'finished') await remember(game);
       return game;
     }
     const version = game.version || 0;
-    continueMatch(game);
+    if (roundDue) continueMatch(game);
+    if (game.pendingDraw > 0 && game.phase !== 'demand') absorbPending(game);
     if (await updateVersioned(key, { version }, game, GAME_TTL)) {
       game.version = version + 1;
       return game;

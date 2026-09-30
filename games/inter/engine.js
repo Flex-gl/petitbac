@@ -211,7 +211,7 @@ function take(state, count, random) {
   return drawn;
 }
 
-function passTurn(state) {
+function passTurn(state, random = Math.random) {
   const order = activeIndexes(state);
   if (order.length <= 1) {
     concludeMatch(state, order[0]);
@@ -231,8 +231,25 @@ function passTurn(state) {
     state.turnCount += 1;
     state.mustResolveDraw = false;
     state.drewThisTurn = false;
+    if (state.pendingDraw > 0) absorbPending(state, random);
     return;
   }
+}
+
+export function absorbPending(state, random = Math.random) {
+  if (!state.pendingDraw || state.status === 'finished' || state.phase === 'demand') return state;
+  const player = state.players[state.turnIndex];
+  if (!player || player.abandoned) return state;
+  const count = state.pendingDraw;
+  const drawn = take(state, count, random);
+  player.hand.push(...drawn);
+  player.penaltiesReceived = (player.penaltiesReceived || 0) + drawn.length;
+  player.oneCard = player.hand.length === 1;
+  state.pendingDraw = 0;
+  state.penaltyKind = null;
+  log(state, { type: 'PLAYER_DREW_CARDS', playerId: player.id, name: player.name, count: drawn.length, reason: 'penalty' });
+  passTurn(state, random);
+  return state;
 }
 
 function handPoints(state, player) {
@@ -379,7 +396,7 @@ export function play(state, playerId, cardIds, random = Math.random) {
     }
   }
   if (state.phase === 'demand') return state;
-  passTurn(state);
+  passTurn(state, random);
   return state;
 }
 
@@ -407,7 +424,7 @@ export function draw(state, playerId, random = Math.random) {
     state.pendingDraw = 0;
     state.penaltyKind = null;
     log(state, { type: 'PLAYER_DREW_CARDS', playerId, name: player.name, count: drawn.length, reason: 'penalty' });
-    passTurn(state);
+    passTurn(state, random);
     return state;
   }
   if (state.drewThisTurn || state.mustResolveDraw) throw new InterError('Tu as déjà pioché. Pose une carte ou passe.');
@@ -417,7 +434,7 @@ export function draw(state, playerId, random = Math.random) {
   state.drewThisTurn = true;
   log(state, { type: 'PLAYER_DREW_CARDS', playerId, name: player.name, count: drawn.length, reason: 'choice' });
   if (hasAnyLegal(state, playerId)) state.mustResolveDraw = true;
-  else passTurn(state);
+  else passTurn(state, random);
   return state;
 }
 
