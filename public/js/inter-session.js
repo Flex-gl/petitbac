@@ -8,10 +8,12 @@ const soundKey = 'petitbac.inter.sound';
 const hapticKey = 'petitbac.inter.haptic';
 let ctx = null;
 let lastLog = '';
+let lastTurn = '';
 let pollTimer = null;
 let pollBusy = false;
 let source = null;
 let acting = false;
+let lastPollToast = 0;
 
 function readSession() {
   try { return JSON.parse(localStorage.getItem(sessionKey) || 'null'); }
@@ -40,7 +42,7 @@ function remember(game, paused = false) {
 function signature(game) {
   if (!game) return '';
   const me = game.players?.find(player => player.id === ctx.playerId);
-  return [game.status, game.phase, game.round, game.turnPlayerId, game.pendingDraw, game.requestedRank, game.deckCount, me?.hand?.map(card => card.id).join('.') || '', game.players.map(player => `${player.id}:${player.cardCount}:${player.ready}:${player.connected}`).join('|'), game.log?.at(-1)?.at || ''].join('~');
+  return [game.version, game.status, game.phase, game.round, game.turnPlayerId, game.pendingDraw, game.mustResolveDraw, game.requestedRank, game.center?.id, game.deckCount, (game.playable || []).join('.'), me?.hand?.map(card => card.id).join('.') || '', game.players.map(player => `${player.id}:${player.cardCount}:${player.ready}:${player.connected}`).join('|'), game.log?.at(-1)?.at || ''].join('~');
 }
 
 function cueFor(game) {
@@ -58,8 +60,11 @@ function cueFor(game) {
   } else if (entry.type === 'PLAYER_WON') {
     playCue('win', enabled.sound);
     if (enabled.haptic) haptic([20, 40, 20, 40, 60]);
-  } else if (entry.type === 'PLAYER_SKIPPED' && enabled.haptic) haptic(16);
-  if (game.yourTurn && game.turnPlayerId === ctx.playerId) playCue('turn', enabled.sound);
+  } else   if (entry.type === 'PLAYER_SKIPPED' && enabled.haptic) haptic(16);
+  if (game.turnPlayerId !== lastTurn) {
+    lastTurn = game.turnPlayerId || '';
+    if (game.yourTurn) playCue('turn', enabled.sound);
+  }
 }
 
 export function stopInter() {
@@ -69,10 +74,21 @@ export function stopInter() {
   pollTimer = null;
 }
 
-function schedule(delay = 1000) {
+function schedule(delay = 700) {
   clearTimeout(pollTimer);
-  if (ctx.state.page !== 'inter-room' || source) return;
+  if (ctx.state.page !== 'inter-room') return;
   pollTimer = setTimeout(poll, delay);
+}
+
+function applyGame(next) {
+  const current = ctx.state.interGame;
+  if (!next || (current && next.code === current.code && (next.version || 0) < (current.version || 0))) return;
+  const changed = signature(next) !== signature(current);
+  ctx.state.interGame = next;
+  if (!changed) return;
+  remember(next, false);
+  cueFor(next);
+  return ctx.render();
 }
 
 async function poll() {
@@ -81,19 +97,15 @@ async function poll() {
   try {
     const data = await api.inter(ctx.state.code, ctx.playerId);
     if (ctx.state.page !== 'inter-room') return;
-    const next = data.game;
-    const changed = signature(next) !== signature(ctx.state.interGame);
-    ctx.state.interGame = next;
-    remember(next, false);
-    if (changed) {
-      cueFor(next);
-      await ctx.render();
-    }
+    await applyGame(data.game);
   } catch (error) {
-    toast(error.message);
+    if (Date.now() - lastPollToast > 8000) {
+      lastPollToast = Date.now();
+      toast(error.message);
+    }
   } finally {
     pollBusy = false;
-    if (!source) schedule(ctx.state.interGame?.status === 'playing' ? 700 : 1200);
+    schedule(ctx.state.interGame?.status === 'playing' ? 500 : 1200);
   }
 }
 
@@ -105,10 +117,7 @@ function connectStream() {
     try {
       const next = JSON.parse(event.data).game;
       if (ctx.state.page !== 'inter-room' || !next) return;
-      const changed = signature(next) !== signature(ctx.state.interGame);
-      ctx.state.interGame = next;
-      remember(next, false);
-      if (changed) { cueFor(next); ctx.render(); }
+      applyGame(next);
     } catch { /* message ignoré */ }
   };
   source.onerror = () => { source?.close(); source = null; schedule(1200); };
@@ -184,10 +193,7 @@ async function run(action, extra = {}) {
   try {
     const data = await api.interAction({ action, code: ctx.state.code, playerId: ctx.playerId, ...extra });
     if (ctx.state.page !== 'inter-room' && action !== 'join' && action !== 'create') return data.game;
-    ctx.state.interGame = data.game;
-    remember(data.game, false);
-    cueFor(data.game);
-    await ctx.render();
+    await applyGame(data.game);
     return data.game;
   } catch (error) {
     toast(error.message);

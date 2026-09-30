@@ -30,7 +30,7 @@ function eventStream(request, roomCode, viewerId) {
               controller.enqueue(encoder.encode(': keepalive\n\n'));
               lastPing = Date.now();
             }
-            await new Promise(resolve => setTimeout(resolve, 750));
+            await new Promise(resolve => setTimeout(resolve, 400));
           }
         } catch (error) {
           if (!closed) controller.enqueue(encoder.encode(`event: error\ndata: ${JSON.stringify({ error: error.message || 'Flux interrompu.' })}\n\n`));

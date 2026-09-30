@@ -128,32 +128,21 @@ export async function getInter(codeValue) {
   const code = normalizedCode(codeValue);
   if (code.length !== 6) throw new InterError('Le code doit contenir six caractères.');
   const key = keyFor(code);
-  for (let attempt = 0; attempt < 5; attempt += 1) {
+  for (let attempt = 0; attempt < 4; attempt += 1) {
     const game = await getJson(key);
     if (!game) throw new InterError('Ce salon n’existe plus. Vérifie le code.', 404);
-    const version = game.version || 0;
-    const before = JSON.stringify({ status: game.status, round: game.round, turnIndex: game.turnIndex, phase: game.phase });
-    if (game.status === 'between' && Date.now() >= (game.nextRoundAt || 0)) continueMatch(game);
-    const now = Date.now();
-    let presenceChanged = false;
-    for (const player of game.players) {
-      const connected = Boolean(player.seenAt && now - player.seenAt < 25000);
-      if (player.connected !== connected) {
-        player.connected = connected;
-        presenceChanged = true;
-      }
-    }
-    const after = JSON.stringify({ status: game.status, round: game.round, turnIndex: game.turnIndex, phase: game.phase });
-    if (before === after && !presenceChanged) {
+    if (game.status !== 'between' || Date.now() < (game.nextRoundAt || 0)) {
       if (game.status === 'finished') await remember(game);
       return game;
     }
+    const version = game.version || 0;
+    continueMatch(game);
     if (await updateVersioned(key, { version }, game, GAME_TTL)) {
-      if (game.status === 'finished') await remember(game);
+      game.version = version + 1;
       return game;
     }
   }
-  return getJson(key);
+  throw new InterError('Le salon reçoit beaucoup de mises à jour. Réessaie dans un instant.', 409);
 }
 
 export async function mutateInter(input) {
@@ -208,6 +197,7 @@ export async function mutateInter(input) {
     }
     touch(game, playerId);
     if (await updateVersioned(key, { version }, game, GAME_TTL)) {
+      game.version = version + 1;
       if (game.status === 'finished') await remember(game);
       return game;
     }

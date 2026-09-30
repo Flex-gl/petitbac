@@ -46,7 +46,9 @@ function banners(game, viewerId) {
   const lines = [];
   if (game.phase === 'demand' && game.demandOwnerId === viewerId) lines.push(['Choisis la valeur demandée.', 'is-you']);
   else if (game.mustResolveDraw && game.yourTurn) lines.push(['Tu as pioché. Pose une carte ou passe ton tour.', 'is-you']);
-  else if (game.yourTurn) lines.push(['C’est ton tour', 'is-you']);
+  else if (game.yourTurn && game.pendingDraw > 0) lines.push(['Pose la même pénalité, ou pioche.', 'is-you']);
+  else if (game.yourTurn && !(game.playable || []).length) lines.push(['Aucune carte ne va. Pioche.', 'is-you']);
+  else if (game.yourTurn) lines.push(['Pose une carte entourée, ou pioche.', 'is-you']);
   else if (turnName) lines.push([`Tour de ${turnName}`, '']);
   if (game.pendingDraw > 0) lines.push([`+${game.pendingDraw} cartes à subir`, 'is-alert']);
   if (game.requestedRank) lines.push([`Le prochain joueur doit jouer : ${RANK_LABELS[game.requestedRank]}`, 'is-alert']);

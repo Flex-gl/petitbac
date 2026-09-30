@@ -142,8 +142,8 @@ button.card-back:hover { transform:translateY(-8px) }
 .playing-card.is-playable:hover { transform:translateY(-10px) }
 .playing-card.is-red { color:#d23b57 }
 .playing-card.is-special { box-shadow:0 0 0 2px rgba(255,215,118,.8), 0 10px 20px rgba(0,0,0,.28) }
-.playing-card.is-dim { opacity:.42 }
-.playing-card.is-playable { outline:2px solid var(--cyan); outline-offset:2px }
+.playing-card.is-dim { opacity:.55 }
+.playing-card.is-playable { outline:3px solid var(--cyan); outline-offset:2px; position:relative; z-index:2; transform:translateY(-14px) }
 .playing-card.is-selected { transform:translateY(-14px) }
 div.playing-card { cursor:default }
 .card-corner { display:flex; flex-direction:column; font-weight:800; line-height:1; font-size:13px }
@@ -205,6 +205,6 @@ div.playing-card { cursor:default }
   .playing-card, .card-back { width:58px; height:82px }
 }
 @media (prefers-reduced-motion: reduce) {
-  .playing-card.is-playable:hover, button.card-back:hover { transform:none }
+  .playing-card.is-playable:hover, button.card-back:hover, .playing-card.is-playable { transform:none }
   .mini-card, .playing-card, button.card-back { transition:none }
 }
