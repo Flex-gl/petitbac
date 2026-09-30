@@ -115,7 +115,7 @@ function centerCard(state) {
 }
 
 function isWild(rank, rules) {
-  return (rank === '8' && rules.eightWild) || rank === 'JOKER';
+  return (rank === '8' && rules.eightWild) || (rank === 'A' && rules.aceSkips) || rank === 'JOKER';
 }
 
 function demandChoices(state, playerId) {
@@ -370,10 +370,11 @@ export function play(state, playerId, cardIds, random = Math.random) {
   const rank = chosen[0].rank;
   state.requestedRank = null;
   if (rank === 'A' && state.rules.aceSkips) state.pendingSkip += cardIds.length;
-  else if (rank === '2') addPenalty(state, 'two', state.rules.twoDraw * cardIds.length);
+  if (rank === '2') addPenalty(state, 'two', state.rules.twoDraw * cardIds.length);
   else if (rank === '10') addPenalty(state, 'ten', state.rules.tenDraw * cardIds.length);
   else if (rank === 'JOKER') addPenalty(state, 'joker', state.rules.jokerDraw * cardIds.length);
-  else if (rank === '8' && state.rules.eightWild && demandChoices(state, player.id).length) {
+  const asks = (rank === '8' && state.rules.eightWild) || (rank === 'A' && state.rules.aceSkips);
+  if (asks && demandChoices(state, player.id).length) {
     state.phase = 'demand';
     state.openingDemand = false;
     state.demandOwnerId = player.id;
