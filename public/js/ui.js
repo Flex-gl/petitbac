@@ -34,7 +34,8 @@ export function shell(content, options = {}) {
   const nav = options.nav === false ? '' : `<nav class="bottom-nav" aria-label="Navigation principale"><button class="nav-item ${options.active === 'home' ? 'active' : ''}" data-action="home">${icon('home')}<span>Accueil</span></button><button class="nav-item ${options.active === 'rank' ? 'active' : ''}" data-action="rankings">${icon('trophy')}<span>Scores</span></button><button class="nav-item" data-action="rules">${icon('rules')}<span>Règles</span></button></nav>`;
   const enter = options.enter === false ? '' : 'view-enter';
   const theme = `<button type="button" class="theme-toggle" data-action="theme" aria-label="Changer le thème"><span class="theme-label-light">Clair</span><span class="theme-label-dark">Sombre</span></button>`;
-  return `<div class="app-shell ${options.wide ? 'wide' : ''}"><header class="topbar"><a class="brand" href="/" data-action="home" aria-label="Poséidon - Del'Hiver, accueil"><span class="brand-mark">P</span><span class="brand-name">Poséidon<span class="brand-tag">Del'Hiver</span></span></a><div class="top-tools">${theme}${options.right || ''}</div></header><main id="main" class="${enter}">${content}</main>${nav}</div><div class="toast" role="status" aria-live="polite"></div>`;
+  const music = `<button type="button" class="theme-toggle music-toggle" data-action="music" aria-label="Musique de fond"><span class="music-bars" aria-hidden="true"><i></i><i></i><i></i></span><span class="music-label-on">Musique</span><span class="music-label-off">Silence</span></button>`;
+  return `<div class="app-shell ${options.wide ? 'wide' : ''}"><header class="topbar"><a class="brand" href="/" data-action="home" aria-label="Poséidon - Del'Hiver, accueil"><span class="brand-mark">P</span><span class="brand-name">Poséidon<span class="brand-tag">Del'Hiver</span></span></a><div class="top-tools">${music}${theme}${options.right || ''}</div></header><main id="main" class="${enter}">${content}</main>${nav}</div><div class="toast" role="status" aria-live="polite"></div>`;
 }
 export function pageHead(title, subtitle, back = true) { return `<div class="page-head">${back ? `<button class="back-btn" data-action="back" aria-label="Retour">${icon('back')}</button>` : ''}<div><h1>${esc(title)}</h1><p>${esc(subtitle)}</p></div></div>`; }
 export function button(label, action, style = 'primary', extra = '') { return `<button class="btn btn-${style} ${extra}" data-action="${action}">${label}</button>`; }
@@ -50,7 +51,22 @@ export function showSheet(title, inner, onClose) {
   const returnFocus = document.activeElement;
   backdrop.className = 'sheet-backdrop';
   backdrop.innerHTML = `<section class="bottom-sheet" role="dialog" aria-modal="true" aria-label="${esc(title)}"><div class="sheet-handle"></div><button class="sheet-close" aria-label="Fermer">${icon('close')}</button><h2 class="sheet-title">${esc(title)}</h2>${inner}</section>`;
-  const close = () => { backdrop.remove(); document.removeEventListener('keydown', onKeydown); onClose?.(); returnFocus?.focus?.({ preventScroll: true }); };
+  let closed = false;
+  const finish = () => {
+    if (closed) return;
+    closed = true;
+    backdrop.remove();
+    document.removeEventListener('keydown', onKeydown);
+    onClose?.();
+    returnFocus?.focus?.({ preventScroll: true });
+  };
+  const close = () => {
+    if (backdrop.classList.contains('is-closing')) return;
+    backdrop.classList.add('is-closing');
+    const sheet = backdrop.querySelector('.bottom-sheet');
+    const timer = setTimeout(finish, 520);
+    sheet?.addEventListener('animationend', () => { clearTimeout(timer); finish(); }, { once: true });
+  };
   const onKeydown = event => {
     if (event.key === 'Escape') { event.preventDefault(); close(); return; }
     if (event.key !== 'Tab') return;

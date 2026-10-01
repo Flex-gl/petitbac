@@ -188,6 +188,25 @@ a {
 .theme-label-dark { display:none }
 html[data-theme="light"] .theme-label-light { display:none }
 html[data-theme="light"] .theme-label-dark { display:inline }
+.music-toggle { width:42px; padding:0; display:inline-flex; align-items:center; justify-content:center; gap:8px }
+.music-bars { display:flex; align-items:flex-end; gap:2px; height:12px }
+.music-bars i { display:block; width:2px; height:12px; border-radius:2px; background:currentColor; transform:scaleY(.35); transform-origin:bottom }
+html[data-music="on"] .music-bars i { animation:barPulse .9s ease-in-out infinite }
+html[data-music="on"] .music-bars i:nth-child(2) { animation-delay:.16s }
+html[data-music="on"] .music-bars i:nth-child(3) { animation-delay:.32s }
+.music-label-on,.music-label-off { display:none }
+body::before {
+  content:"";
+  position:fixed;
+  inset:-12%;
+  z-index:-1;
+  pointer-events:none;
+  background:radial-gradient(circle at 18% 20%, rgba(167,137,255,.16), transparent 34%), radial-gradient(circle at 82% 8%, rgba(96,230,230,.1), transparent 30%);
+  animation:drift 16s ease-in-out infinite alternate
+}
+html[data-theme="light"] body::before {
+  background:radial-gradient(circle at 18% 20%, rgba(104,67,224,.1), transparent 34%), radial-gradient(circle at 82% 8%, rgba(12,116,128,.08), transparent 30%)
+}
 .icon-btn svg,.back-btn svg {
   width:19px;
   height:19px
@@ -236,8 +255,8 @@ html[data-theme="light"] .display .gradient-text {
   height:112px;
   border:1px solid rgba(179,147,255,.27);
   border-radius:50%;
-  transform:rotate(-12deg);
-  box-shadow:0 0 36px rgba(160,121,255,.12),inset 0 0 26px rgba(160,121,255,.06)
+  box-shadow:0 0 36px rgba(160,121,255,.12),inset 0 0 26px rgba(160,121,255,.06);
+  animation:orbitSpin 18s linear infinite
 }
 .hero-orbit:after {
   content:'';
@@ -312,7 +331,7 @@ html[data-theme="light"] .display .gradient-text {
 .btn-primary {
   background:linear-gradient(100deg,#a47aff,#e987c7);
   color:#171020;
-  box-shadow:0 12px 30px rgba(163,119,246,.23)
+  animation:softGlow 3.8s ease-in-out infinite
 }
 .btn-secondary {
   border-color:var(--line);
@@ -321,7 +340,7 @@ html[data-theme="light"] .display .gradient-text {
 }
 @media (hover:hover) and (pointer:fine) {
   .btn-primary:hover { filter:brightness(1.06) }
-  .btn-secondary:hover,.theme-toggle:hover,.icon-btn:hover,.back-btn:hover { background:var(--wash-strong) }
+  .btn-secondary:hover,.theme-toggle:hover,.music-toggle:hover,.icon-btn:hover,.back-btn:hover { background:var(--wash-strong) }
 }
 .btn-tertiary {
   min-height:44px;
@@ -503,8 +522,17 @@ html[data-theme="light"] .display .gradient-text {
   height:19px
 }
 .view-enter {
-  animation:viewIn .38s var(--ease) both
+  animation:viewIn .5s cubic-bezier(.16,1,.3,1) both
 }
+.view-enter > * { animation:viewIn .55s cubic-bezier(.16,1,.3,1) both }
+.view-enter > *:nth-child(2) { animation-delay:.05s }
+.view-enter > *:nth-child(3) { animation-delay:.1s }
+.view-enter > *:nth-child(4) { animation-delay:.15s }
+.view-enter > *:nth-child(5) { animation-delay:.2s }
+.leader-card,.rank-row,.game-card,.player-row { animation:viewIn .5s cubic-bezier(.16,1,.3,1) both }
+.leader-card:nth-child(2),.rank-row:nth-child(2),.player-row:nth-child(2) { animation-delay:.06s }
+.rank-row:nth-child(3),.player-row:nth-child(3) { animation-delay:.12s }
+.rank-row:nth-child(4) { animation-delay:.18s }
 .page-head {
   display:flex;
   align-items:center;
@@ -1140,29 +1168,37 @@ html[data-theme="light"] .display .gradient-text {
   position:fixed;
   z-index:50;
   inset:0;
-  background:rgba(7,6,13,.64);
-  backdrop-filter:blur(5px);
+  background:color-mix(in srgb, var(--bg) 28%, transparent);
+  backdrop-filter:blur(10px);
   display:flex;
   align-items:flex-end;
   justify-content:center;
-  animation:fadeIn .2s
+  animation:fadeIn .32s var(--ease) both
+}
+.sheet-backdrop.is-closing {
+  animation:fadeOut .38s var(--ease) both
 }
 .bottom-sheet {
-  width:min(100%,520px);
+  width:min(100%,560px);
   max-height:min(83svh,760px);
   overflow:auto;
   padding:10px 22px calc(25px + env(safe-area-inset-bottom));
-  background:#211d30;
-  border:1px solid rgba(255,255,255,.1);
+  background:var(--panel);
+  color:var(--ink);
+  border:1px solid var(--line);
   border-bottom:0;
   border-radius:28px 28px 0 0;
-  box-shadow:0 -20px 70px rgba(0,0,0,.36);
-  animation:sheetIn .36s var(--ease)
+  box-shadow:var(--shadow);
+  animation:sheetIn .48s cubic-bezier(.16,1,.3,1) both
+}
+.sheet-backdrop.is-closing .bottom-sheet {
+  animation:sheetOut .36s var(--ease) both
 }
 .sheet-handle {
   width:40px;
   height:4px;
-  background:rgba(255,255,255,.24);
+  background:var(--muted2);
+  opacity:.45;
   border-radius:9px;
   margin:3px auto 20px
 }
@@ -1184,7 +1220,7 @@ html[data-theme="light"] .display .gradient-text {
 }
 .rules-list {
   padding-left:19px;
-  color:#ded8ec;
+  color:var(--ink);
   font-size:12px;
   line-height:1.75
 }
@@ -1200,12 +1236,12 @@ html[data-theme="light"] .display .gradient-text {
   padding:12px 16px;
   border:1px solid var(--line);
   border-radius:15px;
-  background:#2b263a;
-  color:#f5f1ff;
+  background:var(--panel-hi);
+  color:var(--ink);
   font-size:12px;
   font-weight:700;
   box-shadow:var(--shadow);
-  transition:opacity .2s,transform .2s
+  transition:opacity .36s var(--ease),transform .36s var(--ease)
 }
 .toast.show {
   transform:translate(-50%,0);
@@ -1327,7 +1363,7 @@ html[data-theme="light"] .reveal-word,
 html[data-theme="light"] .install-badge { color:var(--ink) }
 html[data-theme="light"] .icon-btn,
 html[data-theme="light"] .back-btn { background:var(--wash) }
-@media (min-width:840px) {
+@media (min-width:700px) {
   .app-shell {
     width:100%;
     max-width:none;
@@ -1346,7 +1382,10 @@ html[data-theme="light"] .back-btn { background:var(--wash) }
   .topbar { padding-top:0 }
   #main { width:100%; margin:0 }
   .app-shell.wide #main,
-  .app-shell:not(:has(.bottom-nav)) #main { width:min(1240px,100%); margin-inline:auto }
+  .app-shell:not(:has(.bottom-nav)) #main { width:100%; margin:0 }
+  .music-toggle { width:auto; padding:0 12px }
+  html[data-music="on"] .music-label-on { display:inline }
+  html[data-music="off"] .music-label-off { display:inline }
   .bottom-nav {
     position:fixed;
     top:0;
@@ -1400,8 +1439,32 @@ html[data-theme="light"] .back-btn { background:var(--wash) }
   .home-actions .btn-primary { grid-column:1 / -1 }
   .rank-list { grid-template-columns:1fr 1fr }
   .page-head h1 { font-size:40px }
+  .sheet-backdrop { align-items:center; padding:40px }
+  .bottom-sheet {
+    width:min(720px,100%);
+    border-radius:28px;
+    border-bottom:1px solid var(--line);
+    animation-name:dialogIn
+  }
+  .sheet-backdrop.is-closing .bottom-sheet { animation-name:dialogOut }
+  #main:has(.code-card) {
+    display:grid;
+    grid-template-columns:minmax(0,1fr) minmax(0,1fr);
+    gap:20px 32px;
+    align-items:start
+  }
+  #main:has(.code-card) > .page-head,
+  #main:has(.code-card) > .room-actions { grid-column:1 / -1 }
+  #main > form {
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    column-gap:28px;
+    align-items:start
+  }
+  #main > form > :is(.field:has(.category-grid), .form-footer, .error-note, .notice) { grid-column:1 / -1 }
+  .category-grid { grid-template-columns:repeat(auto-fill,minmax(168px,1fr)) }
 }
-@media(min-width:600px) and (max-width:839px) {
+@media(min-width:600px) and (max-width:699px) {
   .app-shell {
     padding-top:18px
   }

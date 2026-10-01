@@ -2,6 +2,7 @@ import { APP_VERSION } from './version.js';
 import { api } from './api.js';
 import { esc, haptic, icon, pageHead, shell, showSheet, toast } from './ui.js';
 import { homeScreen, rankingsScreen } from './screens/home.js';
+import { armMusic, setMusic, musicWanted } from './inter-audio.js';
 import { attachInter, followInter, handleInterAction, interPathCode, leaveInter, loadInterSession, openInterRules, renderInter, stopInter, submitInterCreate, submitInterJoin } from './inter-session.js';
 
 document.documentElement.dataset.appVersion = APP_VERSION;
@@ -49,7 +50,7 @@ async function loadGameFeatures() {
 }
 
 function splash() {
-  root.innerHTML = `<div class="splash"><div class="splash-mark"><span>P</span></div><p>POSÉIDON · DEL'HIVER</p></div>`;
+  root.innerHTML = `<div class="splash"><div class="loader-orbit" aria-hidden="true"><span></span><span></span></div><div class="splash-mark"><span>P</span></div><p>POSÉIDON · DEL'HIVER</p><b class="loader-caption">Ouverture de l’arène</b></div>`;
 }
 
 function roomSignature(game) {
@@ -503,6 +504,10 @@ async function handleAction(button) {
     if (meta) meta.content = next === 'light' ? '#f4f1fa' : '#100e1c';
     return;
   }
+  if (action === 'music') {
+    setMusic(!musicWanted());
+    return;
+  }
   if (['home', 'create', 'join', 'rankings', 'rules', 'back', 'install'].includes(action)) haptic();
   if (action === 'pick-game') {
     state.gameMode = button.dataset.game === 'inter' ? 'inter' : 'petitbac';
@@ -637,6 +642,7 @@ addEventListener('appinstalled', () => { state.deferredPrompt = null; if (state.
 setInterval(() => refreshScores(true), 30000);
 setInterval(updateTimers, 250);
 attachInter({ state, playerId, render });
+armMusic();
 splash();
 setTimeout(async () => {
   state.page = 'home';

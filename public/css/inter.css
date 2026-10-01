@@ -54,11 +54,14 @@
   place-items:center;
   font-size:14px;
   box-shadow:0 6px 14px rgba(0,0,0,.25);
-  transform:rotate(-8deg)
+  animation:letterFloat 4.8s ease-in-out infinite
 }
 .mini-card:nth-child(2) { transform:translateY(-4px) rotate(0deg); z-index:1 }
 .mini-card:nth-child(3) { transform:rotate(8deg) }
 .mini-card.red { color:#d23b57 }
+@media (hover:hover) and (pointer:fine) {
+  .game-card:hover { border-color:var(--accent) }
+}
 .inter-status {
   display:grid;
   gap:6px;
@@ -191,11 +194,12 @@ div.playing-card { cursor:default }
   gap:8px;
   padding:8px 10px;
   border-radius:16px;
-  background:rgba(16,14,28,.72);
-  color:#f8f6ff
+  background:var(--panel);
+  color:var(--ink);
+  border:1px solid var(--line)
 }
 .seat-chip strong { display:block; font-size:13px }
-.seat-chip span { color:#c9c3da; font-size:11px }
+.seat-chip span { color:var(--muted); font-size:11px }
 .seat-chip.is-turn { outline:2px solid var(--cyan) }
 .hand-fan {
   --card-w:clamp(100px, 24vw, 142px);
@@ -218,19 +222,19 @@ div.playing-card { cursor:default }
   font-weight:800
 }
 .rank-list .is-winner { outline:1px solid rgba(255,215,118,.7) }
-@media (min-width:840px) {
+@media (min-width:700px) {
   .inter-table {
     --card-w:116px;
     grid-template-columns:200px minmax(460px,1fr) 200px;
     min-height:72vh;
     align-items:stretch
   }
-  .felt { min-height:460px }
+  .felt { min-height:calc(100svh - 230px); animation:feltBreath 7s ease-in-out infinite }
   .seat-west,.seat-east { display:flex; align-items:center }
   .seat-east { justify-content:flex-end }
-  .inter-actions { width:min(560px,100%); margin-left:auto; margin-right:auto }
+  .inter-actions { width:min(880px,100%); margin-left:auto; margin-right:auto }
 }
-@media (max-width:720px) {
+@media (max-width:699px) {
   .inter-table { grid-template-columns:1fr 1fr; grid-template-areas:"north north" "west east" "felt felt" "hand hand" }
   .game-picker { grid-template-columns:1fr }
   .game-card { min-height:0 }

@@ -4,7 +4,41 @@
   align-content:center;
   justify-items:center;
   gap:17px;
-  background:radial-gradient(ellipse at 50% 42%,rgba(143,104,241,.2),transparent 36%),#100e1c
+  position:relative;
+  background:radial-gradient(ellipse at 50% 42%,rgba(143,104,241,.2),transparent 36%),var(--bg,#100e1c);
+  color:var(--ink,#f8f6ff)
+}
+html[data-theme="light"] .splash {
+  background:radial-gradient(ellipse at 50% 42%,rgba(104,67,224,.14),transparent 36%),#f4f1fa
+}
+.loader-orbit {
+  position:absolute;
+  width:148px;
+  height:148px;
+  margin-top:-28px
+}
+.loader-orbit span {
+  position:absolute;
+  inset:0;
+  border-radius:50%;
+  border:1.5px solid transparent;
+  border-top-color:#a789ff;
+  border-right-color:rgba(96,230,230,.7);
+  animation:loaderSpin 1.6s cubic-bezier(.45,.05,.25,1) infinite
+}
+.loader-orbit span:last-child {
+  inset:12px;
+  border-top-color:transparent;
+  border-right-color:transparent;
+  border-bottom-color:#ff78b8;
+  animation-duration:2.4s;
+  animation-direction:reverse
+}
+.loader-caption {
+  font-size:11px;
+  font-weight:600;
+  letter-spacing:.4px;
+  color:var(--muted,#88819e)
 }
 .splash-mark {
   display:flex;
@@ -51,7 +85,7 @@
   }
 }
 @media(prefers-reduced-motion:reduce) {
-  .splash-mark span {
+  .splash-mark span, .loader-orbit span {
     animation:none;
     opacity:1
   }
