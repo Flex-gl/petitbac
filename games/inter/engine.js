@@ -33,7 +33,7 @@ export function defaultRules(overrides = {}) {
     queenEffect: null,
     kingEffect: null,
     lastCardPenalty: 0,
-    rounds: 1,
+    rounds: 0,
     ...overrides,
     scores
   };
@@ -73,10 +73,9 @@ export function createDeck() {
       ids.push(id);
     }
   }
-  for (const id of ['joker-1', 'joker-2']) {
-    cards[id] = { id, rank: 'JOKER', suit: 'joker', red: false, symbol: '★', type: 'joker', effect: 'draw5' };
-    ids.push(id);
-  }
+  cards['joker-1'] = { id: 'joker-1', rank: 'JOKER', suit: 'joker', red: true, symbol: '★', type: 'joker', effect: 'draw5', face: 'smile' };
+  cards['joker-2'] = { id: 'joker-2', rank: 'JOKER', suit: 'joker', red: false, symbol: '★', type: 'joker', effect: 'draw5', face: 'wry' };
+  ids.push('joker-1', 'joker-2');
   return { cards, ids };
 }
 
@@ -112,6 +111,22 @@ function centerId(state) {
 function centerCard(state) {
   const id = centerId(state);
   return id ? state.cards[id] : null;
+}
+
+function stackOrder(state, cardIds) {
+  if (cardIds.length < 2) return cardIds;
+  const center = centerCard(state);
+  if (!center) return cardIds;
+  const weight = id => {
+    const card = state.cards[id];
+    if (!card) return 0;
+    const sameSuit = card.suit === center.suit;
+    const sameColor = Boolean(card.red) === Boolean(center.red);
+    if (sameSuit && sameColor) return 0;
+    if (sameSuit || sameColor) return 1;
+    return 2;
+  };
+  return [...cardIds].sort((a, b) => weight(a) - weight(b) || cardIds.indexOf(a) - cardIds.indexOf(b));
 }
 
 function isWild(rank, rules) {
@@ -236,7 +251,7 @@ function passTurn(state, random = Math.random) {
 }
 
 export function absorbPending(state, random = Math.random) {
-  if (!state.pendingDraw || state.status === 'finished' || state.phase === 'demand') return state;
+  if (!state.pendingDraw || state.freePlay || state.status === 'finished' || state.phase === 'demand') return state;
   const player = state.players[state.turnIndex];
   if (!player || player.abandoned) return state;
   const count = state.pendingDraw;
@@ -264,11 +279,12 @@ function concludeRound(state, winner) {
   }
   state.winnerId = winner?.id || null;
   log(state, { type: 'PLAYER_WON', playerId: winner?.id || null, name: winner?.name || '', round: state.round });
-  if (state.round >= state.rules.rounds) concludeMatch(state, state.players.findIndex(player => player.id === winner?.id));
+  const limited = Number(state.rules.rounds) > 0;
+  if (limited && state.round >= state.rules.rounds) concludeMatch(state, state.players.findIndex(player => player.id === winner?.id));
   else {
     state.status = 'between';
     state.phase = 'between';
-    state.nextRoundAt = Date.now() + 5000;
+    state.nextRoundAt = null;
   }
 }
 
@@ -360,6 +376,7 @@ export function beginMatch(players, rules = defaultRules(), random = Math.random
 export function play(state, playerId, cardIds, random = Math.random) {
   const player = assertPlaying(state, playerId);
   if (!isLegal(state, playerId, cardIds)) throw new InterError('Ce coup n’est pas autorisé.', 403);
+  cardIds = stackOrder(state, cardIds.slice());
   const chosen = cardIds.map(id => state.cards[id]);
   const before = player.hand.length;
   for (const id of cardIds) {
@@ -480,7 +497,14 @@ export function continueMatch(state, random = Math.random) {
   if (state.status !== 'between') throw new InterError('La manche suivante n’est pas prête.');
   state.round += 1;
   state.status = 'playing';
+  state.nextRoundAt = null;
   return deal(state, random);
+}
+
+export function finishMatch(state) {
+  if (state.status !== 'between') throw new InterError('La partie ne peut pas se clore maintenant.');
+  concludeMatch(state, state.players.findIndex(player => player.id === state.winnerId));
+  return state;
 }
 
 export function transferPlayer(state, previousId, nextId, name) {
@@ -497,7 +521,18 @@ export function transferPlayer(state, previousId, nextId, name) {
 function publicCard(state, id) {
   const card = state.cards?.[id];
   if (!card) return null;
-  return { id: card.id, rank: card.rank, suit: card.suit, red: card.red, symbol: card.symbol, type: card.type, effect: card.effect };
+  const joker = card.rank === 'JOKER';
+  const smile = joker && (card.face === 'smile' || card.id === 'joker-1');
+  return {
+    id: card.id,
+    rank: card.rank,
+    suit: card.suit,
+    red: joker ? smile : card.red,
+    symbol: card.symbol,
+    type: card.type,
+    effect: card.effect,
+    face: joker ? (smile ? 'smile' : 'wry') : undefined
+  };
 }
 
 export function publicView(state, viewerId = '') {

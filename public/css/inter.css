@@ -174,6 +174,10 @@ div.playing-card { cursor:default }
 .card-corner small { font-size:calc(var(--card-w) * 0.13) }
 .card-corner-br { align-self:flex-end; transform:rotate(180deg) }
 .card-suit { font-size:calc(var(--card-w) * 0.38); line-height:1; text-align:center }
+.playing-card.is-joker { background:linear-gradient(180deg, #fffaf3 0%, #f4efe4 100%); }
+.joker-body { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:1px; min-height:0 }
+.joker-portrait { width:68%; height:auto; display:block }
+.joker-sign { font-family:"Segoe Script", "Palatino Linotype", cursive; font-size:calc(var(--card-w) * 0.105); line-height:1; letter-spacing:0; text-align:center }
 .inter-table {
   --card-w:clamp(100px, 22vw, 124px);
   --card-h:calc(var(--card-w) * 1.4);

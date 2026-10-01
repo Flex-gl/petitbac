@@ -1,5 +1,5 @@
 import { createIfAbsent, getJson, updateVersioned, redis } from './_redis.js';
-import { InterError, beginMatch, play, chooseRank, draw, passDrawn, announce, abandon, continueMatch, publicView, transferPlayer, defaultRules, absorbPending } from '../games/inter/engine.js';
+import { InterError, beginMatch, play, chooseRank, draw, passDrawn, announce, abandon, continueMatch, finishMatch, publicView, transferPlayer, defaultRules, absorbPending } from '../games/inter/engine.js';
 
 const GAME_TTL = 604800;
 const ROOM_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -47,11 +47,10 @@ function keyFor(code) {
 
 function rulesFrom(input) {
   const maxPlayers = [2, 3, 4, 5, 6].includes(Number(input.maxPlayers)) ? Number(input.maxPlayers) : 4;
-  const rounds = [1, 3, 5].includes(Number(input.rounds)) ? Number(input.rounds) : 1;
   const initialHand = Number(input.initialHand);
   return defaultRules({
     maxPlayers,
-    rounds,
+    rounds: 0,
     initialHand: initialHand >= 1 && initialHand <= 8 ? initialHand : 4
   });
 }
@@ -131,15 +130,13 @@ export async function getInter(codeValue) {
   for (let attempt = 0; attempt < 4; attempt += 1) {
     const game = await getJson(key);
     if (!game) throw new InterError('Ce salon n’existe plus. Vérifie le code.', 404);
-    const penaltyDue = game.status === 'playing' && game.phase !== 'demand' && game.pendingDraw > 0;
-    const roundDue = game.status === 'between' && Date.now() >= (game.nextRoundAt || 0);
-    if (!penaltyDue && !roundDue) {
+    const penaltyDue = game.status === 'playing' && game.phase !== 'demand' && game.pendingDraw > 0 && !game.freePlay;
+    if (!penaltyDue) {
       if (game.status === 'finished') await remember(game);
       return game;
     }
     const version = game.version || 0;
-    if (roundDue) continueMatch(game);
-    if (game.pendingDraw > 0 && game.phase !== 'demand') absorbPending(game);
+    if (game.pendingDraw > 0 && !game.freePlay && game.phase !== 'demand') absorbPending(game);
     if (await updateVersioned(key, { version }, game, GAME_TTL)) {
       game.version = version + 1;
       return game;
@@ -157,7 +154,6 @@ export async function mutateInter(input) {
     const game = await getJson(key);
     if (!game) throw new InterError('Ce salon n’existe plus. Vérifie le code.', 404);
     const version = game.version || 0;
-    if (game.status === 'between' && Date.now() >= (game.nextRoundAt || 0)) continueMatch(game);
     const action = String(input.action || '');
     if (action === 'reclaim') {
       if (!game.hostSecret || String(input.hostSecret || '') !== game.hostSecret) throw new InterError('Tu ne peux pas reprendre ce salon.', 403);
@@ -193,6 +189,12 @@ export async function mutateInter(input) {
       announce(game, playerId);
     } else if (action === 'abandon') {
       abandon(game, playerId);
+    } else if (action === 'continue') {
+      if (game.hostId !== playerId) throw new InterError('Seul l’hôte peut lancer la manche suivante.', 403);
+      continueMatch(game);
+    } else if (action === 'finish') {
+      if (game.hostId !== playerId) throw new InterError('Seul l’hôte peut clore la partie.', 403);
+      finishMatch(game);
     } else if (action === 'ping') {
       touch(game, playerId);
     } else {

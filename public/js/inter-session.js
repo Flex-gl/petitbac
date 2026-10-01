@@ -4,6 +4,18 @@ import { playCue } from './inter-audio.js';
 import { interSetupScreen, interInviteScreen, interLobbyScreen, interTableScreen, interBetweenScreen, interFinalScreen, interRulesHtml } from './screens/inter.js';
 import { animateTable, captureTable, launchOwnPlay, clearFlights } from './inter-motion.js';
 
+function stackOrder(cards, center) {
+  if (!center || cards.length < 2) return cards;
+  const weight = card => {
+    const sameSuit = card.suit === center.suit;
+    const sameColor = Boolean(card.red) === Boolean(center.red);
+    if (sameSuit && sameColor) return 0;
+    if (sameSuit || sameColor) return 1;
+    return 2;
+  };
+  return [...cards].sort((a, b) => weight(a) - weight(b));
+}
+
 const sessionKey = 'petitbac.inter.session';
 const soundKey = 'petitbac.inter.sound';
 const hapticKey = 'petitbac.inter.haptic';
@@ -219,8 +231,11 @@ export async function handleInterAction(button) {
     const hand = game?.players?.find(player => player.id === ctx.playerId)?.hand || [];
     const card = hand.find(entry => entry.id === id);
     if (!card || !game.playable?.includes(id)) return;
-    const cardIds = hand.filter(entry => entry.rank === card.rank && game.playable.includes(entry.id)).map(entry => entry.id);
-    const cards = cardIds.map(id => hand.find(entry => entry.id === id)).filter(Boolean);
+    const sameRank = card.rank === 'JOKER'
+      ? [card]
+      : hand.filter(entry => entry.rank === card.rank && game.playable.includes(entry.id));
+    const cards = stackOrder(sameRank, game.center);
+    const cardIds = cards.map(entry => entry.id);
     const cancelFlight = launchOwnPlay(cards);
     const played = await run('play', { cardIds });
     if (!played) cancelFlight();
@@ -233,6 +248,8 @@ export async function handleInterAction(button) {
   if (action === 'ix-ready') return run('ready');
   if (action === 'ix-start') return run('start');
   if (action === 'ix-abandon') return run('abandon');
+  if (action === 'ix-continue') return run('continue');
+  if (action === 'ix-finish') return run('finish');
   if (action === 'ix-leave') return leaveInter(true);
   if (action === 'ix-rules') return openInterRules();
   if (action === 'ix-sound') {
@@ -258,12 +275,11 @@ export async function submitInterCreate(form) {
   const errorNode = form.querySelector('[data-form-error]');
   if (name.length < 2) { errorNode.textContent = 'Entre un pseudo ou un nom d’au moins deux lettres.'; return; }
   const maxPlayers = Number(document.querySelector('[data-choice="maxPlayers"] .segment[aria-pressed="true"]')?.dataset.value || 4);
-  const rounds = Number(document.querySelector('[data-choice="rounds"] .segment[aria-pressed="true"]')?.dataset.value || 1);
   ctx.state.name = name;
   localStorage.setItem('petitbac.playerName', name);
   form.querySelector('[type="submit"]').disabled = true;
   try {
-    const data = await api.interAction({ action: 'create', playerId: ctx.playerId, name, maxPlayers, rounds, initialHand: 4 });
+    const data = await api.interAction({ action: 'create', playerId: ctx.playerId, name, maxPlayers, initialHand: 4 });
     await openInter(data.game);
   } catch (error) {
     errorNode.textContent = error.message;
@@ -301,7 +317,7 @@ export async function renderInter(root) {
   else if (ctx.state.page === 'inter-invite') root.innerHTML = interInviteScreen(ctx.state.code);
   else if (!game) root.innerHTML = interSetupScreen(ctx.state.name);
   else if (game.status === 'lobby') root.innerHTML = interLobbyScreen(game, ctx.playerId);
-  else if (game.status === 'between') root.innerHTML = interBetweenScreen(game);
+  else if (game.status === 'between') root.innerHTML = interBetweenScreen(game, ctx.playerId);
   else if (game.status === 'finished') root.innerHTML = interFinalScreen(game);
   else root.innerHTML = interTableScreen(game, ctx.playerId, { enter: !(continuous || dealt) });
   if (game?.status === 'playing') animateTable(before, previous, game, ctx.playerId);

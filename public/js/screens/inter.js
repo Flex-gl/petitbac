@@ -5,11 +5,25 @@ const DEMAND_RANKS = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q
 
 const RANK_ORDER = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'JOKER'];
 
+function jokerPortrait(smile) {
+  const eyes = smile
+    ? '<path d="M20 34c1.6 2.4 4.2 2.4 5.8 0M36 34c1.6 2.4 4.2 2.4 5.8 0" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>'
+    : '<path d="M20 33h6M36 31.5c2.2 1.4 4.6 1.2 6.2-.4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>';
+  const mouth = smile
+    ? '<path d="M22 44c3.2 7 14.8 7 18 0" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>'
+    : '<path d="M24 46c2.4 1.6 6.2 2.4 12 .2" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>';
+  return `<svg class="joker-portrait" viewBox="0 0 64 72" aria-hidden="true"><path d="M22 26c2-8 18-8 20 0-3-3-17-3-20 0z" fill="#e2b657"/><circle cx="32" cy="15" r="2.6" fill="#e2b657"/><circle cx="32" cy="38" r="16" fill="#fff6ea" stroke="currentColor" stroke-width="1.7"/>${eyes}<circle cx="24.2" cy="38" r="1.3" fill="currentColor"/><circle cx="39.8" cy="38" r="1.3" fill="currentColor"/>${mouth}</svg>`;
+}
+
 function cardFace(card, { playable = false, dim = false, inert = false } = {}) {
-  const classes = ['playing-card', card.red ? 'is-red' : 'is-black', card.type !== 'normal' ? 'is-special' : '', playable ? 'is-playable' : '', dim ? 'is-dim' : ''].filter(Boolean).join(' ');
-  const mark = card.rank === 'JOKER' ? '★' : card.rank;
-  const inner = `<span class="card-corner">${esc(card.symbol)}<small>${esc(mark)}</small></span><span class="card-suit">${esc(card.symbol)}</span><span class="card-corner card-corner-br">${esc(card.symbol)}<small>${esc(mark)}</small></span>`;
-  const label = `${card.symbol} ${RANK_LABELS[card.rank] || card.rank}`;
+  const joker = card.rank === 'JOKER';
+  const classes = ['playing-card', card.red ? 'is-red' : 'is-black', joker ? 'is-joker' : '', card.type !== 'normal' ? 'is-special' : '', playable ? 'is-playable' : '', dim ? 'is-dim' : ''].filter(Boolean).join(' ');
+  const mark = joker ? 'J' : card.rank;
+  const smile = joker && card.face !== 'wry';
+  const inner = joker
+    ? `<span class="card-corner">★<small>${esc(mark)}</small></span><span class="joker-body">${jokerPortrait(smile)}<span class="joker-sign">Del'hiver</span></span><span class="card-corner card-corner-br">★<small>${esc(mark)}</small></span>`
+    : `<span class="card-corner">${esc(card.symbol)}<small>${esc(mark)}</small></span><span class="card-suit">${esc(card.symbol)}</span><span class="card-corner card-corner-br">${esc(card.symbol)}<small>${esc(mark)}</small></span>`;
+  const label = joker ? `Joker ${card.red ? 'rouge' : 'noir'}, Del'hiver` : `${card.symbol} ${RANK_LABELS[card.rank] || card.rank}`;
   if (inert || !playable) return `<div class="${classes}" data-card="${esc(card.id)}" aria-label="${esc(label)}">${inner}</div>`;
   return `<button type="button" class="${classes}" data-action="ix-play" data-card="${esc(card.id)}" aria-label="${esc(label)}">${inner}</button>`;
 }
@@ -25,8 +39,7 @@ function seat(player, active) {
 
 export function interSetupScreen(name) {
   const players = [2, 3, 4, 5, 6].map(count => `<button type="button" class="segment" data-choice="maxPlayers" data-value="${count}" aria-pressed="${count === 4}">${count}</button>`).join('');
-  const rounds = [1, 3, 5].map(count => `<button type="button" class="segment" data-choice="rounds" data-value="${count}" aria-pressed="${count === 1}">${count}</button>`).join('');
-  const content = `${pageHead('Nouvelle partie INTER', 'Salon privé. Le code suffit pour inviter.')}<form id="inter-create" novalidate><label class="field"><span class="field-label">Pseudo ou nom complet</span><input class="text-input" name="name" maxlength="40" minlength="2" autocomplete="name" required value="${esc(name)}" placeholder="Ex. Alex Martin"></label><div class="field"><span class="field-label">Nombre de joueurs</span><div class="segmented" data-choice="maxPlayers">${players}</div></div><div class="field"><span class="field-label">Manches</span><div class="segmented" data-choice="rounds">${rounds}</div></div><p class="notice">Partie privée · 4 cartes chacun · le reste forme la pioche.</p><div class="error-note" data-form-error role="status"></div><div class="form-footer"><button class="btn btn-primary btn-full" type="submit">Créer le salon ${icon('arrow', 17)}</button></div></form>`;
+  const content = `${pageHead('Nouvelle partie INTER', 'Salon privé. Le code suffit pour inviter.')}<form id="inter-create" novalidate><label class="field"><span class="field-label">Pseudo ou nom complet</span><input class="text-input" name="name" maxlength="40" minlength="2" autocomplete="name" required value="${esc(name)}" placeholder="Ex. Alex Martin"></label><div class="field"><span class="field-label">Nombre de joueurs</span><div class="segmented" data-choice="maxPlayers">${players}</div></div><p class="notice">Partie privée · 4 cartes chacun · après chaque manche, l’hôte choisit d’en lancer une autre.</p><div class="error-note" data-form-error role="status"></div><div class="form-footer"><button class="btn btn-primary btn-full" type="submit">Créer le salon ${icon('arrow', 17)}</button></div></form>`;
   return shell(content, { nav: false });
 }
 
@@ -101,7 +114,8 @@ export function interTableScreen(game, viewerId, { enter = true } = {}) {
     : `<div class="card-back" aria-hidden="true"></div>`;
   const tools = `<div class="inter-tools" style="display:flex;gap:8px;justify-content:flex-end">${iconButton('ix-sound', 'Son')}${iconButton('ix-haptic', 'Vibrations')}</div>`;
   const actions = `<div class="inter-actions">${game.mustResolveDraw && game.yourTurn ? '<button class="btn btn-secondary" data-action="ix-pass">Passer mon tour</button>' : ''}${me?.cardCount === 1 && !me.announced ? '<button class="btn btn-primary" data-action="ix-announce">INTER</button>' : ''}<button class="btn btn-secondary" data-action="ix-rules">Règles</button><button class="btn btn-secondary" data-action="ix-abandon">Abandonner</button></div>`;
-  const content = `${pageHead('INTER', `Manche ${game.round} / ${game.rules.rounds}`, false)}${tools}${banners(game, viewerId)}${demand}<div class="inter-table">${zone(seats.north, 'north')}${zone(seats.west, 'west')}<div class="felt"><div class="pile" data-role="center"><span>Défausse</span>${center}${game.lastPlayCount > 1 ? `<span>${game.lastPlayCount} cartes</span>` : ''}</div><div class="pile" data-role="draw"><span>Pioche</span>${pile}<span>${game.deckCount}</span></div></div>${zone(seats.east, 'east')}<div class="seat seat-me"><div class="hand-fan" aria-label="Tes cartes">${cards || '<p>Plus de cartes</p>'}</div>${actions}</div></div>`;
+  const manche = Number(game.rules.rounds) > 0 ? `Manche ${game.round} / ${game.rules.rounds}` : `Manche ${game.round}`;
+  const content = `${pageHead('INTER', manche, false)}${tools}${banners(game, viewerId)}${demand}<div class="inter-table">${zone(seats.north, 'north')}${zone(seats.west, 'west')}<div class="felt"><div class="pile" data-role="center"><span>Défausse</span>${center}${game.lastPlayCount > 1 ? `<span>${game.lastPlayCount} cartes</span>` : ''}</div><div class="pile" data-role="draw"><span>Pioche</span>${pile}<span>${game.deckCount}</span></div></div>${zone(seats.east, 'east')}<div class="seat seat-me"><div class="hand-fan" aria-label="Tes cartes">${cards || '<p>Plus de cartes</p>'}</div>${actions}</div></div>`;
   return shell(content, { nav: false, wide: true, enter });
 }
 
@@ -109,11 +123,15 @@ function iconButton(action, label) {
   return `<button class="btn btn-secondary btn-sm" data-action="${action}" aria-label="${label}">${label}</button>`;
 }
 
-export function interBetweenScreen(game) {
+export function interBetweenScreen(game, viewerId) {
   const winner = game.players.find(player => player.id === game.winnerId);
-  const rows = game.ranking.map((player, index) => `<div class="rank-row"><span class="rank-medal">${index + 1}</span><div><div class="rank-player">${esc(player.name)}</div><div class="rank-stats">${player.cardCount} carte${player.cardCount > 1 ? 's' : ''} · ${player.roundPoints} pts</div></div></div>`).join('');
-  const content = `${pageHead('Manche terminée', 'La suivante commence toute seule.', false)}<div class="correction-hero"><div class="correction-kicker">Vainqueur de la manche</div><h2 class="correction-category">${winner ? esc(winner.name) : 'Égalité'}</h2></div><div class="rank-list">${rows}</div>`;
-  return shell(content, { nav: false });
+  const host = game.hostId === viewerId;
+  const rows = game.ranking.map((player, index) => `<div class="rank-row"><span class="rank-medal">${index + 1}</span><div><div class="rank-player">${esc(player.name)}</div><div class="rank-stats">${player.cardCount} carte${player.cardCount > 1 ? 's' : ''} · ${player.roundPoints} cette manche · ${player.matchScore} au total</div></div></div>`).join('');
+  const choice = host
+    ? `<div class="room-actions"><button class="btn btn-primary" data-action="ix-continue">Lancer une autre manche</button><button class="btn btn-secondary" data-action="ix-finish">Clore la partie</button></div>`
+    : `<p class="notice">L’hôte choisit de lancer une autre manche, ou de clore la partie.</p>`;
+  const content = `${pageHead('Manche terminée', 'Rien ne repart tout seul.', false)}<div class="correction-hero"><div class="correction-kicker">Vainqueur de la manche</div><h2 class="correction-category">${winner ? esc(winner.name) : 'Égalité'}</h2></div><div class="rank-list">${rows}</div>${choice}`;
+  return shell(content, { nav: false, wide: true });
 }
 
 export function interFinalScreen(game) {
@@ -125,5 +143,5 @@ export function interFinalScreen(game) {
 }
 
 export function interRulesHtml() {
-  return `<p class="sheet-copy">Pose une carte de la même enseigne ou de la même valeur. Plusieurs cartes de la même valeur se posent ensemble dès que l’une d’elles va au centre.</p><ol class="rules-list"><li>Chacun reçoit 4 cartes. Une carte est retournée au centre, le reste est la pioche.</li><li>As : seulement sur la même enseigne ou la même valeur. Il bloque autant de joueurs que d’as posés.</li><li>2 : seulement sur la même enseigne ou la même valeur. Le suivant reçoit 2 cartes tout de suite et perd son tour. Plusieurs 2 posés ensemble s’additionnent.</li><li>8 : se pose sur tout. Tu demandes une valeur que tu as encore en main.</li><li>10 : seulement sur la même enseigne ou la même valeur. Le suivant reçoit 4 cartes tout de suite et perd son tour. Plusieurs 10 posés ensemble s’additionnent.</li><li>Joker : se pose à tout moment. Tu gardes la main et tu peux poser n’importe quelle carte. Quand ton tour passe, le suivant reçoit 5 cartes tout de suite et perd son tour. Un deuxième joker relance cette liberté.</li><li>Valet, dame et roi se jouent comme des cartes normales.</li><li>Tu peux piocher même si une carte est jouable. Une seule pioche par tour : ensuite tu poses ou tu passes. Si la pioche est vide, la défausse est mélangée, sauf la carte visible.</li><li>À une carte, annonce INTER. La manche s’arrête quand un joueur n’a plus de carte.</li><li>Score des cartes restantes : As 1, 8 vaut 25, têtes 10, Joker 50. Le plus bas total gagne.</li></ol>`;
+  return `<p class="sheet-copy">Pose une carte de la même enseigne ou de la même valeur. Plusieurs cartes de la même valeur se posent ensemble dès que l’une d’elles va au centre. Celle du dessus inverse la couleur et l’enseigne du centre.</p><ol class="rules-list"><li>Chacun reçoit 4 cartes. Une carte est retournée au centre, le reste est la pioche. Après la manche, l’hôte choisit d’en lancer une autre.</li><li>As : seulement sur la même enseigne ou la même valeur. Il bloque autant de joueurs que d’as posés.</li><li>2 : seulement sur la même enseigne ou la même valeur. Le suivant reçoit 2 cartes tout de suite et perd son tour. Plusieurs 2 posés ensemble s’additionnent.</li><li>8 : se pose sur tout. Tu demandes une valeur que tu as encore en main.</li><li>10 : seulement sur la même enseigne ou la même valeur. Le suivant reçoit 4 cartes tout de suite et perd son tour. Plusieurs 10 posés ensemble s’additionnent.</li><li>Joker : un seul à la fois, jamais à la place de quelqu’un d’autre. Tu gardes la main et tu peux poser n’importe quelle carte. Quand ton tour passe, le suivant reçoit 5 cartes et perd son tour. Le joker rouge sourit, le noir non. Les deux sont signés Del'hiver.</li><li>Valet, dame et roi se jouent comme des cartes normales.</li><li>Tu peux piocher même si une carte est jouable. Une seule pioche par tour : ensuite tu poses ou tu passes. Si la pioche est vide, la défausse est mélangée, sauf la carte visible.</li><li>À une carte, annonce INTER. La manche s’arrête quand un joueur n’a plus de carte.</li><li>Score des cartes restantes : As 1, 8 vaut 25, têtes 10, Joker 50. Le plus bas total gagne.</li></ol>`;
 }

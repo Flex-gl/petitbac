@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { beginMatch, play, draw, chooseRank, announce, abandon, continueMatch, publicView, isLegal, playableIds, createDeck, deal, defaultRules, transferPlayer, passDrawn } from './engine.js';
+import { beginMatch, play, draw, chooseRank, announce, abandon, continueMatch, finishMatch, publicView, isLegal, playableIds, createDeck, deal, defaultRules, transferPlayer, passDrawn, absorbPending } from './engine.js';
 
 function table(hands, center, options = {}) {
   const pack = createDeck();
@@ -78,8 +78,21 @@ test('plusieurs cartes de même valeur se posent ensemble', () => {
   assert.equal(isLegal(state, 'p1', ids), true);
   play(state, 'p1', ids);
   assert.equal(state.players[0].hand.length, 1);
-  assert.equal(state.discard.at(-1), ids.at(-1));
+  const top = state.cards[state.discard.at(-1)];
+  assert.equal(top.red, true);
+  assert.notEqual(top.suit, 'clubs');
   assert.equal(state.players[state.turnIndex].id, 'p2');
+});
+
+test('deux cartes semblables inversent la couleur et l’enseigne du dessus', () => {
+  const state = table([['4H', '4S', '9C'], ['6D']], '7H');
+  const heart = state.players[0].hand.find(id => state.cards[id].suit === 'hearts');
+  const spade = state.players[0].hand.find(id => state.cards[id].suit === 'spades');
+  play(state, 'p1', [heart, spade]);
+  const top = state.cards[state.discard.at(-1)];
+  assert.equal(top.suit, 'spades');
+  assert.equal(top.red, false);
+  assert.equal(state.cards[state.discard.at(-2)].suit, 'hearts');
 });
 
 test('un as bloque le joueur suivant, et deux joueurs reviennent au poseur', () => {
@@ -198,7 +211,7 @@ test('on peut piocher même avec une carte jouable, une seule fois', () => {
 });
 
 test('la dernière carte et la victoire', () => {
-  const state = table([['7H'], ['4S', '5S', 'KD']], '7C');
+  const state = table([['7H'], ['4S', '5S', 'KD']], '7C', { rules: { rounds: 1 } });
   assert.equal(state.players[0].oneCard, true);
   announce(state, 'p1');
   play(state, 'p1', [state.players[0].hand[0]]);
@@ -264,6 +277,31 @@ test('le paquet compte 54 cartes', () => {
   const pack = createDeck();
   assert.equal(pack.ids.length, 54);
   assert.equal(new Set(pack.ids).size, 54);
+  assert.equal(pack.cards['joker-1'].red, true);
+  assert.equal(pack.cards['joker-1'].face, 'smile');
+  assert.equal(pack.cards['joker-2'].red, false);
+  assert.equal(pack.cards['joker-2'].face, 'wry');
+});
+
+test('sans nombre de manches, la suite se lance à la main', () => {
+  const state = table([['7H'], ['4S']], '7C');
+  state.hostId = 'p1';
+  play(state, 'p1', [state.players[0].hand[0]]);
+  assert.equal(state.status, 'between');
+  assert.equal(state.nextRoundAt, null);
+  const pending = table([['JR', '4C'], ['9D']], '7C');
+  pending.freePlay = false;
+  play(pending, 'p1', [pending.players[0].hand.find(id => pending.cards[id].rank === 'JOKER')]);
+  assert.equal(pending.freePlay, true);
+  assert.equal(absorbPending(pending), pending);
+  assert.equal(pending.pendingDraw, 5);
+  assert.equal(pending.players[0].hand.length, 1);
+  continueMatch(state, () => 0.2);
+  assert.equal(state.status, 'playing');
+  assert.equal(state.round, 2);
+  state.status = 'between';
+  finishMatch(state);
+  assert.equal(state.status, 'finished');
 });
 
 test('un salon en attente n’a pas encore de défausse', () => {
