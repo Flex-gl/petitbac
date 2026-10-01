@@ -21,6 +21,7 @@ function blip(frequency, duration, type = 'sine', gain = 0.05, delay = 0) {
   oscillator.stop(start + duration + 0.02);
 }
 
+const TRACK = '/audio/fond.mp3';
 let bed = null;
 let playing = false;
 
@@ -30,46 +31,39 @@ export function musicWanted() {
 }
 
 export function isMusicPlaying() {
-  return playing;
+  return playing && bed && !bed.paused;
 }
 
-function tone(node, destination, frequency, type, level) {
-  const oscillator = node.createOscillator();
-  const amp = node.createGain();
-  oscillator.type = type;
-  oscillator.frequency.value = frequency;
-  amp.gain.value = level;
-  oscillator.connect(amp);
-  amp.connect(destination);
-  oscillator.start();
-  return oscillator;
+function track() {
+  if (!bed) {
+    bed = new Audio(TRACK);
+    bed.loop = true;
+    bed.preload = 'auto';
+    bed.volume = 0.38;
+  }
+  return bed;
 }
 
 async function startBed() {
-  if (bed || playing) return;
-  playing = true;
+  if (isMusicPlaying()) return true;
   try {
-    const node = audio();
-    if (node.state !== 'running') await node.resume();
-    if (!musicWanted()) { playing = false; return; }
-    if (bed) return;
-    const master = node.createGain();
-    const filter = node.createBiquadFilter();
-    filter.type = 'lowpass';
-    filter.frequency.value = 1200;
-    master.gain.setValueAtTime(0.0001, node.currentTime);
-    master.gain.exponentialRampToValueAtTime(0.06, node.currentTime + 0.6);
-    filter.connect(master);
-    master.connect(node.destination);
-    const oscs = [
-      tone(node, filter, 220, 'sine', 0.5),
-      tone(node, filter, 277.18, 'sine', 0.22),
-      tone(node, filter, 329.63, 'triangle', 0.16)
-    ];
-    bed = { oscs, master };
-    document.documentElement.dataset.audio = node.state;
+    const node = track();
+    node.loop = true;
+    node.volume = 0.38;
+    await node.play();
+    if (!musicWanted()) {
+      node.pause();
+      playing = false;
+      document.documentElement.dataset.audio = 'off';
+      return false;
+    }
+    playing = true;
+    document.documentElement.dataset.audio = 'running';
+    return true;
   } catch {
     playing = false;
+    document.documentElement.dataset.audio = 'off';
+    return false;
   }
 }
 
@@ -77,18 +71,7 @@ function stopBed() {
   playing = false;
   document.documentElement.dataset.audio = 'off';
   if (!bed) return;
-  const current = bed;
-  bed = null;
-  const node = audio();
-  const now = node.currentTime;
-  current.master.gain.cancelScheduledValues(now);
-  const level = Math.max(current.master.gain.value, 0.0001);
-  current.master.gain.setValueAtTime(level, now);
-  current.master.gain.exponentialRampToValueAtTime(0.0001, now + 0.45);
-  setTimeout(() => {
-    current.oscs.forEach(oscillator => { try { oscillator.stop(); } catch { /* déjà arrêté */ } });
-    try { current.master.disconnect(); } catch { /* déjà retiré */ }
-  }, 520);
+  bed.pause();
 }
 
 export function setMusic(on) {
@@ -104,8 +87,7 @@ export function armMusic() {
   if (!on) return;
   const start = event => {
     if (event.target?.closest?.('[data-action="music"]')) return;
-    window.removeEventListener('pointerdown', start);
-    startBed();
+    startBed().then(ok => { if (ok) window.removeEventListener('pointerdown', start); });
   };
   window.addEventListener('pointerdown', start);
 }
