@@ -24,6 +24,8 @@ function blip(frequency, duration, type = 'sine', gain = 0.05, delay = 0) {
 const TRACK = '/audio/fond.mp3';
 let bed = null;
 let playing = false;
+let generation = 0;
+let armHandler = null;
 
 export function musicWanted() {
   try { return localStorage.getItem('petitbac.music') !== '0'; }
@@ -31,7 +33,7 @@ export function musicWanted() {
 }
 
 export function isMusicPlaying() {
-  return playing && bed && !bed.paused;
+  return playing && Boolean(bed) && !bed.paused;
 }
 
 function track() {
@@ -39,38 +41,42 @@ function track() {
     bed = new Audio(TRACK);
     bed.loop = true;
     bed.preload = 'auto';
-    bed.volume = 0.38;
   }
   return bed;
 }
 
+function detachArm() {
+  if (!armHandler) return;
+  window.removeEventListener('pointerdown', armHandler);
+  armHandler = null;
+}
+
 async function startBed() {
-  if (isMusicPlaying()) return true;
+  if (!musicWanted()) return false;
+  const ticket = ++generation;
+  const node = track();
+  node.loop = true;
+  node.volume = 0.38;
   try {
-    const node = track();
-    node.loop = true;
-    node.volume = 0.38;
     await node.play();
-    if (!musicWanted()) {
-      node.pause();
-      playing = false;
-      document.documentElement.dataset.audio = 'off';
-      return false;
-    }
-    playing = true;
-    document.documentElement.dataset.audio = 'running';
-    return true;
   } catch {
-    playing = false;
-    document.documentElement.dataset.audio = 'off';
     return false;
   }
+  if (ticket !== generation || !musicWanted()) {
+    node.pause();
+    return false;
+  }
+  playing = true;
+  document.documentElement.dataset.audio = 'running';
+  return true;
 }
 
 function stopBed() {
+  generation += 1;
   playing = false;
   document.documentElement.dataset.audio = 'off';
   if (!bed) return;
+  bed.volume = 0;
   bed.pause();
 }
 
@@ -78,18 +84,26 @@ export function setMusic(on) {
   try { localStorage.setItem('petitbac.music', on ? '1' : '0'); } catch { /* stockage indisponible */ }
   document.documentElement.dataset.music = on ? 'on' : 'off';
   if (on) startBed();
-  else stopBed();
+  else {
+    stopBed();
+    detachArm();
+  }
 }
 
 export function armMusic() {
   const on = musicWanted();
   document.documentElement.dataset.music = on ? 'on' : 'off';
+  detachArm();
   if (!on) return;
-  const start = event => {
+  armHandler = event => {
+    if (!musicWanted()) {
+      detachArm();
+      return;
+    }
     if (event.target?.closest?.('[data-action="music"]')) return;
-    startBed().then(ok => { if (ok) window.removeEventListener('pointerdown', start); });
+    startBed().then(ok => { if (ok) detachArm(); });
   };
-  window.addEventListener('pointerdown', start);
+  window.addEventListener('pointerdown', armHandler);
 }
 
 export function playCue(kind, enabled) {

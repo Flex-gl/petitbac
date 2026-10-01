@@ -2,7 +2,7 @@ import { APP_VERSION } from './version.js';
 import { api } from './api.js';
 import { esc, haptic, icon, pageHead, shell, showSheet, toast } from './ui.js';
 import { homeScreen, rankingsScreen } from './screens/home.js';
-import { armMusic, isMusicPlaying, setMusic, musicWanted } from './inter-audio.js';
+import { armMusic, setMusic } from './inter-audio.js';
 import { attachInter, followInter, handleInterAction, interPathCode, leaveInter, loadInterSession, openInterRules, renderInter, stopInter, submitInterCreate, submitInterJoin } from './inter-session.js';
 
 document.documentElement.dataset.appVersion = APP_VERSION;
@@ -37,6 +37,7 @@ const state = {
   lastRankRefresh: 0, roomError: '', pollFailures: 0, eventSource: null, usingSse: false,
   clockOffset: 0
 };
+let roomEpoch = 0;
 let validateAnswer = null;
 let celebrate = () => {};
 let playRevealTone = () => {};
@@ -160,11 +161,12 @@ function schedulePoll(delay) {
 
 async function pollRoom() {
   if (state.pollBusy || state.page !== 'room' || !state.code) return schedulePoll(900);
+  const epoch = roomEpoch;
   state.pollBusy = true;
   try {
     const data = await api.game(state.code, playerId);
     const next = data.game;
-    if (state.page !== 'room') return;
+    if (epoch !== roomEpoch || state.page !== 'room') return;
     state.clockOffset = (next.serverNow || Date.now()) - Date.now();
     state.pollFailures = 0;
     state.roomError = '';
@@ -303,12 +305,14 @@ function pauseSession() {
 }
 
 function goHome(pauseRoom = false) {
+  roomEpoch += 1;
   clearTimeout(state.pollTimer);
   closeSse();
   state.sheet?.close?.();
   state.sheet = null;
   state.page = 'home';
   state.game = null;
+  state.code = '';
   if (pauseRoom) pauseSession();
   else state.savedRoom = loadSession();
   history.replaceState(null, '', '/');
@@ -501,11 +505,11 @@ async function handleAction(button) {
     document.documentElement.dataset.theme = next;
     localStorage.setItem('petitbac.theme', next);
     const meta = document.querySelector('meta[name="theme-color"]');
-    if (meta) meta.content = next === 'light' ? '#f4f1fa' : '#100e1c';
+    if (meta) meta.content = next === 'light' ? '#f6f1e7' : '#101614';
     return;
   }
   if (action === 'music') {
-    setMusic(!(musicWanted() && isMusicPlaying()));
+    setMusic(document.documentElement.dataset.audio !== 'running');
     return;
   }
   if (['home', 'create', 'join', 'rankings', 'rules', 'back', 'install'].includes(action)) haptic();
@@ -647,11 +651,20 @@ setTimeout(async () => {
   refreshScores(true);
   const interCode = interPathCode();
   const code = inviteCode();
-  if (interCode) followInter(interCode);
+  const session = loadSession();
+  const interSession = loadInterSession();
+  const pausedHere = (stored, current) => stored?.code && stored.code === current && stored.paused;
+  if (interCode && pausedHere(interSession, interCode)) {
+    history.replaceState(null, '', '/');
+    state.savedInter = interSession;
+    if (state.page === 'home') render();
+  } else if (code.length === 6 && pausedHere(session, code)) {
+    history.replaceState(null, '', '/');
+    state.savedRoom = session;
+    if (state.page === 'home') render();
+  } else if (interCode) followInter(interCode);
   else if (code.length === 6) followInvite(code);
   else {
-    const session = loadSession();
-    const interSession = loadInterSession();
     const interFirst = interSession?.code && !interSession.paused && (!session?.code || session.paused || interSession.savedAt > (session.savedAt || 0));
     if (interFirst) followInter(interSession.code);
     else if (session?.code && !session.paused) followInvite(session.code);

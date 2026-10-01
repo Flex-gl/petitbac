@@ -16,6 +16,7 @@ let source = null;
 let acting = false;
 let lastPollToast = 0;
 let painted = null;
+let roomEpoch = 0;
 
 function readSession() {
   try { return JSON.parse(localStorage.getItem(sessionKey) || 'null'); }
@@ -95,10 +96,11 @@ function applyGame(next) {
 
 async function poll() {
   if (pollBusy || ctx.state.page !== 'inter-room') return;
+  const epoch = roomEpoch;
   pollBusy = true;
   try {
     const data = await api.inter(ctx.state.code, ctx.playerId);
-    if (ctx.state.page !== 'inter-room') return;
+    if (epoch !== roomEpoch || ctx.state.page !== 'inter-room') return;
     await applyGame(data.game);
   } catch (error) {
     if (Date.now() - lastPollToast > 8000) {
@@ -172,16 +174,18 @@ export async function followInter(rawCode) {
 }
 
 export async function leaveInter(pause = true) {
+  roomEpoch += 1;
   stopInter();
   painted = null;
+  ctx.state.page = 'home';
+  ctx.state.interGame = null;
+  ctx.state.code = '';
   const session = readSession();
   if (pause && session?.code) {
     session.paused = true;
     localStorage.setItem(sessionKey, JSON.stringify(session));
     ctx.state.savedInter = session;
   }
-  ctx.state.page = 'home';
-  ctx.state.interGame = null;
   history.replaceState(null, '', '/');
   return ctx.render();
 }

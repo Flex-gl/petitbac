@@ -5,11 +5,11 @@
   justify-items:center;
   gap:17px;
   position:relative;
-  background:radial-gradient(ellipse at 50% 42%,rgba(143,104,241,.2),transparent 36%),var(--bg,#100e1c);
+  background:radial-gradient(ellipse at 50% 42%,rgba(255,106,61,.18),transparent 36%),var(--bg,#101614);
   color:var(--ink,#f8f6ff)
 }
 html[data-theme="light"] .splash {
-  background:radial-gradient(ellipse at 50% 42%,rgba(104,67,224,.14),transparent 36%),#f4f1fa
+  background:radial-gradient(ellipse at 50% 42%,rgba(255,106,61,.12),transparent 36%),#f6f1e7
 }
 .loader-orbit {
   position:absolute;
@@ -22,7 +22,7 @@ html[data-theme="light"] .splash {
   inset:0;
   border-radius:50%;
   border:1.5px solid transparent;
-  border-top-color:#a789ff;
+  border-top-color:#ff6a3d;
   border-right-color:rgba(96,230,230,.7);
   animation:loaderSpin 1.6s cubic-bezier(.45,.05,.25,1) infinite
 }
@@ -30,7 +30,7 @@ html[data-theme="light"] .splash {
   inset:12px;
   border-top-color:transparent;
   border-right-color:transparent;
-  border-bottom-color:#ff78b8;
+  border-bottom-color:#f0c14a;
   animation-duration:2.4s;
   animation-direction:reverse
 }
@@ -53,7 +53,7 @@ html[data-theme="light"] .splash {
   place-items:center;
   border-radius:17px;
   background:linear-gradient(145deg,#b08bff,#755de4);
-  box-shadow:0 14px 34px rgba(152,117,255,.25);
+  box-shadow:0 14px 34px rgba(255,106,61,.28);
   animation:splashDrop .45s both
 }
 .splash-mark span:nth-child(2) {
