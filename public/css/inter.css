@@ -232,7 +232,7 @@ div.playing-card { cursor:default }
   .felt { min-height:calc(100svh - 230px) }
   .seat-west,.seat-east { display:flex; align-items:center }
   .seat-east { justify-content:flex-end }
-  .inter-actions { width:min(880px,100%); margin-left:auto; margin-right:auto }
+  .inter-actions { display:flex; flex-wrap:wrap; justify-content:center; width:100%; margin-left:auto; margin-right:auto }
 }
 @media (max-width:699px) {
   .inter-table { grid-template-columns:1fr 1fr; grid-template-areas:"north north" "west east" "felt felt" "hand hand" }

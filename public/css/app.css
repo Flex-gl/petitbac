@@ -172,7 +172,7 @@ a {
   color:var(--muted);
   display:grid;
   place-items:center;
-  transition:background .2s,border .2s,transform .2s
+  transition:background .2s,border-color .2s
 }
 .top-tools { display:flex; align-items:center; gap:8px }
 .theme-toggle {
@@ -309,8 +309,35 @@ html[data-theme="light"] .display .gradient-text {
   transition:filter .18s,background .18s,border-color .18s;
   touch-action:manipulation
 }
-.btn:active {
+.btn:active,
+.nav-item:active,
+.segment:active,
+.category-chip:active,
+.theme-toggle:active,
+.game-card:active,
+.sheet-close:active,
+.section-link:active,
+.icon-btn:active,
+.back-btn:active,
+.room-code:active,
+.demand-grid button:active,
+.inter-tools button:active,
+.install-badge button:active {
+  transform:none;
   filter:brightness(.96)
+}
+.btn:hover,
+.nav-item:hover,
+.segment:hover,
+.category-chip:hover,
+.theme-toggle:hover,
+.game-card:hover,
+.sheet-close:hover,
+.section-link:hover,
+.icon-btn:hover,
+.back-btn:hover,
+.room-code:hover {
+  transform:none
 }
 .btn svg {
   width:18px;
@@ -573,7 +600,7 @@ html[data-theme="light"] .display .gradient-text {
   color:var(--muted);
   font-weight:700;
   font-size:12px;
-  transition:all .2s
+  transition:background .2s,border-color .2s,color .2s
 }
 .chip-icon,.cat-icon {
   display:inline-grid;
@@ -1414,8 +1441,25 @@ html[data-theme="light"] .back-btn { background:var(--wash) }
     padding:0
   }
   #main:has(.hero) .leader-card { flex:none; width:100%; min-height:92px }
-  .home-actions { grid-template-columns:1fr 1fr }
-  .home-actions .btn-primary { grid-column:1 / -1 }
+  .home-actions {
+    grid-template-columns:repeat(2,minmax(180px,240px));
+    justify-content:start
+  }
+  .home-actions .btn,
+  .room-actions .btn,
+  .form-footer .btn,
+  .inter-actions .btn {
+    width:auto;
+    min-width:180px
+  }
+  .home-actions .btn-primary { grid-column:auto }
+  .room-actions,.form-footer,.inter-actions {
+    display:flex;
+    flex-wrap:wrap;
+    align-items:center;
+    gap:10px
+  }
+  .form-footer .btn-full,.room-actions .btn-full { width:auto }
   .rank-list { grid-template-columns:1fr 1fr }
   .page-head h1 { font-size:40px }
   .sheet-backdrop { align-items:center; padding:40px }

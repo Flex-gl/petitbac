@@ -620,21 +620,7 @@ document.addEventListener('input', event => {
   field.classList.toggle('bad', result.state === 'invalid');
   input.setAttribute('aria-invalid', String(result.state === 'invalid'));
 });
-document.addEventListener('pointerdown', event => {
-  const button = event.target.closest('button');
-  if (!button || button.disabled || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-  const rect = button.getBoundingClientRect();
-  const size = Math.max(rect.width, rect.height);
-  const ripple = document.createElement('span');
-  ripple.className = 'ripple';
-  ripple.style.width = ripple.style.height = `${size}px`;
-  ripple.style.left = `${event.clientX - rect.left - size / 2}px`;
-  ripple.style.top = `${event.clientY - rect.top - size / 2}px`;
-  button.append(ripple);
-  setTimeout(() => ripple.remove(), 600);
-});
-
-addEventListener('online', () => { state.online = true; if (state.page === 'home') render(); if (state.page === 'room') pollRoom(); });
+document.addEventListener('online', () => { state.online = true; if (state.page === 'home') render(); if (state.page === 'room') pollRoom(); });
 addEventListener('offline', () => { state.online = false; if (state.page === 'home') render(); });
 addEventListener('beforeinstallprompt', event => { event.preventDefault(); state.deferredPrompt = event; if (state.page === 'home') render(); });
 addEventListener('appinstalled', () => { state.deferredPrompt = null; if (state.page === 'home') render(); });
