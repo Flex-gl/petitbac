@@ -188,13 +188,16 @@ a {
 .theme-label-dark { display:none }
 html[data-theme="light"] .theme-label-light { display:none }
 html[data-theme="light"] .theme-label-dark { display:inline }
-.music-toggle { width:42px; padding:0; display:inline-flex; align-items:center; justify-content:center; gap:8px }
+.music-toggle { width:auto; padding:0 12px; display:inline-flex; align-items:center; justify-content:center; gap:8px }
 .music-bars { display:flex; align-items:flex-end; gap:2px; height:12px }
 .music-bars i { display:block; width:2px; height:12px; border-radius:2px; background:currentColor; transform:scaleY(.35); transform-origin:bottom }
-html[data-music="on"] .music-bars i { animation:barPulse .9s ease-in-out infinite }
-html[data-music="on"] .music-bars i:nth-child(2) { animation-delay:.16s }
-html[data-music="on"] .music-bars i:nth-child(3) { animation-delay:.32s }
-.music-label-on,.music-label-off { display:none }
+html[data-audio="running"] .music-bars i { animation:barPulse .9s ease-in-out infinite }
+html[data-audio="running"] .music-bars i:nth-child(2) { animation-delay:.16s }
+html[data-audio="running"] .music-bars i:nth-child(3) { animation-delay:.32s }
+.music-label-off { display:none }
+.music-label-on { display:inline }
+html[data-audio="running"] .music-label-on { display:none }
+html[data-audio="running"] .music-label-off { display:inline }
 .icon-btn svg,.back-btn svg {
   width:19px;
   height:19px
@@ -1389,9 +1392,6 @@ html[data-theme="light"] .back-btn { background:var(--wash) }
   #main { width:100%; margin:0 }
   .app-shell.wide #main,
   .app-shell:not(:has(.bottom-nav)) #main { width:100%; margin:0 }
-  .music-toggle { width:auto; padding:0 12px }
-  html[data-music="on"] .music-label-on { display:inline }
-  html[data-music="off"] .music-label-off { display:inline }
   .bottom-nav {
     position:fixed;
     top:0;

@@ -6,8 +6,8 @@
         const stored = localStorage.getItem('petitbac.theme');
         const theme = stored === 'light' || stored === 'dark' ? stored : (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
         document.documentElement.dataset.theme = theme;
-        document.documentElement.dataset.music = localStorage.getItem('petitbac.music') === '1' ? 'on' : 'off';
-      } catch { document.documentElement.dataset.theme = 'dark'; document.documentElement.dataset.music = 'off'; }
+        document.documentElement.dataset.music = localStorage.getItem('petitbac.music') === '0' ? 'off' : 'on';
+      } catch { document.documentElement.dataset.theme = 'dark'; document.documentElement.dataset.music = 'on'; }
     </script>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">

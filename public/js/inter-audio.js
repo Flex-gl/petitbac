@@ -22,10 +22,15 @@ function blip(frequency, duration, type = 'sine', gain = 0.05, delay = 0) {
 }
 
 let bed = null;
+let playing = false;
 
 export function musicWanted() {
-  try { return localStorage.getItem('petitbac.music') === '1'; }
-  catch { return false; }
+  try { return localStorage.getItem('petitbac.music') !== '0'; }
+  catch { return true; }
+}
+
+export function isMusicPlaying() {
+  return playing;
 }
 
 function tone(node, destination, frequency, type, level) {
@@ -40,40 +45,50 @@ function tone(node, destination, frequency, type, level) {
   return oscillator;
 }
 
-function startBed() {
-  if (bed) return;
-  const node = audio();
-  const master = node.createGain();
-  const filter = node.createBiquadFilter();
-  filter.type = 'lowpass';
-  filter.frequency.value = 880;
-  filter.Q.value = 0.4;
-  master.gain.setValueAtTime(0.0001, node.currentTime);
-  master.gain.exponentialRampToValueAtTime(0.012, node.currentTime + 2.2);
-  filter.connect(master);
-  master.connect(node.destination);
-  const oscs = [
-    tone(node, filter, 220, 'sine', 0.45),
-    tone(node, filter, 220.35, 'sine', 0.28),
-    tone(node, filter, 329.63, 'triangle', 0.12),
-    tone(node, filter, 440, 'sine', 0.06)
-  ];
-  bed = { oscs, master };
+async function startBed() {
+  if (bed || playing) return;
+  playing = true;
+  try {
+    const node = audio();
+    if (node.state !== 'running') await node.resume();
+    if (!musicWanted()) { playing = false; return; }
+    if (bed) return;
+    const master = node.createGain();
+    const filter = node.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.value = 1200;
+    master.gain.setValueAtTime(0.0001, node.currentTime);
+    master.gain.exponentialRampToValueAtTime(0.06, node.currentTime + 0.6);
+    filter.connect(master);
+    master.connect(node.destination);
+    const oscs = [
+      tone(node, filter, 220, 'sine', 0.5),
+      tone(node, filter, 277.18, 'sine', 0.22),
+      tone(node, filter, 329.63, 'triangle', 0.16)
+    ];
+    bed = { oscs, master };
+    document.documentElement.dataset.audio = node.state;
+  } catch {
+    playing = false;
+  }
 }
 
 function stopBed() {
+  playing = false;
+  document.documentElement.dataset.audio = 'off';
   if (!bed) return;
   const current = bed;
   bed = null;
   const node = audio();
   const now = node.currentTime;
   current.master.gain.cancelScheduledValues(now);
-  current.master.gain.setValueAtTime(Math.max(current.master.gain.value, 0.0001), now);
-  current.master.gain.exponentialRampToValueAtTime(0.0001, now + 0.7);
+  const level = Math.max(current.master.gain.value, 0.0001);
+  current.master.gain.setValueAtTime(level, now);
+  current.master.gain.exponentialRampToValueAtTime(0.0001, now + 0.45);
   setTimeout(() => {
     current.oscs.forEach(oscillator => { try { oscillator.stop(); } catch { /* déjà arrêté */ } });
     try { current.master.disconnect(); } catch { /* déjà retiré */ }
-  }, 760);
+  }, 520);
 }
 
 export function setMusic(on) {
@@ -87,9 +102,10 @@ export function armMusic() {
   const on = musicWanted();
   document.documentElement.dataset.music = on ? 'on' : 'off';
   if (!on) return;
-  const start = () => {
-    startBed();
+  const start = event => {
+    if (event.target?.closest?.('[data-action="music"]')) return;
     window.removeEventListener('pointerdown', start);
+    startBed();
   };
   window.addEventListener('pointerdown', start);
 }
