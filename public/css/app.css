@@ -195,18 +195,6 @@ html[data-music="on"] .music-bars i { animation:barPulse .9s ease-in-out infinit
 html[data-music="on"] .music-bars i:nth-child(2) { animation-delay:.16s }
 html[data-music="on"] .music-bars i:nth-child(3) { animation-delay:.32s }
 .music-label-on,.music-label-off { display:none }
-body::before {
-  content:"";
-  position:fixed;
-  inset:-12%;
-  z-index:-1;
-  pointer-events:none;
-  background:radial-gradient(circle at 18% 20%, rgba(167,137,255,.16), transparent 34%), radial-gradient(circle at 82% 8%, rgba(96,230,230,.1), transparent 30%);
-  animation:drift 16s ease-in-out infinite alternate
-}
-html[data-theme="light"] body::before {
-  background:radial-gradient(circle at 18% 20%, rgba(104,67,224,.1), transparent 34%), radial-gradient(circle at 82% 8%, rgba(12,116,128,.08), transparent 30%)
-}
 .icon-btn svg,.back-btn svg {
   width:19px;
   height:19px
@@ -256,7 +244,7 @@ html[data-theme="light"] .display .gradient-text {
   border:1px solid rgba(179,147,255,.27);
   border-radius:50%;
   box-shadow:0 0 36px rgba(160,121,255,.12),inset 0 0 26px rgba(160,121,255,.06);
-  animation:orbitSpin 18s linear infinite
+  transform:rotate(-12deg)
 }
 .hero-orbit:after {
   content:'';
@@ -331,7 +319,7 @@ html[data-theme="light"] .display .gradient-text {
 .btn-primary {
   background:linear-gradient(100deg,#a47aff,#e987c7);
   color:#171020;
-  animation:softGlow 3.8s ease-in-out infinite
+  box-shadow:0 12px 30px rgba(163,119,246,.23)
 }
 .btn-secondary {
   border-color:var(--line);
@@ -522,17 +510,8 @@ html[data-theme="light"] .display .gradient-text {
   height:19px
 }
 .view-enter {
-  animation:viewIn .5s cubic-bezier(.16,1,.3,1) both
+  animation:viewIn .32s var(--ease) both
 }
-.view-enter > * { animation:viewIn .55s cubic-bezier(.16,1,.3,1) both }
-.view-enter > *:nth-child(2) { animation-delay:.05s }
-.view-enter > *:nth-child(3) { animation-delay:.1s }
-.view-enter > *:nth-child(4) { animation-delay:.15s }
-.view-enter > *:nth-child(5) { animation-delay:.2s }
-.leader-card,.rank-row,.game-card,.player-row { animation:viewIn .5s cubic-bezier(.16,1,.3,1) both }
-.leader-card:nth-child(2),.rank-row:nth-child(2),.player-row:nth-child(2) { animation-delay:.06s }
-.rank-row:nth-child(3),.player-row:nth-child(3) { animation-delay:.12s }
-.rank-row:nth-child(4) { animation-delay:.18s }
 .page-head {
   display:flex;
   align-items:center;
@@ -1189,7 +1168,7 @@ html[data-theme="light"] .display .gradient-text {
   border-bottom:0;
   border-radius:28px 28px 0 0;
   box-shadow:var(--shadow);
-  animation:sheetIn .48s cubic-bezier(.16,1,.3,1) both
+  animation:sheetIn .34s cubic-bezier(.16,1,.3,1) both
 }
 .sheet-backdrop.is-closing .bottom-sheet {
   animation:sheetOut .36s var(--ease) both

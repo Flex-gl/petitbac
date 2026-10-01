@@ -24,8 +24,8 @@ function blip(frequency, duration, type = 'sine', gain = 0.05, delay = 0) {
 let bed = null;
 
 export function musicWanted() {
-  try { return localStorage.getItem('petitbac.music') !== '0'; }
-  catch { return true; }
+  try { return localStorage.getItem('petitbac.music') === '1'; }
+  catch { return false; }
 }
 
 function tone(node, destination, frequency, type, level) {
@@ -49,7 +49,7 @@ function startBed() {
   filter.frequency.value = 880;
   filter.Q.value = 0.4;
   master.gain.setValueAtTime(0.0001, node.currentTime);
-  master.gain.exponentialRampToValueAtTime(0.028, node.currentTime + 1.8);
+  master.gain.exponentialRampToValueAtTime(0.012, node.currentTime + 2.2);
   filter.connect(master);
   master.connect(node.destination);
   const oscs = [

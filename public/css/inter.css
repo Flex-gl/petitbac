@@ -54,7 +54,7 @@
   place-items:center;
   font-size:14px;
   box-shadow:0 6px 14px rgba(0,0,0,.25);
-  animation:letterFloat 4.8s ease-in-out infinite
+  transform:rotate(-8deg)
 }
 .mini-card:nth-child(2) { transform:translateY(-4px) rotate(0deg); z-index:1 }
 .mini-card:nth-child(3) { transform:rotate(8deg) }
@@ -229,7 +229,7 @@ div.playing-card { cursor:default }
     min-height:72vh;
     align-items:stretch
   }
-  .felt { min-height:calc(100svh - 230px); animation:feltBreath 7s ease-in-out infinite }
+  .felt { min-height:calc(100svh - 230px) }
   .seat-west,.seat-east { display:flex; align-items:center }
   .seat-east { justify-content:flex-end }
   .inter-actions { width:min(880px,100%); margin-left:auto; margin-right:auto }
