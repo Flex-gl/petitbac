@@ -218,6 +218,18 @@ div.playing-card { cursor:default }
   font-weight:800
 }
 .rank-list .is-winner { outline:1px solid rgba(255,215,118,.7) }
+@media (min-width:840px) {
+  .inter-table {
+    --card-w:116px;
+    grid-template-columns:200px minmax(460px,1fr) 200px;
+    min-height:72vh;
+    align-items:stretch
+  }
+  .felt { min-height:460px }
+  .seat-west,.seat-east { display:flex; align-items:center }
+  .seat-east { justify-content:flex-end }
+  .inter-actions { width:min(560px,100%); margin-left:auto; margin-right:auto }
+}
 @media (max-width:720px) {
   .inter-table { grid-template-columns:1fr 1fr; grid-template-areas:"north north" "west east" "felt felt" "hand hand" }
   .game-picker { grid-template-columns:1fr }
