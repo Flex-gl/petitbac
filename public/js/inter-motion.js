@@ -11,11 +11,16 @@ function box(selector) {
   return document.querySelector(selector)?.getBoundingClientRect() || null;
 }
 
+function standardCard() {
+  const probe = document.querySelector('.inter-table .playing-card, .inter-table .card-back');
+  const rect = probe?.getBoundingClientRect();
+  return { width: rect?.width || 108, height: rect?.height || 151 };
+}
+
 function cardSized(rect) {
   if (!rect) return null;
-  if (rect.width >= 56 && rect.height >= 80) return rect;
-  const width = 74;
-  const height = 104;
+  const { width, height } = standardCard();
+  if (rect.width >= width * 0.75 && rect.height >= height * 0.75) return rect;
   return {
     left: rect.left + rect.width / 2 - width / 2,
     top: rect.top + rect.height / 2 - height / 2,
@@ -81,7 +86,7 @@ function slide(el, first) {
   const dx = first.left - last.left;
   const dy = first.top - last.top;
   if (Math.hypot(dx, dy) < 1.5) return;
-  const lift = el.classList.contains('is-playable') ? -14 : 0;
+  const lift = el.classList.contains('is-playable') ? -18 : 0;
   el.animate([
     { transform: `translate3d(${dx}px, ${dy + lift}px, 0)` },
     { transform: `translate3d(0, ${lift}px, 0)` }
