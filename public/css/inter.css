@@ -144,6 +144,25 @@ button.card-back:hover { transform:translateY(-8px) }
 .playing-card.is-special { box-shadow:0 0 0 2px rgba(255,215,118,.8), 0 10px 20px rgba(0,0,0,.28) }
 .playing-card.is-dim { opacity:.55 }
 .playing-card.is-playable { outline:3px solid var(--cyan); outline-offset:2px; position:relative; z-index:2; transform:translateY(-14px) }
+.playing-card.is-playable:active { transform:translateY(-22px) scale(1.03) }
+.playing-card.is-leaving { opacity:0; transform:translateY(-28px) scale(.96); pointer-events:none; transition:opacity .18s ease, transform .2s ease }
+.playing-card.is-landing { animation:cardLand .34s cubic-bezier(.2,.8,.2,1) }
+.playing-card.is-flip { animation:cardFlipIn .42s cubic-bezier(.2,.8,.2,1) both }
+.playing-card.is-dealt { animation:cardDealt .28s var(--ease) }
+.playing-card.is-playable.is-dealt { animation:cardDealtPlay .32s var(--ease) }
+.seat-chip.is-arriving { animation:turnArrive .45s var(--ease) }
+.seat-chip.is-passed { animation:passDim .55s ease }
+.felt.is-hit { animation:feltHit .45s ease }
+.card-flight { position:fixed; z-index:40; pointer-events:none; margin:0 }
+.card-flight .playing-card, .card-flight .card-back { width:100%; height:100%; cursor:default }
+.card-flight .playing-card { box-shadow:0 18px 30px rgba(0,0,0,.38) }
+@keyframes cardLand { from { transform:translateY(-16px) scale(1.05) } to { transform:none } }
+@keyframes cardFlipIn { from { transform:rotateY(78deg) scale(.94); opacity:0 } to { transform:none; opacity:1 } }
+@keyframes cardDealt { from { transform:translateY(12px) scale(.96) } to { transform:none } }
+@keyframes cardDealtPlay { from { transform:translateY(8px) scale(.96) } to { transform:translateY(-14px) } }
+@keyframes turnArrive { from { transform:translateY(6px) } to { transform:none } }
+@keyframes passDim { 0%,100% { opacity:1 } 40% { opacity:.4 } }
+@keyframes feltHit { 0% { filter:brightness(1) } 35% { filter:brightness(1.16) } 100% { filter:brightness(1) } }
 .playing-card.is-selected { transform:translateY(-14px) }
 div.playing-card { cursor:default }
 .card-corner { display:flex; flex-direction:column; font-weight:800; line-height:1; font-size:13px }
@@ -184,7 +203,7 @@ div.playing-card { cursor:default }
 }
 .hand-fan .playing-card { flex:0 0 auto; margin:0 -8px }
 .inter-actions { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:8px }
-.demand-grid { display:grid; grid-template-columns:repeat(5, 1fr); gap:8px; margin:8px 0 12px }
+.demand-grid { display:grid; grid-template-columns:repeat(5, 1fr); gap:8px; margin:8px 0 12px; animation:viewIn .32s var(--ease) both }
 .demand-grid button, .inter-tools button {
   min-height:44px;
   border-radius:12px;
@@ -205,6 +224,7 @@ div.playing-card { cursor:default }
   .playing-card, .card-back { width:58px; height:82px }
 }
 @media (prefers-reduced-motion: reduce) {
-  .playing-card.is-playable:hover, button.card-back:hover, .playing-card.is-playable { transform:none }
-  .mini-card, .playing-card, button.card-back { transition:none }
+  .playing-card.is-playable:hover, button.card-back:hover, .playing-card.is-playable, .playing-card.is-leaving { transform:none }
+  .mini-card, .playing-card, button.card-back, .demand-grid { transition:none; animation:none }
+  .card-flight { display:none }
 }

@@ -10,13 +10,17 @@ function cardFace(card, { playable = false, dim = false, inert = false } = {}) {
   const mark = card.rank === 'JOKER' ? '★' : card.rank;
   const inner = `<span class="card-corner">${esc(card.symbol)}<small>${esc(mark)}</small></span><span class="card-suit">${esc(card.symbol)}</span><span class="card-corner card-corner-br">${esc(card.symbol)}<small>${esc(mark)}</small></span>`;
   const label = `${card.symbol} ${RANK_LABELS[card.rank] || card.rank}`;
-  if (inert || !playable) return `<div class="${classes}" aria-label="${esc(label)}">${inner}</div>`;
+  if (inert || !playable) return `<div class="${classes}" data-card="${esc(card.id)}" aria-label="${esc(label)}">${inner}</div>`;
   return `<button type="button" class="${classes}" data-action="ix-play" data-card="${esc(card.id)}" aria-label="${esc(label)}">${inner}</button>`;
+}
+
+export function cardFlightHtml(card) {
+  return cardFace(card, { inert: true });
 }
 
 function seat(player, active) {
   const status = player.abandoned ? 'Abandon' : !player.connected ? 'Hors ligne' : player.cardCount === 1 ? 'Dernière carte' : `${player.cardCount} carte${player.cardCount > 1 ? 's' : ''}`;
-  return `<div class="seat-chip ${active ? 'is-turn' : ''}"><span class="avatar" aria-hidden="true">${esc(player.name.slice(0, 1).toUpperCase())}</span><span><strong>${esc(player.name)}</strong><span>${status}</span></span></div>`;
+  return `<div class="seat-chip ${active ? 'is-turn' : ''}" data-player="${esc(player.id)}"><span class="avatar" aria-hidden="true">${esc(player.name.slice(0, 1).toUpperCase())}</span><span><strong>${esc(player.name)}</strong><span>${status}</span></span></div>`;
 }
 
 export function interSetupScreen(name) {
@@ -74,7 +78,7 @@ function arranged(players, viewerId) {
   return buckets;
 }
 
-export function interTableScreen(game, viewerId) {
+export function interTableScreen(game, viewerId, { enter = true } = {}) {
   const me = game.players.find(player => player.id === viewerId);
   const seats = arranged(game.players, viewerId);
   const zone = (list, area) => `<div class="seat seat-${area}">${list.map(player => seat(player, player.id === game.turnPlayerId)).join('')}</div>`;
@@ -95,8 +99,8 @@ export function interTableScreen(game, viewerId) {
     : `<div class="card-back" aria-hidden="true"></div>`;
   const tools = `<div class="inter-tools" style="display:flex;gap:8px;justify-content:flex-end">${iconButton('ix-sound', 'Son')}${iconButton('ix-haptic', 'Vibrations')}</div>`;
   const actions = `<div class="inter-actions">${game.mustResolveDraw && game.yourTurn ? '<button class="btn btn-secondary" data-action="ix-pass">Passer mon tour</button>' : ''}${me?.cardCount === 1 && !me.announced ? '<button class="btn btn-primary" data-action="ix-announce">INTER</button>' : ''}<button class="btn btn-secondary" data-action="ix-rules">Règles</button><button class="btn btn-secondary" data-action="ix-abandon">Abandonner</button></div>`;
-  const content = `${pageHead('INTER', `Manche ${game.round} / ${game.rules.rounds}`, false)}${tools}${banners(game, viewerId)}${demand}<div class="inter-table">${zone(seats.north, 'north')}${zone(seats.west, 'west')}<div class="felt"><div class="pile"><span>Défausse</span>${center}${game.lastPlayCount > 1 ? `<span>${game.lastPlayCount} cartes</span>` : ''}</div><div class="pile"><span>Pioche</span>${pile}<span>${game.deckCount}</span></div></div>${zone(seats.east, 'east')}<div class="seat seat-me"><div class="hand-fan" aria-label="Tes cartes">${cards || '<p>Plus de cartes</p>'}</div>${actions}</div></div>`;
-  return shell(content, { nav: false, wide: true });
+  const content = `${pageHead('INTER', `Manche ${game.round} / ${game.rules.rounds}`, false)}${tools}${banners(game, viewerId)}${demand}<div class="inter-table">${zone(seats.north, 'north')}${zone(seats.west, 'west')}<div class="felt"><div class="pile" data-role="center"><span>Défausse</span>${center}${game.lastPlayCount > 1 ? `<span>${game.lastPlayCount} cartes</span>` : ''}</div><div class="pile" data-role="draw"><span>Pioche</span>${pile}<span>${game.deckCount}</span></div></div>${zone(seats.east, 'east')}<div class="seat seat-me"><div class="hand-fan" aria-label="Tes cartes">${cards || '<p>Plus de cartes</p>'}</div>${actions}</div></div>`;
+  return shell(content, { nav: false, wide: true, enter });
 }
 
 function iconButton(action, label) {

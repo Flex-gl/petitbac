@@ -2,6 +2,7 @@ import { api } from './api.js';
 import { haptic, showSheet, toast } from './ui.js';
 import { playCue } from './inter-audio.js';
 import { interSetupScreen, interInviteScreen, interLobbyScreen, interTableScreen, interBetweenScreen, interFinalScreen, interRulesHtml } from './screens/inter.js';
+import { animateTable, captureTable, launchOwnPlay } from './inter-motion.js';
 
 const sessionKey = 'petitbac.inter.session';
 const soundKey = 'petitbac.inter.sound';
@@ -14,6 +15,7 @@ let pollBusy = false;
 let source = null;
 let acting = false;
 let lastPollToast = 0;
+let painted = null;
 
 function readSession() {
   try { return JSON.parse(localStorage.getItem(sessionKey) || 'null'); }
@@ -124,6 +126,7 @@ function connectStream() {
 }
 
 export async function openInter(game) {
+  painted = null;
   ctx.state.page = 'inter-room';
   ctx.state.interGame = game;
   ctx.state.code = game.code;
@@ -170,6 +173,7 @@ export async function followInter(rawCode) {
 
 export async function leaveInter(pause = true) {
   stopInter();
+  painted = null;
   const session = readSession();
   if (pause && session?.code) {
     session.paused = true;
@@ -212,7 +216,11 @@ export async function handleInterAction(button) {
     const card = hand.find(entry => entry.id === id);
     if (!card || !game.playable?.includes(id)) return;
     const cardIds = hand.filter(entry => entry.rank === card.rank && game.playable.includes(entry.id)).map(entry => entry.id);
-    return run('play', { cardIds });
+    const cards = cardIds.map(id => hand.find(entry => entry.id === id)).filter(Boolean);
+    const cancelFlight = launchOwnPlay(cards);
+    const played = await run('play', { cardIds });
+    if (!played) cancelFlight();
+    return played;
   }
   if (action === 'ix-draw') return run('draw');
   if (action === 'ix-pass') return run('pass');
@@ -280,11 +288,17 @@ export async function submitInterJoin(form) {
 
 export async function renderInter(root) {
   const game = ctx.state.interGame;
+  const previous = painted;
+  const before = document.querySelector('.inter-table') ? captureTable() : null;
+  const continuous = previous?.status === 'playing' && game?.status === 'playing' && previous.code === game?.code;
+  const dealt = previous && previous.code === game?.code && previous.status !== 'playing' && game?.status === 'playing';
   if (ctx.state.page === 'inter-setup') root.innerHTML = interSetupScreen(ctx.state.name);
   else if (ctx.state.page === 'inter-invite') root.innerHTML = interInviteScreen(ctx.state.code);
   else if (!game) root.innerHTML = interSetupScreen(ctx.state.name);
   else if (game.status === 'lobby') root.innerHTML = interLobbyScreen(game, ctx.playerId);
   else if (game.status === 'between') root.innerHTML = interBetweenScreen(game);
   else if (game.status === 'finished') root.innerHTML = interFinalScreen(game);
-  else root.innerHTML = interTableScreen(game, ctx.playerId);
+  else root.innerHTML = interTableScreen(game, ctx.playerId, { enter: !(continuous || dealt) });
+  if (game?.status === 'playing') animateTable(before, previous, game, ctx.playerId);
+  painted = game || null;
 }
