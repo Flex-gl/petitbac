@@ -177,8 +177,17 @@ function deal(game, viewerId) {
   });
 }
 
+export function clearFlights() {
+  for (const record of live.values()) record.remove();
+  live.clear();
+  document.querySelectorAll('.card-flight').forEach(node => node.remove());
+}
+
 export function animateTable(before, previous, next, viewerId) {
-  if (!next || next.status !== 'playing' || reduced()) return;
+  if (!next || next.status !== 'playing' || reduced()) {
+    if (!next || next.status !== 'playing') clearFlights();
+    return;
+  }
   if (!previous || previous.code !== next.code) return;
   if (previous.status !== 'playing') {
     deal(next, viewerId);

@@ -48,7 +48,8 @@ export function interLobbyScreen(game, viewerId) {
 function banners(game, viewerId) {
   const turnName = game.players.find(player => player.id === game.turnPlayerId)?.name || '';
   const lines = [];
-  if (game.phase === 'demand' && game.demandOwnerId === viewerId) lines.push(['Choisis une valeur que tu as en main.', 'is-you']);
+  if (game.freePlay && game.yourTurn) lines.push(['Le jeu est libre. Pose n’importe quelle carte.', 'is-you']);
+  else if (game.phase === 'demand' && game.demandOwnerId === viewerId) lines.push(['Choisis une valeur que tu as en main.', 'is-you']);
   else if (game.mustResolveDraw && game.yourTurn) lines.push(['Tu as pioché. Pose une carte ou passe ton tour.', 'is-you']);
   else if (game.yourTurn && game.pendingDraw > 0) lines.push(['Les cartes de pénalité arrivent.', 'is-you']);
   else if (game.yourTurn && !(game.playable || []).length) lines.push(['Aucune carte ne va. Pioche.', 'is-you']);
@@ -92,8 +93,9 @@ export function interTableScreen(game, viewerId, { enter = true } = {}) {
     : '';
   const center = game.center ? cardFace(game.center, { inert: true }) : '<div class="card-back" aria-hidden="true"></div>';
   const canDraw = canAct && !game.mustResolveDraw;
-  const drawLabel = game.pendingDraw > 0 ? `Piocher ${game.pendingDraw}` : 'Piocher';
-  const drawFace = game.pendingDraw > 0 ? `+${game.pendingDraw}` : 'Piocher';
+  const penaltyForMe = game.pendingDraw > 0 && !game.freePlay;
+  const drawLabel = penaltyForMe ? `Piocher ${game.pendingDraw}` : 'Piocher';
+  const drawFace = penaltyForMe ? `+${game.pendingDraw}` : 'Piocher';
   const pile = canDraw
     ? `<button type="button" class="card-back" data-action="ix-draw" aria-label="${esc(drawLabel)}"><span class="card-back-label">${esc(drawFace)}</span></button>`
     : `<div class="card-back" aria-hidden="true"></div>`;
@@ -123,5 +125,5 @@ export function interFinalScreen(game) {
 }
 
 export function interRulesHtml() {
-  return `<p class="sheet-copy">Pose une carte de la même enseigne ou de la même valeur. Plusieurs cartes de la même valeur se posent ensemble dès que l’une d’elles va au centre.</p><ol class="rules-list"><li>Chacun reçoit 4 cartes. Une carte est retournée au centre, le reste est la pioche.</li><li>As : seulement sur la même enseigne ou la même valeur. Il bloque autant de joueurs que d’as posés.</li><li>2 : seulement sur la même enseigne ou la même valeur. Le suivant reçoit 2 cartes tout de suite et perd son tour. Plusieurs 2 posés ensemble s’additionnent.</li><li>8 : se pose sur tout. Tu demandes une valeur que tu as encore en main.</li><li>10 : seulement sur la même enseigne ou la même valeur. Le suivant reçoit 4 cartes tout de suite et perd son tour. Plusieurs 10 posés ensemble s’additionnent.</li><li>Joker : se pose à tout moment. Le suivant reçoit 5 cartes tout de suite et perd son tour.</li><li>Valet, dame et roi se jouent comme des cartes normales.</li><li>Tu peux piocher même si une carte est jouable. Une seule pioche par tour : ensuite tu poses ou tu passes. Si la pioche est vide, la défausse est mélangée, sauf la carte visible.</li><li>À une carte, annonce INTER. La manche s’arrête quand un joueur n’a plus de carte.</li><li>Score des cartes restantes : As 1, 8 vaut 25, têtes 10, Joker 50. Le plus bas total gagne.</li></ol>`;
+  return `<p class="sheet-copy">Pose une carte de la même enseigne ou de la même valeur. Plusieurs cartes de la même valeur se posent ensemble dès que l’une d’elles va au centre.</p><ol class="rules-list"><li>Chacun reçoit 4 cartes. Une carte est retournée au centre, le reste est la pioche.</li><li>As : seulement sur la même enseigne ou la même valeur. Il bloque autant de joueurs que d’as posés.</li><li>2 : seulement sur la même enseigne ou la même valeur. Le suivant reçoit 2 cartes tout de suite et perd son tour. Plusieurs 2 posés ensemble s’additionnent.</li><li>8 : se pose sur tout. Tu demandes une valeur que tu as encore en main.</li><li>10 : seulement sur la même enseigne ou la même valeur. Le suivant reçoit 4 cartes tout de suite et perd son tour. Plusieurs 10 posés ensemble s’additionnent.</li><li>Joker : se pose à tout moment. Tu gardes la main et tu peux poser n’importe quelle carte. Quand ton tour passe, le suivant reçoit 5 cartes tout de suite et perd son tour. Un deuxième joker relance cette liberté.</li><li>Valet, dame et roi se jouent comme des cartes normales.</li><li>Tu peux piocher même si une carte est jouable. Une seule pioche par tour : ensuite tu poses ou tu passes. Si la pioche est vide, la défausse est mélangée, sauf la carte visible.</li><li>À une carte, annonce INTER. La manche s’arrête quand un joueur n’a plus de carte.</li><li>Score des cartes restantes : As 1, 8 vaut 25, têtes 10, Joker 50. Le plus bas total gagne.</li></ol>`;
 }

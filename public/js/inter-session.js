@@ -2,7 +2,7 @@ import { api } from './api.js';
 import { haptic, showSheet, toast } from './ui.js';
 import { playCue } from './inter-audio.js';
 import { interSetupScreen, interInviteScreen, interLobbyScreen, interTableScreen, interBetweenScreen, interFinalScreen, interRulesHtml } from './screens/inter.js';
-import { animateTable, captureTable, launchOwnPlay } from './inter-motion.js';
+import { animateTable, captureTable, launchOwnPlay, clearFlights } from './inter-motion.js';
 
 const sessionKey = 'petitbac.inter.session';
 const soundKey = 'petitbac.inter.sound';
@@ -292,6 +292,7 @@ export async function submitInterJoin(form) {
 
 export async function renderInter(root) {
   const game = ctx.state.interGame;
+  if (!game || game.status !== 'playing') clearFlights();
   const previous = painted;
   const before = document.querySelector('.inter-table') ? captureTable() : null;
   const continuous = previous?.status === 'playing' && game?.status === 'playing' && previous.code === game?.code;

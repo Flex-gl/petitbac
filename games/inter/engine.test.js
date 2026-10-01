@@ -144,18 +144,25 @@ test('le 8 se pose librement et la valeur demandée s’impose', () => {
   assert.equal(state.requestedRank, null);
 });
 
-test('les 10 et les jokers arrivent tout de suite au suivant', () => {
+test('les 10 arrivent tout de suite, et après un joker le poseur rejoue librement', () => {
   const deck = ['3H', '4H', '5D', '5C', '5S', '6D', '7H', '7S', '9H', '9C', 'QS', 'QD'];
   const tens = table([['10C', '10H', '3C'], ['9D'], ['6S']], '10D', { deck });
   play(tens, 'p1', tens.players[0].hand.slice(0, 2));
   assert.equal(tens.pendingDraw, 0);
   assert.equal(tens.players[1].hand.length, 9);
   assert.equal(tens.players[tens.turnIndex].id, 'p3');
-  const jokers = table([['JR', 'JB', '4C'], ['9D'], ['6S']], '7C', { deck });
-  play(jokers, 'p1', jokers.players[0].hand.slice(0, 2));
+  const jokers = table([['JR', '4C', '5H'], ['9D'], ['6S']], '7C', { deck });
+  const four = jokers.players[0].hand.find(id => jokers.cards[id].rank === '4');
+  play(jokers, 'p1', [jokers.players[0].hand.find(id => jokers.cards[id].rank === 'JOKER')]);
+  assert.equal(jokers.players[jokers.turnIndex].id, 'p1');
+  assert.equal(jokers.freePlay, true);
+  assert.equal(isLegal(jokers, 'p1', [four]), true);
+  play(jokers, 'p1', [four]);
+  assert.equal(jokers.freePlay, false);
   assert.equal(jokers.pendingDraw, 0);
-  assert.equal(jokers.players[1].hand.length, 11);
+  assert.equal(jokers.players[1].hand.length, 6);
   assert.equal(jokers.players[jokers.turnIndex].id, 'p3');
+  assert.equal(jokers.cards[jokers.discard.at(-1)].rank, '4');
 });
 
 test('valet, dame et roi n’ont pas d’effet', () => {

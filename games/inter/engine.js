@@ -162,7 +162,8 @@ export function isLegal(state, playerId, cardIds) {
   const rank = chosen[0].rank;
   const center = centerCard(state);
   if (!center) return false;
-  if (state.pendingDraw > 0) return canStack(state, rank);
+  if (state.pendingDraw > 0 && !state.freePlay) return canStack(state, rank);
+  if (state.freePlay) return true;
   if (state.requestedRank) return rank === state.requestedRank || isDemandEscape(rank, state.rules);
   if (isWild(rank, state.rules)) return true;
   if (rank === center.rank) return true;
@@ -281,8 +282,8 @@ function concludeMatch(state, winnerIndex) {
   state.finishedAt = Date.now();
 }
 
-function addPenalty(state, kind, amount) {
-  if (state.penaltyKind && state.penaltyKind !== kind) state.pendingDraw = 0;
+function addPenalty(state, kind, amount, keep = false) {
+  if (!keep && state.penaltyKind && state.penaltyKind !== kind) state.pendingDraw = 0;
   state.penaltyKind = kind;
   state.pendingDraw += amount;
 }
@@ -301,6 +302,7 @@ export function deal(state, random = Math.random) {
   state.demandOwnerId = null;
   state.mustResolveDraw = false;
   state.drewThisTurn = false;
+  state.freePlay = false;
   state.lastPlayCount = 1;
   state.turnCount = 1;
   const handSize = Math.max(1, Number(state.rules.initialHand) || 4);
@@ -318,7 +320,8 @@ export function deal(state, random = Math.random) {
   if (!state.deck.length) throw new InterError('Le paquet est trop petit pour cette distribution.');
   state.discard.push(state.deck.pop());
   const opening = centerCard(state);
-  if (opening?.rank === '8' && state.rules.eightWild && demandChoices(state, state.players[state.turnIndex].id).length) {
+  if (opening?.rank === 'JOKER') state.freePlay = true;
+  else if (opening?.rank === '8' && state.rules.eightWild && demandChoices(state, state.players[state.turnIndex].id).length) {
     state.phase = 'demand';
     state.openingDemand = true;
     state.demandOwnerId = state.players[state.turnIndex].id;
@@ -368,16 +371,18 @@ export function play(state, playerId, cardIds, random = Math.random) {
   state.mustResolveDraw = false;
   state.drewThisTurn = false;
   const rank = chosen[0].rank;
+  const freeing = Boolean(state.freePlay);
   state.requestedRank = null;
   if (rank === 'A' && state.rules.aceSkips) state.pendingSkip += cardIds.length;
-  else if (rank === '2') addPenalty(state, 'two', state.rules.twoDraw * cardIds.length);
-  else if (rank === '10') addPenalty(state, 'ten', state.rules.tenDraw * cardIds.length);
+  else if (rank === '2') addPenalty(state, 'two', state.rules.twoDraw * cardIds.length, freeing);
+  else if (rank === '10') addPenalty(state, 'ten', state.rules.tenDraw * cardIds.length, freeing);
   else if (rank === 'JOKER') addPenalty(state, 'joker', state.rules.jokerDraw * cardIds.length);
   else if (rank === '8' && state.rules.eightWild && demandChoices(state, player.id).length) {
     state.phase = 'demand';
     state.openingDemand = false;
     state.demandOwnerId = player.id;
   }
+  state.freePlay = rank === 'JOKER' && player.hand.length > 0;
   log(state, { type: 'PLAYER_PLAYED_CARD', playerId, name: player.name, cards: chosen.map(card => card.id), penalty: state.pendingDraw, skip: state.pendingSkip });
   if (player.hand.length === 1) player.oneCard = true;
   if (player.hand.length === 0) {
@@ -387,13 +392,15 @@ export function play(state, playerId, cardIds, random = Math.random) {
       player.hand.push(...drawn);
       player.penaltiesReceived += drawn.length;
       player.oneCard = player.hand.length === 1;
+      state.freePlay = false;
       log(state, { type: 'PLAYER_DREW_CARDS', playerId, name: player.name, count: drawn.length, reason: 'last-card' });
     } else {
+      state.freePlay = false;
       concludeRound(state, player);
       return state;
     }
   }
-  if (state.phase === 'demand') return state;
+  if (state.phase === 'demand' || state.freePlay) return state;
   passTurn(state, random);
   return state;
 }
@@ -413,7 +420,7 @@ export function chooseRank(state, playerId, rank) {
 
 export function draw(state, playerId, random = Math.random) {
   const player = assertPlaying(state, playerId);
-  if (state.pendingDraw > 0) {
+  if (state.pendingDraw > 0 && !state.freePlay) {
     const count = state.pendingDraw;
     const drawn = take(state, count, random);
     player.hand.push(...drawn);
@@ -540,6 +547,7 @@ export function publicView(state, viewerId = '') {
     openingDemand: Boolean(state.openingDemand),
     mustResolveDraw: Boolean(state.mustResolveDraw),
     drewThisTurn: Boolean(state.drewThisTurn),
+    freePlay: Boolean(state.freePlay),
     playable: state.status === 'playing' ? playableIds(state, viewerId) : [],
     yourTurn: turnPlayer?.id === viewerId && state.status === 'playing',
     winnerId: state.winnerId || null,
