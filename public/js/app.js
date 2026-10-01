@@ -495,6 +495,14 @@ async function handleSubmit(event) {
 async function handleAction(button) {
   const action = button.dataset.action;
   if (!action) return;
+  if (action === 'theme') {
+    const next = document.documentElement.dataset.theme === 'light' ? 'dark' : 'light';
+    document.documentElement.dataset.theme = next;
+    localStorage.setItem('petitbac.theme', next);
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.content = next === 'light' ? '#f4f1fa' : '#100e1c';
+    return;
+  }
   if (['home', 'create', 'join', 'rankings', 'rules', 'back', 'install'].includes(action)) haptic();
   if (action === 'pick-game') {
     state.gameMode = button.dataset.game === 'inter' ? 'inter' : 'petitbac';

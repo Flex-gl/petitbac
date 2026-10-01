@@ -1,6 +1,13 @@
 <!doctype html>
 <html lang="fr">
   <head>
+    <script>
+      try {
+        const stored = localStorage.getItem('petitbac.theme');
+        const theme = stored === 'light' || stored === 'dark' ? stored : (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+        document.documentElement.dataset.theme = theme;
+      } catch { document.documentElement.dataset.theme = 'dark'; }
+    </script>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="theme-color" content="#100e1c">
@@ -14,7 +21,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&display=swap&subset=latin" rel="stylesheet">
     <style>
-      :root{color-scheme:dark;background:#100e1c;color:#f8f6ff;font-family:'Inter',system-ui,sans-serif}*{box-sizing:border-box}html,body{margin:0;min-height:100%;background:#100e1c}body{min-height:100svh}button,input{font:inherit}button{color:inherit}#app{min-height:100svh}#update-gate[hidden]{display:none !important}#update-gate{position:fixed;inset:0;z-index:200;display:grid;place-items:center;padding:24px;background:rgba(16,14,28,.94)}#update-gate .update-card{width:min(100%,420px);padding:28px 22px;border:1px solid rgba(204,192,245,.2);border-radius:22px;background:#171328;text-align:center}#update-gate .update-kicker{margin:0 0 8px;font:700 12px 'Space Grotesk',sans-serif;letter-spacing:.14em;text-transform:uppercase;color:#9d93c9}#update-gate h1{margin:0;font:700 32px 'Space Grotesk',sans-serif}#update-gate p{margin:12px 0 0;color:#ded8ec;line-height:1.5}#update-gate button{margin-top:22px;width:100%;border:0;border-radius:14px;padding:14px 18px;background:linear-gradient(100deg,#a47aff,#e987c7);color:#171020;font-weight:800;cursor:pointer}#update-gate button:disabled{opacity:.7;cursor:progress}
+      :root{color-scheme:dark;background:#100e1c;color:#f8f6ff;font-family:'Inter',system-ui,sans-serif}html[data-theme="light"]{color-scheme:light;background:#f4f1fa;color:#1c1730}*{box-sizing:border-box}html,body{margin:0;min-height:100%;background:#100e1c}html[data-theme="light"],html[data-theme="light"] body{background:#f4f1fa;color:#1c1730}body{min-height:100svh}button,input{font:inherit}button{color:inherit}#app{min-height:100svh}#update-gate[hidden]{display:none !important}#update-gate{position:fixed;inset:0;z-index:200;display:grid;place-items:center;padding:24px;background:rgba(16,14,28,.94)}html[data-theme="light"] #update-gate{background:rgba(244,241,250,.94)}#update-gate .update-card{width:min(100%,420px);padding:28px 22px;border:1px solid rgba(204,192,245,.2);border-radius:22px;background:#171328;text-align:center}html[data-theme="light"] #update-gate .update-card{background:#fff;border-color:rgba(36,24,68,.12);color:#1c1730}#update-gate .update-kicker{margin:0 0 8px;font:700 12px 'Space Grotesk',sans-serif;letter-spacing:.14em;text-transform:uppercase;color:#9d93c9}#update-gate h1{margin:0;font:700 32px 'Space Grotesk',sans-serif}#update-gate p{margin:12px 0 0;color:#ded8ec;line-height:1.5}html[data-theme="light"] #update-gate p{color:#5c5672}#update-gate button{margin-top:22px;width:100%;border:0;border-radius:14px;padding:14px 18px;background:linear-gradient(100deg,#a47aff,#e987c7);color:#171020;font-weight:800;cursor:pointer}#update-gate button:disabled{opacity:.7;cursor:progress}#update-gate button:hover,#update-gate button:active{transform:none}
     </style>
     <link rel="preload" href="/css/app.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
     <noscript><link rel="stylesheet" href="/css/app.css"></noscript>
