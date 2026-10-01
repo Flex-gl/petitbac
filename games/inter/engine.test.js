@@ -85,30 +85,36 @@ test('plusieurs cartes de même valeur se posent ensemble', () => {
 test('un as bloque le joueur suivant, et deux joueurs reviennent au poseur', () => {
   const state = table([['AC', '9H'], ['4S', '5S']], '7C');
   play(state, 'p1', [state.players[0].hand[0]]);
-  assert.equal(state.phase, 'demand');
-  chooseRank(state, 'p1', '9');
+  assert.equal(state.phase, 'play');
   assert.equal(state.players[state.turnIndex].id, 'p1');
   assert.ok(state.log.some(entry => entry.type === 'PLAYER_SKIPPED' && entry.playerId === 'p2'));
 });
 
-test('un as se pose sur tout et demande une valeur encore en main', () => {
-  const state = table([['AS', '4C'], ['9D'], ['3S']], '7H');
-  const ace = state.players[0].hand[0];
-  assert.equal(isLegal(state, 'p1', [ace]), true);
-  play(state, 'p1', [ace]);
-  assert.equal(state.phase, 'demand');
-  assert.throws(() => chooseRank(state, 'p1', 'K'), /possèdes/);
-  chooseRank(state, 'p1', '4');
-  assert.equal(state.requestedRank, '4');
-  assert.equal(state.players[state.turnIndex].id, 'p3');
-  assert.equal(isLegal(state, 'p3', [state.players[2].hand[0]]), false);
+test('le 2, le 10 et l’as suivent l’enseigne ou la valeur du centre', () => {
+  const state = table([['AS', '2S', '10H', 'AC'], ['4S']], '7C');
+  const [aceS, twoS, tenH, aceC] = state.players[0].hand;
+  assert.equal(isLegal(state, 'p1', [aceS]), false);
+  assert.equal(isLegal(state, 'p1', [twoS]), false);
+  assert.equal(isLegal(state, 'p1', [tenH]), false);
+  assert.equal(isLegal(state, 'p1', [aceC]), true);
+});
+
+test('après un 8, seuls le 8 et le joker échappent à la valeur demandée', () => {
+  const state = table([['8D', 'KS'], ['2S', '10H', 'AS', '8C', 'JR']], '7C');
+  play(state, 'p1', [state.players[0].hand[0]]);
+  chooseRank(state, 'p1', 'K');
+  const hand = state.players[1].hand;
+  assert.equal(isLegal(state, 'p2', [hand[0]]), false);
+  assert.equal(isLegal(state, 'p2', [hand[1]]), false);
+  assert.equal(isLegal(state, 'p2', [hand[2]]), false);
+  assert.equal(isLegal(state, 'p2', [hand[3]]), true);
+  assert.equal(isLegal(state, 'p2', [hand[4]]), true);
 });
 
 test('deux as bloquent deux joueurs sur trois', () => {
   const state = table([['AC', 'AH', '9C'], ['4S'], ['6D']], '7C');
   play(state, 'p1', state.players[0].hand.slice(0, 2));
-  assert.equal(state.phase, 'demand');
-  chooseRank(state, 'p1', '9');
+  assert.equal(state.phase, 'play');
   assert.equal(state.players[state.turnIndex].id, 'p1');
   assert.equal(state.log.filter(entry => entry.type === 'PLAYER_SKIPPED').length, 2);
 });
