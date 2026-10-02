@@ -26,11 +26,16 @@ function loadStoredRanks() {
   const stored = readJson(rankStorage);
   return Array.isArray(stored) ? stored : [];
 }
+function loadList(key) {
+  const stored = readJson(key);
+  return Array.isArray(stored) ? stored : [];
+}
 function loadSession() { return readJson(sessionKey); }
 
 const state = {
   page: 'home', name: localStorage.getItem(nameStorage) || '', game: null, code: '',
   top: loadStoredRanks(), profile: readJson(profileKey),
+  interTop: loadList('petitbac.inter.leaderboard'), interProfile: readJson('petitbac.inter.profile'),
   scoresState: loadStoredRanks().length ? 'ready' : 'loading',
   savedRoom: null, gameMode: 'petitbac', interGame: null, savedInter: null,
   online: navigator.onLine, deferredPrompt: null, sheet: null, pollTimer: null,
@@ -52,7 +57,7 @@ async function loadGameFeatures() {
 }
 
 function splash() {
-  root.innerHTML = `<div class="splash"><div class="loader-orbit" aria-hidden="true"><span></span><span></span></div><div class="splash-mark"><span>P</span></div><p>POSÉIDON · DEL'HIVER</p><b class="loader-caption">Ouverture de l’arène</b></div>`;
+  root.innerHTML = `<div class="splash"><div class="loader-mark" aria-hidden="true"><span class="loader-ring"></span><span class="loader-letter">P</span></div><p>POSÉIDON · DEL'HIVER</p><b class="loader-caption">Ouverture de l’arène</b></div>`;
 }
 
 function roomSignature(game) {
@@ -69,13 +74,15 @@ function roomSignature(game) {
 
 async function render() {
   if (state.page === 'home') {
-    root.innerHTML = homeScreen({ top: state.top, scoresState: state.scoresState, online: state.online, canInstall: Boolean(state.deferredPrompt) || !matchMedia('(display-mode: standalone)').matches, profile: state.profile, savedRoom: state.savedRoom, gameMode: state.gameMode, savedInter: state.savedInter });
+    const inter = state.gameMode === 'inter';
+    root.innerHTML = homeScreen({ top: inter ? state.interTop : state.top, scoresState: state.scoresState, online: state.online, canInstall: Boolean(state.deferredPrompt) || !matchMedia('(display-mode: standalone)').matches, profile: inter ? state.interProfile : state.profile, savedRoom: state.savedRoom, gameMode: state.gameMode, savedInter: state.savedInter });
   } else if (state.page === 'setup') {
     await loadGameFeatures();
     const { setupScreen } = await import('./screens/setup.js');
     root.innerHTML = setupScreen(state.name);
   } else if (state.page === 'rankings') {
-    root.innerHTML = rankingsScreen(state.top, state.profile);
+    const interBoard = state.gameMode === 'inter';
+    root.innerHTML = rankingsScreen(interBoard ? state.interTop : state.top, interBoard ? state.interProfile : state.profile, state.gameMode);
   } else if (state.page === 'invite') {
     root.innerHTML = inviteScreen(state.code);
   } else if (String(state.page).startsWith('inter')) {
@@ -142,13 +149,22 @@ function updateTimers() {
 async function refreshScores(force = false) {
   if (!state.online || (!force && Date.now() - state.lastRankRefresh < 30000)) return;
   try {
-    const data = await api.scores(playerId);
-    state.top = data.top || [];
-    state.profile = data.profile || state.profile;
+    const [letters, cards] = await Promise.allSettled([api.scores(playerId), api.scores(playerId, { game: 'inter' })]);
+    if (letters.status === 'rejected' && cards.status === 'rejected') throw letters.reason;
+    if (letters.status === 'fulfilled') {
+      state.top = letters.value.top || [];
+      state.profile = letters.value.profile || state.profile;
+      localStorage.setItem(rankStorage, JSON.stringify(state.top));
+      if (state.profile) localStorage.setItem(profileKey, JSON.stringify(state.profile));
+    }
+    if (cards.status === 'fulfilled') {
+      state.interTop = cards.value.top || [];
+      state.interProfile = cards.value.profile || state.interProfile;
+      localStorage.setItem('petitbac.inter.leaderboard', JSON.stringify(state.interTop));
+      if (state.interProfile) localStorage.setItem('petitbac.inter.profile', JSON.stringify(state.interProfile));
+    }
     state.scoresState = 'ready';
     state.lastRankRefresh = Date.now();
-    localStorage.setItem(rankStorage, JSON.stringify(state.top));
-    if (state.profile) localStorage.setItem(profileKey, JSON.stringify(state.profile));
     if (state.page === 'home' || state.page === 'rankings') await render();
   } catch {
     state.scoresState = state.top.length ? 'ready' : 'error';

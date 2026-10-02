@@ -25,8 +25,11 @@ export const api = {
   interAction(data) {
     return request('/api/inter', { method: 'POST', body: JSON.stringify(data) });
   },
-  scores(playerId, signal) {
-    const query = playerId ? `?playerId=${encodeURIComponent(playerId)}` : '';
-    return request(`/api/scores${query}`, { signal });
+  scores(playerId, options = {}) {
+    const params = new URLSearchParams();
+    if (playerId) params.set('playerId', playerId);
+    if (options.game) params.set('game', options.game);
+    const query = params.toString();
+    return request(`/api/scores${query ? `?${query}` : ''}`, { signal: options.signal });
   }
 };

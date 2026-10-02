@@ -46,9 +46,15 @@ export function button(label, action, style = 'primary', extra = '') { return `<
 export function haptic(pattern = 12) { if ('vibrate' in navigator && !matchMedia('(prefers-reduced-motion: reduce)').matches) navigator.vibrate(pattern); }
 export function toast(message) { const node = document.querySelector('.toast'); if (!node) return; node.textContent = message; node.classList.add('show'); clearTimeout(window.__arenaToast); window.__arenaToast = setTimeout(() => node.classList.remove('show'), 2400); }
 export function navIcon(name) { return icon(name, 19); }
-export function scoreCard(player, index) {
-  const medals = ['01', '02', '03'];
-  return `<article class="leader-card"><span class="leader-rank">${medals[index] || `#${index + 1}`}</span><span class="leader-score">${Number(player.totalScore || 0)} pts</span><b class="leader-name">${esc(player.name)}</b><span class="leader-meta">${Number(player.wins || 0)} victoire${player.wins === 1 ? '' : 's'} · ${Number(player.games || 0)} parties</span><span class="leader-crown">${icon('crown', 28)}</span></article>`;
+export function scoreCard(player, index, mode = 'petitbac') {
+  const place = String(index + 1).padStart(2, '0');
+  const inter = mode === 'inter';
+  const score = inter ? Number(player.wins || 0) : Number(player.totalScore || 0);
+  const unit = inter ? (score > 1 ? 'victoires' : 'victoire') : 'pts';
+  const meta = inter
+    ? `${Number(player.games || 0)} partie${Number(player.games) > 1 ? 's' : ''} · ${Number(player.penalties || 0)} cartes ramassées`
+    : `${Number(player.wins || 0)} victoire${player.wins === 1 ? '' : 's'} · ${Number(player.games || 0)} parties`;
+  return `<article class="leader-card"><span class="leader-badge">${place}</span><span class="leader-copy"><b class="leader-name">${esc(player.name)}</b><span class="leader-meta">${meta}</span></span><span class="leader-score">${score} ${unit}</span></article>`;
 }
 export function showSheet(title, inner, onClose) {
   const backdrop = document.createElement('div');

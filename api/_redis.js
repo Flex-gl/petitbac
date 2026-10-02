@@ -83,6 +83,13 @@ export async function leaderboard() {
   return stats.filter(Boolean).map((stat, index) => ({ ...stat, rank: index + 1 }));
 }
 
+export async function interLeaderboard() {
+  const ids = await redis('ZREVRANGE', 'arena:inter:leaderboard', '0', '9');
+  if (!ids?.length) return [];
+  const stats = await Promise.all(ids.map(id => getJson(`arena:inter:player:${id}`)));
+  return stats.filter(Boolean).map((stat, index) => ({ ...stat, rank: index + 1 }));
+}
+
 export { configuration };
 
 // Si Vercel indexe les modules utilitaires comme routes, ils restent fermés.

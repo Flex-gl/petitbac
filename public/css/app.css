@@ -408,24 +408,38 @@ html[data-theme="light"] .display .gradient-text {
   display:none
 }
 .leader-card {
-  flex:0 0 144px;
-  min-height:136px;
-  padding:15px;
+  flex:0 0 min(250px, 78vw);
+  min-height:72px;
+  padding:12px 14px;
   border:1px solid var(--line);
   border-radius:19px;
   background:var(--panel);
   scroll-snap-align:start;
-  position:relative;
+  display:flex;
+  align-items:center;
+  gap:10px;
   overflow:hidden
 }
 .leader-card:first-child {
   border-color:rgba(255,215,118,.3);
   background:color-mix(in srgb, var(--gold) 16%, var(--panel))
 }
-.leader-rank {
-  color:var(--gold);
-  font:700 11px 'Space Grotesk',sans-serif;
-  letter-spacing:1px
+.leader-badge {
+  width:32px;
+  height:32px;
+  flex:none;
+  display:grid;
+  place-items:center;
+  border-radius:50%;
+  background:color-mix(in srgb, var(--gold) 24%, var(--panel));
+  color:var(--ink);
+  font:700 11px 'Space Grotesk',sans-serif
+}
+.leader-copy {
+  min-width:0;
+  flex:1;
+  display:grid;
+  gap:2px
 }
 .leader-name {
   display:block;
@@ -434,25 +448,21 @@ html[data-theme="light"] .display .gradient-text {
   overflow:hidden;
   font-weight:800;
   font-size:14px;
-  margin:17px 0 3px
+  margin:0
 }
 .leader-meta {
   font-size:11px;
-  color:var(--muted)
+  color:var(--muted);
+  white-space:nowrap;
+  text-overflow:ellipsis;
+  overflow:hidden
 }
 .leader-score {
-  position:absolute;
-  right:12px;
-  top:12px;
+  flex:none;
   font:700 12px 'Space Grotesk';
-  color:var(--cyan)
-}
-.leader-crown {
-  position:absolute;
-  right:11px;
-  bottom:7px;
-  opacity:.16;
-  color:var(--gold)
+  color:var(--cyan);
+  text-align:right;
+  white-space:nowrap
 }
 .online-pill {
   display:flex;
@@ -1107,19 +1117,18 @@ html[data-theme="light"] .display .gradient-text {
 .podium-place {
   width:31%;
   text-align:center;
-  position:relative
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:flex-end
 }
 .podium-base {
+  position:relative;
+  width:100%;
   border-radius:16px 16px 4px 4px;
   background:linear-gradient(160deg,rgba(255,106,61,.29),rgba(240,193,74,.2));
   border:1px solid rgba(255,106,61,.19);
-  border-bottom:0;
-  display:flex;
-  align-items:flex-start;
-  justify-content:center;
-  padding:12px 4px;
-  color:var(--ink);
-  font:700 22px 'Space Grotesk'
+  border-bottom:0
 }
 .podium-place.first .podium-base {
   height:104px;
@@ -1134,17 +1143,18 @@ html[data-theme="light"] .display .gradient-text {
   height:58px
 }
 .podium-player {
-  font-size:10px;
+  max-width:100%;
+  font-size:11px;
   font-weight:800;
   white-space:nowrap;
   overflow:hidden;
   text-overflow:ellipsis;
-  margin:0 0 8px
+  margin:0 0 2px
 }
 .podium-score {
   font:700 11px 'Space Grotesk';
   color:var(--cyan);
-  margin:7px 0
+  margin:0 0 18px
 }
 .medal {
   width:28px;
@@ -1152,7 +1162,7 @@ html[data-theme="light"] .display .gradient-text {
   display:grid;
   place-items:center;
   position:absolute;
-  top:-16px;
+  top:-14px;
   left:50%;
   transform:translateX(-50%);
   border-radius:50%;
@@ -1172,8 +1182,8 @@ html[data-theme="light"] .display .gradient-text {
   animation:skeleton 1.3s linear infinite
 }
 .skeleton-card {
-  flex:0 0 145px;
-  height:136px;
+  flex:0 0 min(250px, 78vw);
+  height:72px;
   border-radius:19px
 }
 .sheet-backdrop {
@@ -1297,22 +1307,31 @@ html[data-theme="light"] .display .gradient-text {
 }
 .rank-row {
   display:grid;
-  grid-template-columns:30px 1fr auto;
+  grid-template-columns:32px minmax(0,1fr) auto;
   align-items:center;
   gap:11px;
-  padding:13px;
+  padding:12px 13px;
   border:1px solid var(--line);
   border-radius:16px;
   background:rgba(255,255,255,.025)
 }
 .rank-medal {
+  width:28px;
+  height:28px;
+  display:grid;
+  place-items:center;
+  border-radius:50%;
+  background:color-mix(in srgb, var(--gold) 22%, var(--panel));
   font:700 12px 'Space Grotesk';
-  color:var(--gold);
-  text-align:center
+  color:var(--ink)
 }
+.rank-row > div { min-width:0 }
 .rank-player {
   font-size:13px;
-  font-weight:800
+  font-weight:800;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis
 }
 .rank-stats {
   font-size:10px;
@@ -1321,7 +1340,8 @@ html[data-theme="light"] .display .gradient-text {
 }
 .rank-points {
   font:700 14px 'Space Grotesk';
-  color:var(--cyan)
+  color:var(--cyan);
+  white-space:nowrap
 }
 .stats-card {
   padding:15px;

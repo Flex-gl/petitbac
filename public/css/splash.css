@@ -11,59 +11,38 @@
 html[data-theme="light"] .splash {
   background:radial-gradient(ellipse at 50% 42%,rgba(255,106,61,.12),transparent 36%),#f6f1e7
 }
-.loader-orbit {
-  position:absolute;
-  width:148px;
-  height:148px;
-  margin-top:-28px
+.loader-mark {
+  position:relative;
+  width:96px;
+  height:96px;
+  display:grid;
+  place-items:center
 }
-.loader-orbit span {
+.loader-ring {
   position:absolute;
   inset:0;
   border-radius:50%;
-  border:1.5px solid transparent;
+  border:2px solid color-mix(in srgb, var(--line) 80%, transparent);
   border-top-color:#ff6a3d;
-  border-right-color:rgba(96,230,230,.7);
-  animation:loaderSpin 1.6s cubic-bezier(.45,.05,.25,1) infinite
+  border-right-color:#f0c14a;
+  animation:loaderSpin 1s linear infinite
 }
-.loader-orbit span:last-child {
-  inset:12px;
-  border-top-color:transparent;
-  border-right-color:transparent;
-  border-bottom-color:#f0c14a;
-  animation-duration:2.4s;
-  animation-direction:reverse
+.loader-letter {
+  width:58px;
+  height:58px;
+  display:grid;
+  place-items:center;
+  border-radius:18px;
+  background:linear-gradient(145deg,#ffb15a,#ff6a3d);
+  color:#1c140c;
+  font:700 28px 'Space Grotesk',sans-serif;
+  box-shadow:0 12px 28px rgba(255,106,61,.28)
 }
 .loader-caption {
   font-size:11px;
   font-weight:600;
   letter-spacing:.4px;
-  color:var(--muted,#88819e)
-}
-.splash-mark {
-  display:flex;
-  gap:5px;
-  font:700 48px 'Space Grotesk',sans-serif;
-  color:#fff
-}
-.splash-mark span {
-  width:62px;
-  height:68px;
-  display:grid;
-  place-items:center;
-  border-radius:17px;
-  background:linear-gradient(145deg,#ffb15a,#ff6a3d);
-  box-shadow:0 14px 34px rgba(255,106,61,.28);
-  animation:splashDrop .45s both
-}
-.splash-mark span:nth-child(2) {
-  animation-delay:.11s;
-  background:linear-gradient(145deg,#ffe7a3,#e2b34a)
-}
-.splash-mark span:nth-child(3) {
-  animation-delay:.22s;
-  background:linear-gradient(145deg,#7ddec8,#0f7a62);
-  color:#191326
+  color:var(--muted,#8a8174)
 }
 .splash p {
   color:var(--muted2);
@@ -85,8 +64,7 @@ html[data-theme="light"] .splash {
   }
 }
 @media(prefers-reduced-motion:reduce) {
-  .splash-mark span, .loader-orbit span {
-    animation:none;
-    opacity:1
+  .loader-ring {
+    animation:none
   }
 }

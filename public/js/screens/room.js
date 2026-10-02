@@ -98,7 +98,7 @@ function podium(players) {
   const order = [sorted[1], sorted[0], sorted[2]].filter(Boolean);
   const classes = ['second', 'first', 'third'];
   const places = ['2', '1', '3'];
-  return `<div class="podium">${order.map((player, index) => `<div class="podium-place ${classes[index]}"><div class="podium-player">${esc(player.name)}</div><div class="podium-score">${player.score} pts</div><span class="medal">${places[index]}</span><div class="podium-base">${places[index]}</div></div>`).join('')}</div>`;
+  return `<div class="podium">${order.map((player, index) => `<div class="podium-place ${classes[index]}"><div class="podium-player">${esc(player.name)}</div><div class="podium-score">${player.score} pts</div><div class="podium-base"><span class="medal">${places[index]}</span></div></div>`).join('')}</div>`;
 }
 
 export function betweenScreen(game) {
