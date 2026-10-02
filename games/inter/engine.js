@@ -336,15 +336,27 @@ export function deal(state, random = Math.random) {
   if (!state.deck.length) throw new InterError('Le paquet est trop petit pour cette distribution.');
   state.discard.push(state.deck.pop());
   const opening = centerCard(state);
-  if (opening?.rank === 'JOKER') state.freePlay = true;
-  else if (opening?.rank === '8' && state.rules.eightWild && demandChoices(state, state.players[state.turnIndex].id).length) {
-    state.phase = 'demand';
-    state.openingDemand = true;
-    state.demandOwnerId = state.players[state.turnIndex].id;
-  }
   state.status = 'playing';
   if (!state.startedAt) state.startedAt = Date.now();
   log(state, { type: 'ROUND_DEALT', playerId: null, round: state.round, center: opening?.id });
+  settleOpening(state, random);
+  return state;
+}
+
+export function settleOpening(state, random = Math.random) {
+  const opening = centerCard(state);
+  if (!opening || state.status !== 'playing') return state;
+  if (opening.rank === '2') addPenalty(state, 'two', state.rules.twoDraw);
+  else if (opening.rank === '10') addPenalty(state, 'ten', state.rules.tenDraw);
+  else if (opening.rank === 'JOKER') addPenalty(state, 'joker', state.rules.jokerDraw);
+  else if (opening.rank === '8' && state.rules.eightWild && demandChoices(state, state.players[state.turnIndex].id).length) {
+    state.phase = 'demand';
+    state.openingDemand = true;
+    state.demandOwnerId = state.players[state.turnIndex].id;
+    return state;
+  }
+  if (state.pendingDraw > 0) absorbPending(state, random);
+  if (opening.rank === 'JOKER' && state.status === 'playing') state.freePlay = true;
   return state;
 }
 

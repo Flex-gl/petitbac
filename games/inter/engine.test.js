@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { beginMatch, play, draw, chooseRank, announce, abandon, continueMatch, finishMatch, publicView, isLegal, playableIds, createDeck, deal, defaultRules, transferPlayer, passDrawn } from './engine.js';
+import { beginMatch, play, draw, chooseRank, announce, abandon, continueMatch, finishMatch, publicView, isLegal, playableIds, createDeck, deal, defaultRules, transferPlayer, passDrawn, settleOpening } from './engine.js';
 
 function table(hands, center, options = {}) {
   const pack = createDeck();
@@ -314,6 +314,30 @@ test('un salon en attente n’a pas encore de défausse', () => {
   assert.equal(view.center, null);
   assert.equal(view.players[0].cardCount, 0);
   assert.equal(view.deckCount, 0);
+});
+
+test('une carte de ramasse au centre se ramasse toute seule à la donne', () => {
+  const two = table([['KH'], ['4S'], ['6D']], '2H', { deck: ['5C', '5D', '6H', '9S'] });
+  settleOpening(two);
+  assert.equal(two.players[0].hand.length, 3);
+  assert.equal(two.pendingDraw, 0);
+  assert.equal(two.players[two.turnIndex].id, 'p2');
+  assert.equal(Boolean(two.freePlay), false);
+  const ten = table([['KH'], ['4S']], '10C', { deck: ['5C', '5D', '6H', '9S', '3H'] });
+  settleOpening(ten);
+  assert.equal(ten.players[0].hand.length, 5);
+  assert.equal(ten.players[ten.turnIndex].id, 'p2');
+  const joker = table([['KH'], ['4S'], ['6D']], 'JR', { deck: ['5C', '5D', '6H', '9S', '3H', '7D'] });
+  settleOpening(joker);
+  assert.equal(joker.players[0].hand.length, 6);
+  assert.equal(joker.pendingDraw, 0);
+  assert.equal(joker.players[joker.turnIndex].id, 'p2');
+  assert.equal(joker.freePlay, true);
+  assert.equal(isLegal(joker, 'p2', [joker.players[1].hand[0]]), true);
+  const plain = table([['KH'], ['4S']], '7C', { deck: ['5C'] });
+  settleOpening(plain);
+  assert.equal(plain.players[0].hand.length, 1);
+  assert.equal(plain.players[plain.turnIndex].id, 'p1');
 });
 
 test('deal ne mélange pas la logique de salon', () => {
