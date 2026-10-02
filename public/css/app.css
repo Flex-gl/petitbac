@@ -743,7 +743,7 @@ html[data-theme="light"] .display .gradient-text {
   place-items:center;
   border-radius:14px;
   background:linear-gradient(145deg,rgba(255,106,61,.28),rgba(96,230,230,.17));
-  color:#e8ddff;
+  color:var(--ink);
   font:700 13px 'Space Grotesk';
   border:1px solid rgba(255,255,255,.09)
 }

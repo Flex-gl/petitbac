@@ -22,7 +22,7 @@ function cardFace(card, { playable = false, dim = false, inert = false } = {}) {
   const smile = joker && card.face !== 'wry';
   const inner = joker
     ? `<span class="card-corner">★<small>${esc(mark)}</small></span><span class="joker-body">${jokerPortrait(smile)}<span class="joker-sign">Del'hiver</span></span><span class="card-corner card-corner-br">★<small>${esc(mark)}</small></span>`
-    : `<span class="card-corner">${esc(card.symbol)}<small>${esc(mark)}</small></span><span class="card-suit">${esc(card.symbol)}</span><span class="card-corner card-corner-br">${esc(card.symbol)}<small>${esc(mark)}</small></span>`;
+    : `<span class="card-corner"><b>${esc(mark)}</b><small>${esc(card.symbol)}</small></span><span class="card-suit">${esc(card.symbol)}</span><span class="card-corner card-corner-br"><b>${esc(mark)}</b><small>${esc(card.symbol)}</small></span>`;
   const label = joker ? `Joker ${card.red ? 'rouge' : 'noir'}, Del'hiver` : `${card.symbol} ${RANK_LABELS[card.rank] || card.rank}`;
   if (inert || !playable) return `<div class="${classes}" data-card="${esc(card.id)}" aria-label="${esc(label)}">${inner}</div>`;
   return `<button type="button" class="${classes}" data-action="ix-play" data-card="${esc(card.id)}" aria-label="${esc(label)}">${inner}</button>`;
