@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { beginMatch, play, draw, chooseRank, announce, abandon, continueMatch, finishMatch, publicView, isLegal, playableIds, createDeck, deal, defaultRules, transferPlayer, passDrawn, absorbPending } from './engine.js';
+import { beginMatch, play, draw, chooseRank, announce, abandon, continueMatch, finishMatch, publicView, isLegal, playableIds, createDeck, deal, defaultRules, transferPlayer, passDrawn } from './engine.js';
 
 function table(hands, center, options = {}) {
   const pack = createDeck();
@@ -157,25 +157,21 @@ test('le 8 se pose librement et la valeur demandée s’impose', () => {
   assert.equal(state.requestedRank, null);
 });
 
-test('les 10 arrivent tout de suite, et après un joker le poseur rejoue librement', () => {
+test('les 10 arrivent tout de suite, et le joker saute celui qui ramasse', () => {
   const deck = ['3H', '4H', '5D', '5C', '5S', '6D', '7H', '7S', '9H', '9C', 'QS', 'QD'];
   const tens = table([['10C', '10H', '3C'], ['9D'], ['6S']], '10D', { deck });
   play(tens, 'p1', tens.players[0].hand.slice(0, 2));
   assert.equal(tens.pendingDraw, 0);
   assert.equal(tens.players[1].hand.length, 9);
   assert.equal(tens.players[tens.turnIndex].id, 'p3');
-  const jokers = table([['JR', '4C', '5H'], ['9D'], ['6S']], '7C', { deck });
-  const four = jokers.players[0].hand.find(id => jokers.cards[id].rank === '4');
+  const jokers = table([['JR', '4C'], ['9D'], ['6S'], ['QH']], '7C', { deck });
+  const before = jokers.players[0].hand.length;
   play(jokers, 'p1', [jokers.players[0].hand.find(id => jokers.cards[id].rank === 'JOKER')]);
-  assert.equal(jokers.players[jokers.turnIndex].id, 'p1');
-  assert.equal(jokers.freePlay, true);
-  assert.equal(isLegal(jokers, 'p1', [four]), true);
-  play(jokers, 'p1', [four]);
   assert.equal(jokers.freePlay, false);
   assert.equal(jokers.pendingDraw, 0);
+  assert.equal(jokers.players[0].hand.length, before - 1);
   assert.equal(jokers.players[1].hand.length, 6);
   assert.equal(jokers.players[jokers.turnIndex].id, 'p3');
-  assert.equal(jokers.cards[jokers.discard.at(-1)].rank, '4');
 });
 
 test('valet, dame et roi n’ont pas d’effet', () => {
@@ -289,13 +285,13 @@ test('sans nombre de manches, la suite se lance à la main', () => {
   play(state, 'p1', [state.players[0].hand[0]]);
   assert.equal(state.status, 'between');
   assert.equal(state.nextRoundAt, null);
-  const pending = table([['JR', '4C'], ['9D']], '7C');
-  pending.freePlay = false;
+  const pending = table([['JR', '4C'], ['9D'], ['6S'], ['QH']], '7C', { deck: ['3H', '4H', '5D', '5C', '5S', '6D'] });
   play(pending, 'p1', [pending.players[0].hand.find(id => pending.cards[id].rank === 'JOKER')]);
-  assert.equal(pending.freePlay, true);
-  assert.equal(absorbPending(pending), pending);
-  assert.equal(pending.pendingDraw, 5);
+  assert.equal(pending.freePlay, false);
+  assert.equal(pending.pendingDraw, 0);
   assert.equal(pending.players[0].hand.length, 1);
+  assert.equal(pending.players[1].hand.length, 6);
+  assert.equal(pending.players[pending.turnIndex].id, 'p3');
   continueMatch(state, () => 0.2);
   assert.equal(state.status, 'playing');
   assert.equal(state.round, 2);

@@ -399,7 +399,7 @@ export function play(state, playerId, cardIds, random = Math.random) {
     state.openingDemand = false;
     state.demandOwnerId = player.id;
   }
-  state.freePlay = rank === 'JOKER' && player.hand.length > 0;
+  state.freePlay = false;
   log(state, { type: 'PLAYER_PLAYED_CARD', playerId, name: player.name, cards: chosen.map(card => card.id), penalty: state.pendingDraw, skip: state.pendingSkip });
   if (player.hand.length === 1) player.oneCard = true;
   if (player.hand.length === 0) {
@@ -409,15 +409,13 @@ export function play(state, playerId, cardIds, random = Math.random) {
       player.hand.push(...drawn);
       player.penaltiesReceived += drawn.length;
       player.oneCard = player.hand.length === 1;
-      state.freePlay = false;
       log(state, { type: 'PLAYER_DREW_CARDS', playerId, name: player.name, count: drawn.length, reason: 'last-card' });
     } else {
-      state.freePlay = false;
       concludeRound(state, player);
       return state;
     }
   }
-  if (state.phase === 'demand' || state.freePlay) return state;
+  if (state.phase === 'demand') return state;
   passTurn(state, random);
   return state;
 }
