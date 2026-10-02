@@ -4,6 +4,7 @@ import { playCue } from './inter-audio.js';
 import { interSetupScreen, interInviteScreen, interLobbyScreen, interTableScreen, interBetweenScreen, interFinalScreen, interRulesHtml } from './screens/inter.js';
 import { animateTable, captureTable, launchOwnPlay, clearFlights } from './inter-motion.js';
 import { celebrate, clearCelebration } from './fireworks.js';
+import { showKombo, watchKombo } from './kombo.js';
 
 function stackOrder(cards, center) {
   if (!center || cards.length < 2) return cards;
@@ -65,6 +66,7 @@ function cueFor(game) {
   const entry = game.log?.at(-1);
   if (!entry || `${entry.type}:${entry.at}` === lastLog) return;
   lastLog = `${entry.type}:${entry.at}`;
+  watchKombo(game, prefs().haptic);
   const enabled = prefs();
   if (entry.type === 'PLAYER_PLAYED_CARD') {
     const joker = entry.cards?.some(card => card.rank === 'JOKER');
@@ -237,6 +239,7 @@ export async function handleInterAction(button) {
       : hand.filter(entry => entry.rank === card.rank && game.playable.includes(entry.id));
     const cards = stackOrder(sameRank, game.center);
     const cardIds = cards.map(entry => entry.id);
+    if (card.rank === '2' || card.rank === '10' || card.rank === 'JOKER') showKombo(card.rank, { count: cards.length, buzz: prefs().haptic });
     const cancelFlight = launchOwnPlay(cards);
     const played = await run('play', { cardIds });
     if (!played) cancelFlight();

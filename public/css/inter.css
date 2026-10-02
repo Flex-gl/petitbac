@@ -417,8 +417,86 @@ div.playing-card { cursor:default }
   .hand-fan { --card-w:86px }
   .felt { min-height:calc(var(--card-h) + 48px) }
 }
+.kombo {
+  position:fixed;
+  inset:0;
+  z-index:36;
+  display:grid;
+  place-items:center;
+  pointer-events:none
+}
+.kombo-plate {
+  position:relative;
+  z-index:1;
+  max-width:min(92vw, 640px);
+  padding:16px 26px 20px;
+  border-radius:28px;
+  border:1px solid color-mix(in srgb, var(--gold) 55%, transparent);
+  background:color-mix(in srgb, var(--panel) 88%, transparent);
+  box-shadow:0 22px 50px rgba(0,0,0,.28);
+  text-align:center;
+  animation:komboStamp 1.7s var(--ease) both
+}
+.kombo-kicker {
+  margin:0 0 4px;
+  color:var(--muted);
+  font-size:12px;
+  font-weight:800;
+  letter-spacing:.18em;
+  text-transform:uppercase
+}
+.kombo-phrase {
+  margin:0;
+  font:800 clamp(34px, 10vw, 76px)/.92 'Space Grotesk', sans-serif;
+  letter-spacing:-.04em
+}
+.kombo.is-two .kombo-phrase { color:var(--cyan) }
+.kombo.is-ten .kombo-phrase {
+  background:linear-gradient(100deg, #ff6a3d, #f0c14a);
+  -webkit-background-clip:text;
+  background-clip:text;
+  color:transparent
+}
+.kombo.is-joker .kombo-phrase { color:var(--gold) }
+.kombo.is-joker .kombo-plate { animation-name:komboSlam }
+.kombo-spark {
+  position:absolute;
+  left:50%;
+  top:46%;
+  width:8px;
+  height:8px;
+  border-radius:50%;
+  background:var(--gold);
+  animation:komboSpark .9s ease-out both
+}
+.kombo.is-two .kombo-spark { background:var(--cyan) }
+.kombo.is-ten .kombo-spark { background:#ff6a3d }
+.felt.is-kombo-two { animation:feltHit .45s ease }
+.felt.is-kombo-ten { animation:feltHit .55s ease }
+.felt.is-kombo-joker { animation:feltHit .7s ease }
+@keyframes komboStamp {
+  0% { opacity:0; transform:scale(1.28) rotate(-7deg) }
+  16% { opacity:1; transform:scale(1) rotate(-2deg) }
+  72% { opacity:1; transform:rotate(-2deg) }
+  100% { opacity:0; transform:translateY(-16px) rotate(-2deg) }
+}
+@keyframes komboSlam {
+  0% { opacity:0; transform:scale(1.45) rotate(6deg) }
+  14% { opacity:1; transform:scale(.96) rotate(-2deg) }
+  24% { transform:scale(1.03) rotate(-1deg) }
+  70% { opacity:1 }
+  100% { opacity:0; transform:translateY(-10px) scale(.98) }
+}
+@keyframes komboSpark {
+  0% { opacity:0; transform:translate(-50%, -50%) scale(.4) }
+  20% { opacity:1 }
+  100% { opacity:0; transform:translate(calc(-50% + var(--x)), calc(-50% + var(--y))) scale(.2) }
+}
 @media (prefers-reduced-motion: reduce) {
   .playing-card.is-playable:hover, button.card-back:hover, .playing-card.is-playable, .playing-card.is-leaving { transform:none }
   .mini-card, .playing-card, button.card-back, .demand-grid { transition:none; animation:none }
   .card-flight { display:none }
+  .kombo-plate, .kombo-spark, .felt.is-kombo-two, .felt.is-kombo-ten, .felt.is-kombo-joker { animation:none }
+  .kombo.is-still .kombo-spark { display:none }
+  .kombo.is-still .kombo-plate { opacity:1; transform:none }
 }
