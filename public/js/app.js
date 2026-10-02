@@ -3,7 +3,7 @@ import { api } from './api.js';
 import { esc, haptic, icon, pageHead, shell, showSheet, toast } from './ui.js';
 import { homeScreen, rankingsScreen } from './screens/home.js';
 import { armMusic, setMusic } from './inter-audio.js';
-import { celebrate, clearCelebration } from './fireworks.js';
+import { celebrate as celebrateVictory, clearCelebration } from './fireworks.js';
 import { attachInter, followInter, handleInterAction, interPathCode, leaveInter, loadInterSession, openInterRules, renderInter, stopInter, submitInterCreate, submitInterJoin } from './inter-session.js';
 
 document.documentElement.dataset.appVersion = APP_VERSION;
@@ -90,7 +90,7 @@ async function render() {
     else root.innerHTML = screens.finalScreen(state.game, playerId);
     if (state.game.status === 'lobby') renderQr();
     else if (state.game.status === 'playing') restoreDraft(state.game);
-    if (state.game.status === 'finished') celebrate(`pb:${state.game.matchId || state.code}`, { finale: true });
+    if (state.game.status === 'finished') celebrateVictory(`pb:${state.game.matchId || state.code}`, { finale: true });
     else clearCelebration();
   }
   if (state.roomError && state.page === 'room') {
