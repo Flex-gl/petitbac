@@ -61,21 +61,21 @@ export function interLobbyScreen(game, viewerId) {
 function banners(game, viewerId) {
   const turnName = game.players.find(player => player.id === game.turnPlayerId)?.name || '';
   const lines = [];
-  if ((game.freePlay || game.center?.rank === 'JOKER') && game.yourTurn) lines.push(['Le joker est au centre. Pose n’importe quelle carte.', 'is-you']);
-  else if (game.phase === 'demand' && game.demandOwnerId === viewerId) lines.push(['Choisis une valeur que tu as en main.', 'is-you']);
-  else if (game.mustResolveDraw && game.yourTurn) lines.push(['Tu as pioché. Pose une carte ou passe ton tour.', 'is-you']);
-  else if (game.yourTurn && game.pendingDraw > 0) lines.push(['Les cartes de pénalité arrivent.', 'is-you']);
-  else if (game.yourTurn && !(game.playable || []).length) lines.push(['Aucune carte ne va. Pioche.', 'is-you']);
-  else if (game.yourTurn) lines.push(['Pose une carte entourée, ou pioche.', 'is-you']);
-  else if (turnName) lines.push([`Tour de ${turnName}`, '']);
-  if (game.pendingDraw > 0) lines.push([`+${game.pendingDraw} cartes à subir`, 'is-alert']);
+  if ((game.freePlay || game.center?.rank === 'JOKER') && game.yourTurn) lines.push(['Joker · n’importe quelle carte', 'is-you']);
+  else if (game.phase === 'demand' && game.demandOwnerId === viewerId) lines.push(['Choisis une valeur', 'is-you']);
+  else if (game.mustResolveDraw && game.yourTurn) lines.push(['Pose ou passe', 'is-you']);
+  else if (game.yourTurn && game.pendingDraw > 0) lines.push(['Pénalité en cours', 'is-you']);
+  else if (game.yourTurn && !(game.playable || []).length) lines.push(['Aucune carte · pioche', 'is-you']);
+  else if (game.yourTurn) lines.push(['À toi de jouer', 'is-you']);
+  else if (turnName) lines.push([turnName, '']);
+  if (game.pendingDraw > 0) lines.push([`+${game.pendingDraw}`, 'is-alert']);
   const received = [...(game.log || [])].reverse().find(entry => entry.type === 'PLAYER_DREW_CARDS' && entry.reason === 'penalty');
-  if (received && Date.now() - received.at < 5000) lines.push([`${received.name} reçoit ${received.count} cartes`, 'is-alert']);
-  if (game.requestedRank) lines.push([`Le prochain joueur doit jouer : ${RANK_LABELS[game.requestedRank]}`, 'is-alert']);
+  if (received && Date.now() - received.at < 5000) lines.push([`${received.name} +${received.count}`, 'is-alert']);
+  if (game.requestedRank) lines.push([RANK_LABELS[game.requestedRank], 'is-alert']);
   const skipped = [...(game.log || [])].reverse().find(entry => entry.type === 'PLAYER_SKIPPED');
-  if (skipped && Date.now() - skipped.at < 5000) lines.push([`STOP — Tour passé · ${skipped.name}`, 'is-alert']);
-  for (const player of game.players) if (player.cardCount === 1 && !player.abandoned) lines.push([`DERNIÈRE CARTE ! ${player.name}`, 'is-alert']);
-  return `<div class="inter-status">${lines.map(([text, kind]) => `<p class="${kind}">${esc(text)}</p>`).join('')}</div>`;
+  if (skipped && Date.now() - skipped.at < 5000) lines.push([`Stop · ${skipped.name}`, 'is-alert']);
+  for (const player of game.players) if (player.cardCount === 1 && !player.abandoned) lines.push([`Dernière · ${player.name}`, 'is-alert']);
+  return `<div class="inter-status" role="status">${lines.map(([text, kind]) => `<p class="${kind}">${esc(text)}</p>`).join('')}</div>`;
 }
 
 function arranged(players, viewerId) {
@@ -112,11 +112,11 @@ export function interTableScreen(game, viewerId, { enter = true } = {}) {
   const pile = canDraw
     ? `<button type="button" class="card-back" data-action="ix-draw" aria-label="${esc(drawLabel)}"><span class="card-back-label">${esc(drawFace)}</span></button>`
     : `<div class="card-back" aria-hidden="true"></div>`;
-  const tools = `<div class="inter-tools" style="display:flex;gap:8px;justify-content:flex-end">${iconButton('ix-sound', 'Son')}${iconButton('ix-haptic', 'Vibrations')}</div>`;
+  const tools = `<div class="inter-tools">${iconButton('ix-sound', 'Son')}${iconButton('ix-haptic', 'Vibrations')}</div>`;
   const actions = `<div class="inter-actions">${game.mustResolveDraw && game.yourTurn ? '<button class="btn btn-secondary" data-action="ix-pass">Passer mon tour</button>' : ''}${me?.cardCount === 1 && !me.announced ? '<button class="btn btn-primary" data-action="ix-announce">INTER</button>' : ''}<button class="btn btn-secondary" data-action="ix-rules">Règles</button><button class="btn btn-secondary" data-action="ix-abandon">Abandonner</button></div>`;
   const manche = Number(game.rules.rounds) > 0 ? `Manche ${game.round} / ${game.rules.rounds}` : `Manche ${game.round}`;
   const crowd = hand.length >= 13 ? 'is-crowd' : hand.length >= 9 ? 'is-packed' : hand.length >= 6 ? 'is-full' : '';
-  const content = `${pageHead('INTER', manche, false)}${tools}${banners(game, viewerId)}${demand}<div class="inter-table">${zone(seats.north, 'north')}${zone(seats.west, 'west')}<div class="felt"><div class="pile" data-role="center"><span>Défausse</span>${center}${game.lastPlayCount > 1 ? `<span>${game.lastPlayCount} cartes</span>` : ''}</div><div class="pile" data-role="draw"><span>Pioche</span>${pile}<span>${game.deckCount}</span></div></div>${zone(seats.east, 'east')}<div class="seat seat-me"><div class="hand-fan ${crowd}" data-count="${hand.length}" aria-label="Tes cartes">${cards || '<p>Plus de cartes</p>'}</div>${actions}</div></div>`;
+  const content = `<div class="table-bar">${pageHead('INTER', manche, false, 'is-compact')}${tools}</div>${banners(game, viewerId)}${demand}<div class="inter-table">${zone(seats.north, 'north')}${zone(seats.west, 'west')}<div class="felt"><div class="pile" data-role="center"><span>Défausse</span>${center}${game.lastPlayCount > 1 ? `<span>${game.lastPlayCount} cartes</span>` : ''}</div><div class="pile" data-role="draw"><span>Pioche</span>${pile}<span>${game.deckCount}</span></div></div>${zone(seats.east, 'east')}<div class="seat seat-me"><div class="hand-fan ${crowd}" data-count="${hand.length}" aria-label="Tes cartes">${cards || '<p>Plus de cartes</p>'}</div>${actions}</div></div>`;
   return shell(content, { nav: false, wide: true, enter });
 }
 
