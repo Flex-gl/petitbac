@@ -52,21 +52,21 @@ html[data-theme="light"] .splash {
   display:grid;
   place-items:center;
   border-radius:17px;
-  background:linear-gradient(145deg,#b08bff,#755de4);
+  background:linear-gradient(145deg,#ffb15a,#ff6a3d);
   box-shadow:0 14px 34px rgba(255,106,61,.28);
   animation:splashDrop .45s both
 }
 .splash-mark span:nth-child(2) {
   animation-delay:.11s;
-  background:linear-gradient(145deg,#d294ef,#e777bd)
+  background:linear-gradient(145deg,#ffe7a3,#e2b34a)
 }
 .splash-mark span:nth-child(3) {
   animation-delay:.22s;
-  background:linear-gradient(145deg,#69e7dc,#5daeda);
+  background:linear-gradient(145deg,#7ddec8,#0f7a62);
   color:#191326
 }
 .splash p {
-  color:#88819e;
+  color:var(--muted2);
   font-size:9px;
   font-weight:800;
   letter-spacing:2.2px

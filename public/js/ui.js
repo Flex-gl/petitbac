@@ -25,7 +25,11 @@ const ICONS = {
   palette: '<path d="M12 3.5a8.5 8.5 0 1 0 0 17h1.2a2.2 2.2 0 0 0 0-4.4H12a1.8 1.8 0 0 1 0-3.6 8.5 8.5 0 0 0 0-9Z"/><circle cx="8" cy="10" r=".7" fill="currentColor" stroke="none"/><circle cx="9.2" cy="7.2" r=".7" fill="currentColor" stroke="none"/><circle cx="12.4" cy="6.6" r=".7" fill="currentColor" stroke="none"/>',
   tag: '<path d="M20 13.2 12.8 20a1.8 1.8 0 0 1-2.5 0L4 13.7V4h9.7l6.3 6.3a1.8 1.8 0 0 1 0 2.5Z"/><circle cx="8.2" cy="8.2" r="1.1"/>',
   sport: '<circle cx="12" cy="12" r="8.5"/><path d="M12 3.5c2.2 2.4 3.3 5.3 3.3 8.5S14.2 18.1 12 20.5C9.8 18.1 8.7 15.2 8.7 12S9.8 5.9 12 3.5ZM3.8 9.2h16.4M3.8 14.8h16.4"/>',
-  scale: '<path d="M12 4v15M8 20h8M12 7l6.5 3.2L16 16.2a3.1 3.1 0 0 1-5.9 0L12 10.2M12 7 5.5 10.2 8 16.2a3.1 3.1 0 0 0 5.9 0"/>'
+  scale: '<path d="M12 4v15M8 20h8M12 7l6.5 3.2L16 16.2a3.1 3.1 0 0 1-5.9 0L12 10.2M12 7 5.5 10.2 8 16.2a3.1 3.1 0 0 0 5.9 0"/>',
+  sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2.8v2.2M12 19v2.2M2.8 12h2.2M19 12h2.2M5.4 5.4l1.6 1.6M17 17l1.6 1.6M18.6 5.4 17 7M7 17l-1.6 1.6"/>',
+  moon: '<path d="M20 14.6A7.6 7.6 0 0 1 9.4 4 6.2 6.2 0 1 0 20 14.6Z"/>',
+  music: '<path d="M9 18V5.5L20 3v12.2"/><circle cx="6.2" cy="18" r="2.6"/><circle cx="17.2" cy="15.2" r="2.6"/>',
+  musicOff: '<path d="m3 3 18 18M9 18V9.5M9 5.5 16.2 4M16.2 8.2V4"/><circle cx="6.2" cy="18" r="2.6"/>'
 };
 
 export function icon(name, size = 20) { return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name] || ICONS.spark}</svg>`; }
@@ -33,8 +37,8 @@ export function esc(value) { return String(value ?? '').replace(/[&<>"']/g, char
 export function shell(content, options = {}) {
   const nav = options.nav === false ? '' : `<nav class="bottom-nav" aria-label="Navigation principale"><button class="nav-item ${options.active === 'home' ? 'active' : ''}" data-action="home">${icon('home')}<span>Accueil</span></button><button class="nav-item ${options.active === 'rank' ? 'active' : ''}" data-action="rankings">${icon('trophy')}<span>Scores</span></button><button class="nav-item" data-action="rules">${icon('rules')}<span>Règles</span></button></nav>`;
   const enter = options.enter === false ? '' : 'view-enter';
-  const theme = `<button type="button" class="theme-toggle" data-action="theme" aria-label="Changer le thème"><span class="theme-label-light">Clair</span><span class="theme-label-dark">Sombre</span></button>`;
-  const music = `<button type="button" class="theme-toggle music-toggle" data-action="music" aria-label="Musique de fond"><span class="music-bars" aria-hidden="true"><i></i><i></i><i></i></span><span class="music-label-on">Musique</span><span class="music-label-off">Silence</span></button>`;
+  const theme = `<button type="button" class="icon-btn theme-toggle" data-action="theme" aria-label="Changer le thème"><span class="theme-icon theme-icon-sun">${icon('sun', 18)}</span><span class="theme-icon theme-icon-moon">${icon('moon', 18)}</span></button>`;
+  const music = `<button type="button" class="icon-btn music-toggle" data-action="music" aria-label="Musique de fond"><span class="music-icon music-icon-on">${icon('music', 18)}</span><span class="music-icon music-icon-off">${icon('musicOff', 18)}</span></button>`;
   return `<div class="app-shell ${options.wide ? 'wide' : ''}"><header class="topbar"><a class="brand" href="/" data-action="home" aria-label="Poséidon - Del'Hiver, accueil"><span class="brand-mark">P</span><span class="brand-name">Poséidon<span class="brand-tag">Del'Hiver</span></span></a><div class="top-tools">${music}${theme}${options.right || ''}</div></header><main id="main" class="${enter}">${content}</main>${nav}</div><div class="toast" role="status" aria-live="polite"></div>`;
 }
 export function pageHead(title, subtitle, back = true, extra = '') { return `<div class="page-head${extra ? ` ${extra}` : ''}">${back ? `<button class="back-btn" data-action="back" aria-label="Retour">${icon('back')}</button>` : ''}<div><h1>${esc(title)}</h1><p>${esc(subtitle)}</p></div></div>`; }

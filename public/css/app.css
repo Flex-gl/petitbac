@@ -175,29 +175,20 @@ a {
   transition:background .2s,border-color .2s
 }
 .top-tools { display:flex; align-items:center; gap:8px }
-.theme-toggle {
+.theme-toggle,.music-toggle {
+  width:42px;
+  height:42px;
   min-height:42px;
-  padding:0 12px;
-  border:1px solid var(--line);
-  border-radius:14px;
-  background:var(--wash);
-  color:var(--ink);
-  font-size:12px;
-  font-weight:800
+  padding:0;
+  color:var(--ink)
 }
-.theme-label-dark { display:none }
-html[data-theme="light"] .theme-label-light { display:none }
-html[data-theme="light"] .theme-label-dark { display:inline }
-.music-toggle { width:auto; padding:0 12px; display:inline-flex; align-items:center; justify-content:center; gap:8px }
-.music-bars { display:flex; align-items:flex-end; gap:2px; height:12px }
-.music-bars i { display:block; width:2px; height:12px; border-radius:2px; background:currentColor; transform:scaleY(.35); transform-origin:bottom }
-html[data-audio="running"] .music-bars i { animation:barPulse .9s ease-in-out infinite }
-html[data-audio="running"] .music-bars i:nth-child(2) { animation-delay:.16s }
-html[data-audio="running"] .music-bars i:nth-child(3) { animation-delay:.32s }
-.music-label-off { display:none }
-.music-label-on { display:inline }
-html[data-audio="running"] .music-label-on { display:none }
-html[data-audio="running"] .music-label-off { display:inline }
+.theme-icon,.music-icon { display:grid; place-items:center }
+.theme-icon-moon,.music-icon-off { display:none }
+html[data-theme="light"] .theme-icon-sun { display:none }
+html[data-theme="light"] .theme-icon-moon { display:grid }
+html[data-audio="running"] .music-icon-on { display:none }
+html[data-audio="running"] .music-icon-off { display:grid }
+html[data-audio="running"] .music-toggle { color:var(--cyan) }
 .icon-btn svg,.back-btn svg {
   width:19px;
   height:19px
@@ -244,9 +235,9 @@ html[data-theme="light"] .display .gradient-text {
   position:absolute;
   width:225px;
   height:112px;
-  border:1px solid rgba(179,147,255,.27);
+  border:1px solid color-mix(in srgb, var(--gold) 45%, transparent);
   border-radius:50%;
-  box-shadow:0 0 36px rgba(160,121,255,.12),inset 0 0 26px rgba(160,121,255,.06);
+  box-shadow:0 0 36px color-mix(in srgb, var(--accent) 16%, transparent);
   transform:rotate(-12deg)
 }
 .hero-orbit:after {
@@ -422,14 +413,14 @@ html[data-theme="light"] .display .gradient-text {
   padding:15px;
   border:1px solid var(--line);
   border-radius:19px;
-  background:linear-gradient(145deg,rgba(43,37,62,.95),rgba(28,25,42,.95));
+  background:var(--panel);
   scroll-snap-align:start;
   position:relative;
   overflow:hidden
 }
 .leader-card:first-child {
   border-color:rgba(255,215,118,.3);
-  background:linear-gradient(145deg,rgba(90,67,65,.5),rgba(33,27,45,.96))
+  background:color-mix(in srgb, var(--gold) 16%, var(--panel))
 }
 .leader-rank {
   color:var(--gold);
@@ -493,7 +484,7 @@ html[data-theme="light"] .display .gradient-text {
   background:rgba(255,106,61,.08);
   border:1px solid rgba(255,106,61,.17);
   border-radius:16px;
-  color:#d8ceff;
+  color:var(--ink);
   font-size:12px;
   margin:10px 0
 }
@@ -566,14 +557,14 @@ html[data-theme="light"] .display .gradient-text {
 .field-label {
   font-size:12px;
   font-weight:700;
-  color:#dcd6ec
+  color:var(--muted)
 }
 .text-input {
   width:100%;
   height:54px;
   border:1px solid var(--line);
   border-radius:16px;
-  background:rgba(255,255,255,.04);
+  background:var(--wash);
   color:var(--ink);
   padding:0 15px;
   outline:none;
@@ -584,7 +575,7 @@ html[data-theme="light"] .display .gradient-text {
   box-shadow:0 0 0 3px rgba(255,106,61,.14)
 }
 .text-input::placeholder {
-  color:#77718e
+  color:var(--muted2)
 }
 .category-grid {
   display:grid;
@@ -615,10 +606,10 @@ html[data-theme="light"] .display .gradient-text {
   display:block
 }
 .category-chip[aria-pressed="true"] {
-  border-color:rgba(173,142,255,.57);
-  background:rgba(255,106,61,.13);
-  color:#e5dbff;
-  box-shadow:inset 0 0 0 1px rgba(255,106,61,.1)
+  border-color:color-mix(in srgb, var(--accent) 55%, var(--line));
+  background:color-mix(in srgb, var(--accent) 14%, var(--panel));
+  color:var(--ink);
+  box-shadow:inset 0 0 0 1px color-mix(in srgb, var(--accent) 20%, transparent)
 }
 .chip-check {
   margin-left:auto;
@@ -634,7 +625,7 @@ html[data-theme="light"] .display .gradient-text {
   padding:4px;
   border-radius:15px;
   border:1px solid var(--line);
-  background:#171425;
+  background:var(--panel-hi);
   gap:4px
 }
 .segment {
@@ -649,8 +640,8 @@ html[data-theme="light"] .display .gradient-text {
 }
 .segment[aria-pressed="true"] {
   background:linear-gradient(110deg,rgba(255,106,61,.22),rgba(240,193,74,.16));
-  color:#eee5ff;
-  box-shadow:inset 0 0 0 1px rgba(182,151,255,.18)
+  color:var(--ink);
+  box-shadow:inset 0 0 0 1px color-mix(in srgb, var(--accent) 28%, transparent)
 }
 .form-note {
   font-size:11px;
@@ -676,8 +667,8 @@ html[data-theme="light"] .display .gradient-text {
   font:700 clamp(34px,12vw,52px)/1 'Space Grotesk',sans-serif;
   letter-spacing:.19em;
   text-align:center;
-  color:#fff;
-  text-shadow:0 0 28px rgba(255,106,61,.34);
+  color:var(--ink);
+  text-shadow:0 0 28px color-mix(in srgb, var(--accent) 34%, transparent);
   margin:4px 0
 }
 .code-label {
@@ -696,7 +687,7 @@ html[data-theme="light"] .display .gradient-text {
 .code-card,.surface {
   border:1px solid var(--line);
   border-radius:var(--radius);
-  background:linear-gradient(150deg,rgba(39,34,56,.85),rgba(28,25,42,.9));
+  background:var(--panel);
   box-shadow:var(--shadow)
 }
 .code-card {
@@ -731,7 +722,7 @@ html[data-theme="light"] .display .gradient-text {
   align-items:center;
   gap:11px;
   padding:12px 0;
-  border-bottom:1px solid rgba(255,255,255,.055)
+  border-bottom:1px solid var(--line)
 }
 .player-row:last-child {
   border:0
@@ -745,7 +736,7 @@ html[data-theme="light"] .display .gradient-text {
   background:linear-gradient(145deg,rgba(255,106,61,.28),rgba(96,230,230,.17));
   color:var(--ink);
   font:700 13px 'Space Grotesk';
-  border:1px solid rgba(255,255,255,.09)
+  border:1px solid var(--line)
 }
 .player-name {
   font-size:13px;
@@ -798,7 +789,7 @@ html[data-theme="light"] .display .gradient-text {
   stroke-width:3
 }
 .timer-track {
-  stroke:rgba(255,255,255,.11)
+  stroke:var(--line)
 }
 .timer-value {
   stroke:var(--cyan);
@@ -829,10 +820,11 @@ html[data-theme="light"] .display .gradient-text {
   place-items:center;
   border-radius:26px;
   border:1px solid rgba(255,255,255,.24);
-  background:linear-gradient(145deg,#9e7aff,#725be1 59%,#e779bd);
-  box-shadow:0 19px 42px rgba(119,83,214,.28),inset 0 1px rgba(255,255,255,.5);
+  background:linear-gradient(145deg,#ffb15a,#ff6a3d 58%,#e24b28);
+  box-shadow:0 19px 42px rgba(255,106,61,.28),inset 0 1px rgba(255,255,255,.45);
   font:700 78px 'Space Grotesk';
-  text-shadow:0 2px 11px rgba(49,27,106,.3);
+  color:#fffaf3;
+  text-shadow:0 2px 11px rgba(28,20,12,.28);
   animation:flipIn .72s cubic-bezier(.2,.75,.25,1.15) both
 }
 .category-list {
@@ -862,7 +854,7 @@ html[data-theme="light"] .display .gradient-text {
   display:flex;
   align-items:center;
   gap:8px;
-  color:#d9d3e8;
+  color:var(--muted);
   font-size:11px;
   font-weight:800
 }
@@ -883,11 +875,11 @@ html[data-theme="light"] .display .gradient-text {
   background:none;
   border:0;
   outline:none;
-  color:#fff;
+  color:var(--ink);
   font-size:14px
 }
 .answer-input::placeholder {
-  color:#6e6882
+  color:var(--muted2)
 }
 .answer-input:disabled {
   opacity:.68
@@ -901,7 +893,7 @@ html[data-theme="light"] .display .gradient-text {
   border-radius:15px;
   background:rgba(255,106,61,.075);
   font-size:12px;
-  color:#d5cced;
+  color:var(--ink);
   line-height:1.5
 }
 .waiting-banner {
@@ -978,7 +970,7 @@ html[data-theme="light"] .display .gradient-text {
 .reveal-word {
   font:600 13px 'Space Grotesk';
   overflow-wrap:anywhere;
-  color:#f1edfa
+  color:var(--ink)
 }
 .reveal-hidden {
   color:var(--muted2);
@@ -999,16 +991,16 @@ html[data-theme="light"] .display .gradient-text {
   background:rgba(255,215,118,.12)
 }
 .result-badge.duplicate {
-  color:#c8c5d4;
-  background:rgba(200,197,212,.11)
+  color:var(--muted);
+  background:var(--wash-strong)
 }
 .result-badge.invalid {
   color:var(--red);
   background:rgba(255,120,141,.12)
 }
 .result-badge.unknown {
-  color:#e2a7ff;
-  background:rgba(226,167,255,.11)
+  color:var(--warning);
+  background:color-mix(in srgb, var(--warning) 14%, transparent)
 }
 .result-badge.missed,.result-badge.pending {
   color:var(--muted2)
@@ -1094,7 +1086,7 @@ html[data-theme="light"] .display .gradient-text {
 }
 .score-table td {
   padding:12px 7px;
-  border-bottom:1px solid rgba(255,255,255,.055)
+  border-bottom:1px solid var(--line)
 }
 .score-table th:last-child,.score-table td:last-child {
   text-align:right
@@ -1126,7 +1118,7 @@ html[data-theme="light"] .display .gradient-text {
   align-items:flex-start;
   justify-content:center;
   padding:12px 4px;
-  color:#e4dcfa;
+  color:var(--ink);
   font:700 22px 'Space Grotesk'
 }
 .podium-place.first .podium-base {
@@ -1164,10 +1156,10 @@ html[data-theme="light"] .display .gradient-text {
   left:50%;
   transform:translateX(-50%);
   border-radius:50%;
-  background:#2a2438;
-  border:1px solid rgba(255,255,255,.16);
+  background:var(--panel-hi);
+  border:1px solid var(--line);
   font:700 12px 'Space Grotesk';
-  color:#fff
+  color:var(--ink)
 }
 .podium-place.first .medal {
   background:linear-gradient(145deg,#ffe7a3,#e2b34a);
@@ -1273,7 +1265,7 @@ html[data-theme="light"] .display .gradient-text {
   border:1px solid rgba(255,120,141,.25);
   border-radius:16px;
   background:rgba(255,120,141,.07);
-  color:#ffc3cd;
+  color:var(--danger);
   font-size:12px;
   line-height:1.55
 }
@@ -1286,7 +1278,7 @@ html[data-theme="light"] .display .gradient-text {
 }
 .chat-line {
   font-size:12px;
-  color:#dcd6e8;
+  color:var(--ink);
   line-height:1.45
 }
 .chat-line b {
@@ -1340,7 +1332,7 @@ html[data-theme="light"] .display .gradient-text {
 }
 .stat-num {
   font:700 19px 'Space Grotesk';
-  color:#fff
+  color:var(--ink)
 }
 .stat-label {
   font-size:9px;
@@ -1368,7 +1360,7 @@ html[data-theme="light"] .display .gradient-text {
 }
 .footer-note {
   text-align:center;
-  color:#625c73;
+  color:var(--muted2);
   font-size:10px;
   margin:24px 0 0
 }
