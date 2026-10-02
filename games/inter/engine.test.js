@@ -167,11 +167,20 @@ test('les 10 arrivent tout de suite, et le joker saute celui qui ramasse', () =>
   const jokers = table([['JR', '4C'], ['9D'], ['6S'], ['QH']], '7C', { deck });
   const before = jokers.players[0].hand.length;
   play(jokers, 'p1', [jokers.players[0].hand.find(id => jokers.cards[id].rank === 'JOKER')]);
-  assert.equal(jokers.freePlay, false);
+  assert.equal(jokers.freePlay, true);
   assert.equal(jokers.pendingDraw, 0);
   assert.equal(jokers.players[0].hand.length, before - 1);
   assert.equal(jokers.players[1].hand.length, 6);
   assert.equal(jokers.players[jokers.turnIndex].id, 'p3');
+  const queen = jokers.players[2].hand[0];
+  assert.equal(isLegal(jokers, 'p3', [queen]), true);
+  const pair = table([['JR', 'KH'], ['4S']], '7C', { deck: ['3H', '4H', '5D', '5C', '5S', '6D'] });
+  const king = pair.players[0].hand.find(id => pair.cards[id].rank === 'K');
+  play(pair, 'p1', [pair.players[0].hand.find(id => pair.cards[id].rank === 'JOKER')]);
+  assert.equal(pair.players[pair.turnIndex].id, 'p1');
+  assert.equal(pair.players[0].hand.length, 1);
+  assert.equal(pair.players[1].hand.length, 6);
+  assert.equal(isLegal(pair, 'p1', [king]), true);
 });
 
 test('valet, dame et roi n’ont pas d’effet', () => {
@@ -287,7 +296,7 @@ test('sans nombre de manches, la suite se lance à la main', () => {
   assert.equal(state.nextRoundAt, null);
   const pending = table([['JR', '4C'], ['9D'], ['6S'], ['QH']], '7C', { deck: ['3H', '4H', '5D', '5C', '5S', '6D'] });
   play(pending, 'p1', [pending.players[0].hand.find(id => pending.cards[id].rank === 'JOKER')]);
-  assert.equal(pending.freePlay, false);
+  assert.equal(pending.freePlay, true);
   assert.equal(pending.pendingDraw, 0);
   assert.equal(pending.players[0].hand.length, 1);
   assert.equal(pending.players[1].hand.length, 6);

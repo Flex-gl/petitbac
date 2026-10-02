@@ -178,7 +178,7 @@ export function isLegal(state, playerId, cardIds) {
   const center = centerCard(state);
   if (!center) return false;
   if (state.pendingDraw > 0 && !state.freePlay) return canStack(state, rank);
-  if (state.freePlay) return true;
+  if (state.freePlay || center.rank === 'JOKER') return true;
   if (state.requestedRank) return rank === state.requestedRank || isDemandEscape(rank, state.rules);
   if (isWild(rank, state.rules)) return true;
   if (rank === center.rank) return true;
@@ -416,7 +416,9 @@ export function play(state, playerId, cardIds, random = Math.random) {
     }
   }
   if (state.phase === 'demand') return state;
+  const playedJoker = rank === 'JOKER';
   passTurn(state, random);
+  if (playedJoker && state.status === 'playing') state.freePlay = true;
   return state;
 }
 
