@@ -3,6 +3,7 @@ import { haptic, showSheet, toast } from './ui.js';
 import { playCue } from './inter-audio.js';
 import { interSetupScreen, interInviteScreen, interLobbyScreen, interTableScreen, interBetweenScreen, interFinalScreen, interRulesHtml } from './screens/inter.js';
 import { animateTable, captureTable, launchOwnPlay, clearFlights } from './inter-motion.js';
+import { celebrate, clearCelebration } from './fireworks.js';
 
 function stackOrder(cards, center) {
   if (!center || cards.length < 2) return cards;
@@ -321,5 +322,7 @@ export async function renderInter(root) {
   else if (game.status === 'finished') root.innerHTML = interFinalScreen(game);
   else root.innerHTML = interTableScreen(game, ctx.playerId, { enter: !(continuous || dealt) });
   if (game?.status === 'playing') animateTable(before, previous, game, ctx.playerId);
+  if (game && (game.status === 'between' || game.status === 'finished')) celebrate(`${game.code}:${game.status}:${game.round}`, { finale: game.status === 'finished' });
+  else clearCelebration();
   painted = game || null;
 }

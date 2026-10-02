@@ -908,9 +908,20 @@ html[data-theme="light"] .display .gradient-text {
   text-align:center;
   margin:16px 0
 }
+.victory-sky {
+  position:fixed;
+  inset:0;
+  width:100%;
+  height:100%;
+  z-index:30;
+  pointer-events:none
+}
 .correction-hero {
   text-align:center;
   padding:23px 0 13px
+}
+.correction-hero.is-lit .correction-category {
+  text-shadow:0 0 28px color-mix(in srgb, var(--gold) 45%, transparent)
 }
 .correction-kicker {
   color:var(--cyan);

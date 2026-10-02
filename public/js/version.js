@@ -1,1 +1,1 @@
-export const APP_VERSION = 'arena-shell-v34';
+export const APP_VERSION = 'arena-shell-v35';
