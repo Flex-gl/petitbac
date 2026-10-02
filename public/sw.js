@@ -1,4 +1,4 @@
-const VERSION = 'arena-shell-v29';
+const VERSION = 'arena-shell-v30';
 const SHELL = ['/', '/index.html', '/version.json', '/manifest.webmanifest', '/css/app.css', '/css/animations.css', '/css/splash.css', '/css/controls.css', '/css/inter.css', '/js/app.js', '/js/version.js', '/js/api.js', '/js/ui.js', '/js/inter-session.js', '/js/inter-motion.js', '/js/inter-audio.js', '/js/screens/home.js', '/js/screens/inter.js', '/js/dict.js', '/js/i18n/fr.json', '/audio/fond.mp3', '/icons/icon-192.png', '/icons/icon-512.png', '/icons/icon-maskable.png'];
 
 self.addEventListener('install', event => {

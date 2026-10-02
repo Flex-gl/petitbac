@@ -124,6 +124,9 @@ button.card-back {
 @media (hover:hover) and (pointer:fine) {
   button.card-back:hover { transform:translateY(-6px) }
   .playing-card.is-playable:hover { transform:translateY(-22px) }
+  .hand-fan.is-full .playing-card.is-playable:hover,
+  .hand-fan.is-packed .playing-card.is-playable:hover { transform:translateY(-12px) }
+  .hand-fan.is-crowd .playing-card.is-playable:hover { transform:translateY(-10px) }
 }
 .card-back-label {
   font-size:11px;
@@ -207,14 +210,49 @@ div.playing-card { cursor:default }
 .seat-chip.is-turn { outline:2px solid var(--cyan) }
 .hand-fan {
   --card-w:clamp(100px, 24vw, 142px);
+  --card-h:calc(var(--card-w) * 1.4);
   display:flex;
+  flex-wrap:nowrap;
   justify-content:center;
   align-items:flex-end;
+  align-content:flex-end;
+  gap:12px 0;
   min-height:calc(var(--card-h) + 32px);
   padding:22px 4px 8px;
   overflow-x:auto
 }
 .hand-fan .playing-card { flex:0 0 auto; margin:0 calc(var(--card-w) * -0.18) }
+.hand-fan.is-full,
+.hand-fan.is-packed,
+.hand-fan.is-crowd {
+  display:flex;
+  flex-wrap:wrap;
+  justify-content:center;
+  align-items:flex-end;
+  overflow:visible;
+  margin-inline:auto
+}
+.hand-fan.is-full {
+  --card-w:clamp(72px, 16vw, 104px);
+  gap:12px 8px;
+  max-width:min(100%, calc(4 * var(--card-w) + 40px))
+}
+.hand-fan.is-packed {
+  --card-w:clamp(58px, 13vw, 84px);
+  gap:10px 6px;
+  max-width:min(100%, calc(5 * var(--card-w) + 40px))
+}
+.hand-fan.is-crowd {
+  --card-w:clamp(48px, 11vw, 70px);
+  gap:8px 4px;
+  max-width:min(100%, calc(6 * var(--card-w) + 36px))
+}
+.hand-fan.is-full .playing-card,
+.hand-fan.is-packed .playing-card,
+.hand-fan.is-crowd .playing-card { margin:0; flex:0 0 var(--card-w) }
+.hand-fan.is-full .playing-card.is-playable,
+.hand-fan.is-packed .playing-card.is-playable { transform:translateY(-10px) }
+.hand-fan.is-crowd .playing-card.is-playable { transform:translateY(-8px) }
 .inter-actions { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:8px }
 .demand-grid { display:grid; grid-template-columns:repeat(5, 1fr); gap:8px; margin:8px 0 12px; animation:viewIn .32s var(--ease) both }
 .demand-grid button, .inter-tools button {
