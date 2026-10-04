@@ -94,7 +94,8 @@ export function quizFinalScreen(game, playerId, detail = false) {
   const review = (game.review || []).map(item => {
     const mark = item.blank ? 'Sans réponse' : item.good ? 'Juste' : 'Erreur';
     const yours = item.blank ? 'Pas de réponse' : `${item.choice}. ${item.choiceText}`;
-    return `<li class="${item.good ? 'is-good' : 'is-bad'}"><b>${item.index}</b><span><strong>${esc(item.prompt)}</strong><em>${mark} · ${esc(yours)}</em><em>Réponse : ${esc(item.correct)}. ${esc(item.correctText)}</em></span></li>`;
+    const why = item.why ? `<em>${esc(item.why)}</em>` : '';
+    return `<li class="${item.good ? 'is-good' : 'is-bad'}"><b>${item.index}</b><span><strong>${esc(item.prompt)}</strong><em>${mark} · ${esc(yours)}</em><em>Réponse : ${esc(item.correct)}. ${esc(item.correctText)}</em>${why}</span></li>`;
   }).join('');
   const board = detail
     ? `<div class="qz-board"><ol class="qz-rank qz-review">${review || '<li>Aucune réponse enregistrée.</li>'}</ol></div>`

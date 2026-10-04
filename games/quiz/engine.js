@@ -113,12 +113,21 @@ function shuffle(list, random) {
   return copy;
 }
 
-function drawSome(list, wanted, random, seen) {
+export function questionSubject(item) {
+  const prompt = plainPrompt(item?.question || item?.prompt || '');
+  const names = [...prompt.matchAll(/«\s*([^»]+?)\s*»/g)].map(match => match[1].trim().toLowerCase()).filter(Boolean);
+  return names.sort().join('|');
+}
+
+function drawSome(list, wanted, random, seen, subjects) {
   const picked = [];
   for (const item of shuffle(list, random)) {
     const id = String(item.id);
     if (seen.has(id)) continue;
+    const subject = questionSubject(item);
+    if (subject && subjects.has(subject)) continue;
     seen.add(id);
+    if (subject) subjects.add(subject);
     picked.push(item);
     if (picked.length === wanted) break;
   }
@@ -129,17 +138,17 @@ function chooseItems(eligible, wanted, used, recent, random) {
   const usedSet = new Set(used.map(String));
   const recentSet = new Set(recent.map(String));
   const seen = new Set();
-  const picked = takeFrom(eligible, wanted, usedSet, recentSet, random, seen);
+  const picked = takeFrom(eligible, wanted, usedSet, recentSet, random, seen, new Set(), true);
   if (picked.length < wanted) throw new QuizError(`Pas assez de questions pour ce filtre (${picked.length} disponibles, ${wanted} demandées).`);
   return picked;
 }
 
-function takeFrom(list, quota, usedSet, recentSet, random, seen) {
+function takeFrom(list, quota, usedSet, recentSet, random, seen, subjects, allowRecent) {
   if (quota <= 0) return [];
   const unused = list.filter(item => !usedSet.has(String(item.id)));
   const fresh = unused.filter(item => !recentSet.has(String(item.id)));
-  const picked = drawSome(fresh, quota, random, seen);
-  if (picked.length < quota) picked.push(...drawSome(unused, quota - picked.length, random, seen));
+  const picked = drawSome(fresh, quota, random, seen, subjects);
+  if (allowRecent && picked.length < quota) picked.push(...drawSome(unused, quota - picked.length, random, seen, subjects));
   return picked;
 }
 
@@ -158,13 +167,15 @@ function chooseBalanced(eligible, wanted, used, recent, random) {
   const base = Math.floor(wanted / order.length);
   let extra = wanted % order.length;
   const seen = new Set();
+  const subjects = new Set();
   const picked = [];
   for (const name of order) {
     const quota = base + (extra > 0 ? 1 : 0);
     if (extra > 0) extra -= 1;
-    picked.push(...takeFrom(groups.get(name), quota, usedSet, recentSet, random, seen));
+    picked.push(...takeFrom(groups.get(name), quota, usedSet, recentSet, random, seen, subjects, false));
   }
-  if (picked.length < wanted) picked.push(...takeFrom(eligible, wanted - picked.length, usedSet, recentSet, random, seen));
+  if (picked.length < wanted) picked.push(...takeFrom(eligible, wanted - picked.length, usedSet, recentSet, random, seen, subjects, false));
+  if (picked.length < wanted) picked.push(...takeFrom(eligible, wanted - picked.length, usedSet, recentSet, random, seen, subjects, true));
   if (picked.length < wanted) throw new QuizError(`Pas assez de questions pour ce filtre (${picked.length} disponibles, ${wanted} demandées).`);
   return shuffle(picked, random);
 }
@@ -469,7 +480,8 @@ function reviewFor(game, player) {
       correctText: card.options[card.correct] || '',
       good: Boolean(entry.good),
       blank: Boolean(entry.blank),
-      gained: entry.gained || 0
+      gained: entry.gained || 0,
+      why: String(card.explication || '').trim()
     };
   }).filter(Boolean);
 }

@@ -1,6 +1,6 @@
 import { createIfAbsent, getJson, redis, updateVersioned } from './_redis.js';
 import { importQuestions, rowsFromCsv } from '../games/quiz/csv.js';
-import { QuizError, abandon, advance, answer, beginQuiz, cleanQuestion, createPlayer, prepareRestart, publicView, rematch, rulesFrom, selectIds, selectQuestions, skipSolo, summarize } from '../games/quiz/engine.js';
+import { QuizError, abandon, advance, answer, beginQuiz, cleanQuestion, createPlayer, prepareRestart, publicView, questionSubject, rematch, rulesFrom, selectIds, selectQuestions, skipSolo, summarize } from '../games/quiz/engine.js';
 
 const GAME_TTL = 604800;
 const ROOM_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -144,16 +144,44 @@ async function drawDeck(game) {
   const catalog = await loadCatalog();
   if (!catalog.items.length) throw new QuizError('La banque de questions n’est pas encore disponible.', 503);
   const recent = await recentIds(game.players.filter(player => !player.abandoned));
-  const ids = selectIds(catalog.items, {
-    count: game.rules.questions,
-    category: game.rules.category,
-    difficulty: game.rules.difficulty,
-    used: game.seenIds || [],
-    recent
-  });
-  const questions = await questionsByIds(ids, catalog);
-  if (questions.length < ids.length) throw new QuizError('Certaines questions sont introuvables.', 503);
-  return selectQuestions(questions, { count: questions.length });
+  const wanted = Math.min(30, Math.max(1, Number(game.rules?.questions) || 10));
+  const used = new Set((game.seenIds || []).map(String));
+  const subjects = new Set();
+  const picked = [];
+  for (let round = 0; round < 5 && picked.length < wanted; round += 1) {
+    let ids = [];
+    try {
+      ids = selectIds(catalog.items, {
+        count: wanted - picked.length,
+        category: game.rules.category,
+        difficulty: game.rules.difficulty,
+        used: [...used],
+        recent
+      });
+    } catch (error) {
+      if (!picked.length) throw error;
+      break;
+    }
+    const questions = await questionsByIds(ids, catalog);
+    if (questions.length < ids.length) throw new QuizError('Certaines questions sont introuvables.', 503);
+    let added = 0;
+    for (const question of questions) {
+      const subject = questionSubject(question);
+      if (subject && subjects.has(subject)) {
+        used.add(String(question.id));
+        continue;
+      }
+      if (subject) subjects.add(subject);
+      picked.push(question);
+      used.add(String(question.id));
+      added += 1;
+      if (picked.length === wanted) break;
+    }
+    for (const id of ids) used.add(String(id));
+    if (!added) break;
+  }
+  if (picked.length < wanted) throw new QuizError(`Pas assez de questions pour ce filtre (${picked.length} disponibles, ${wanted} demandées).`);
+  return selectQuestions(picked, { count: picked.length });
 }
 
 async function remember(game) {

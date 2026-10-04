@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { advance, answer, beginQuiz, createPlayer, plainPrompt, pointsFor, prepareRestart, publicView, rematch, rulesFrom, selectIds, selectQuestions, skipSolo, QuizError } from './engine.js';
+import { advance, answer, beginQuiz, createPlayer, plainPrompt, pointsFor, prepareRestart, publicView, questionSubject, rematch, rulesFrom, selectIds, selectQuestions, skipSolo, QuizError } from './engine.js';
 import { importQuestions, parseCsv, rowsFromCsv } from './csv.js';
 
 function sample(id, answer = 'Dakar') {
@@ -154,6 +154,21 @@ test('une manche prend le même nombre de questions dans chaque catégorie', () 
   const sport = selectQuestions(pool, { count: 4, category: 'Sport', random: () => 0.2 });
   assert.equal(sport.length, 4);
   assert.ok(sport.every(card => card.categorie === 'Sport'));
+});
+
+test('une manche ne reprend ni la même ville ni une catégorie déjà épuisée', () => {
+  const cities = ['Kinshasa', 'Goma', 'Matadi', 'Kisangani'].flatMap(city => ([
+    { ...sample(`pays-${city}`), question: `Dans quel pays se trouve « ${city} » ?` },
+    { ...sample(`cont-${city}`), question: `Sur quel continent se trouve « ${city} » ?` }
+  ]));
+  const picked = selectQuestions(cities, { count: 4, random: () => 0.2 });
+  assert.equal(picked.length, 4);
+  assert.equal(new Set(picked.map(questionSubject)).size, 4);
+  const sport = Array.from({ length: 4 }, (_, index) => ({ ...sample(`sport-${index}`), categorie: 'Sport', question: `Quel score retient le sport ${index} ?` }));
+  const geo = Array.from({ length: 12 }, (_, index) => ({ ...sample(`geo-${index}`), question: `Quel lieu retient la géographie ${index} ?` }));
+  const again = selectQuestions([...sport, ...geo], { count: 6, recent: sport.map(item => item.id), random: () => 0.3 });
+  assert.equal(again.length, 6);
+  assert.ok(again.every(card => card.categorie === 'Géographie'));
 });
 
 test('le filtre de questions s’arrête s’il n’y en a pas assez', () => {
