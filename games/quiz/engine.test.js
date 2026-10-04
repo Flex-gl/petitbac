@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { advance, answer, beginQuiz, createPlayer, pointsFor, publicView, rematch, rulesFrom, selectIds, selectQuestions, QuizError } from './engine.js';
+import { advance, answer, beginQuiz, createPlayer, plainPrompt, pointsFor, prepareRestart, publicView, rematch, rulesFrom, selectIds, selectQuestions, skipSolo, QuizError } from './engine.js';
 import { importQuestions, parseCsv, rowsFromCsv } from './csv.js';
 
 function sample(id, answer = 'Dakar') {
@@ -64,20 +64,30 @@ test('une partie ne répète pas une question et cache la bonne réponse', () =>
 test('une réponse juste rapide vaut plus qu’une réponse lente, et une erreur vaut zéro', () => {
   const game = lobby(5_000);
   const correct = game.deck[0].correct;
+  const waiting = publicView(game, 'leo', game.openedAt + 200);
+  assert.equal(waiting.question.verdict, '');
+  assert.equal(waiting.question.correct, undefined);
   answer(game, 'anna', correct, 0, game.openedAt + 500);
+  const mine = publicView(game, 'anna', game.openedAt + 600);
+  assert.equal(mine.question.verdict, 'good');
+  assert.equal(mine.question.correct, undefined);
+  assert.equal(publicView(game, 'leo', game.openedAt + 600).question.verdict, '');
   answer(game, 'leo', correct, 0, game.openedAt + 8000);
-  assert.equal(game.status, 'reveal');
-  assert.ok(game.players[0].gained > game.players[1].gained);
-  assert.ok(game.players[0].gained <= 100);
-  assert.ok(game.players[1].gained >= 60);
-  const cursor = game.cursor;
-  advance(game, game.revealUntil + 1);
-  assert.notEqual(game.cursor, cursor);
+  assert.equal(game.status, 'playing');
+  assert.equal(game.cursor, 1);
+  assert.ok(game.players[0].score > game.players[1].score);
+  assert.ok(game.players[0].score <= 100);
+  assert.ok(game.players[1].score >= 60);
   const wrong = game.deck[game.cursor].correct === 0 ? 1 : 0;
   answer(game, 'anna', wrong, game.cursor, game.openedAt + 1000);
   answer(game, 'leo', wrong, game.cursor, game.openedAt + 1000);
-  assert.equal(game.players[0].gained, 0);
+  assert.equal(game.status, 'finished');
   assert.equal(game.players[0].wrong, 1);
+  const review = publicView(game, 'anna').review;
+  assert.equal(review.length, 2);
+  assert.equal(review[1].good, false);
+  assert.equal(publicView(game, 'leo').review[1].choice === review[1].choice, true);
+  assert.equal(JSON.stringify(publicView(game, 'leo')).includes(game.players[0].name) && publicView(game, 'leo').review.every(item => item.choice === publicView(game, 'leo').review.find(row => row.index === item.index).choice), true);
 });
 
 test('le serveur refuse une seconde réponse, une ancienne question et un temps dépassé', () => {
@@ -93,7 +103,8 @@ test('le serveur refuse une seconde réponse, une ancienne question et un temps 
 test('sans réponse, le joueur marque zéro et la question se ferme toute seule', () => {
   const game = lobby(12_000);
   advance(game, game.closesAt + 1201);
-  assert.equal(game.status, 'reveal');
+  assert.equal(game.status, 'playing');
+  assert.equal(game.cursor, 1);
   assert.equal(game.players[0].blank, 1);
   assert.equal(game.players[0].gained, 0);
   assert.equal(game.players[0].score, 0);
@@ -105,15 +116,14 @@ test('une réponse dans le délai de grâce reste comptée', () => {
   answer(game, 'anna', correct, 0, game.closesAt + 400);
   answer(game, 'leo', correct, 0, game.openedAt + 1000);
   assert.equal(game.players[0].correct, 1);
-  assert.equal(game.players[0].gained, 60);
+  assert.equal(game.players[0].score, 60);
+  assert.equal(game.players[0].review[0].gained, 60);
 });
 
 test('la revanche pioche d’autres questions', () => {
   const game = lobby(20_000);
   advance(game, game.closesAt + 1201);
-  advance(game, game.revealUntil + 1);
   advance(game, game.closesAt + 1201);
-  advance(game, game.revealUntil + 1);
   assert.equal(game.status, 'finished');
   const seen = new Set(game.seenIds);
   const pool = ['q1', 'q2', 'q3', 'q4', 'q5', 'q6'].map((id, index) => sample(id, ['Dakar', 'Accra', 'Rabat', 'Tunis'][index % 4]));
@@ -139,9 +149,12 @@ test('l’import refuse un doublon et une question sans réponse', () => {
   assert.equal(result.imported[0].question.includes('ballon'), true);
 });
 
-test('la banque contient trois mille questions jouables, en UTF-8', () => {
+test('la banque contient plus de dix mille questions distinctes, en UTF-8', () => {
   const bank = JSON.parse(readFileSync(new URL('../../data/quiz/bank.json', import.meta.url), 'utf8'));
-  assert.equal(bank.questions.length, 3000);
+  assert.ok(bank.questions.length >= 10000);
+  assert.equal(new Set(bank.questions.map(question => question.id)).size, bank.questions.length);
+  assert.equal(new Set(bank.questions.map(question => question.question.toLowerCase())).size, bank.questions.length);
+  assert.equal(bank.questions.some(question => /testez vos connaissances|question quiz battle|\(série\s*\d+\)/i.test(question.question)), false);
   assert.ok(bank.questions.some(question => question.categorie === 'Géographie' && question.question.includes('é')));
   const broken = bank.questions.filter(question => {
     const options = [question.option_a, question.option_b, question.option_c, question.option_d];
@@ -157,6 +170,12 @@ test('la banque contient trois mille questions jouables, en UTF-8', () => {
   const ids = selectIds(bank.questions.map(question => ({ id: question.id, categorie: question.categorie, difficulte: question.difficulte, actif: question.actif })), { count: 10, random: () => 0.2 });
   assert.equal(ids.length, 10);
   assert.equal(new Set(ids).size, 10);
+  const preferred = selectIds(bank.questions.slice(0, 6).map(question => ({ id: question.id, categorie: question.categorie, difficulte: question.difficulte, actif: question.actif })), {
+    count: 2,
+    recent: bank.questions.slice(0, 5).map(question => question.id),
+    random: () => 0.9
+  });
+  assert.ok(preferred.includes(bank.questions[5].id));
 });
 
 test('un joueur seul peut commencer, sans adversaire', () => {
@@ -184,6 +203,11 @@ test('un joueur seul peut commencer, sans adversaire', () => {
   assert.equal(view.solo, true);
   assert.equal(view.question.correct, undefined);
   answer(game, 'anna', game.deck[0].correct, 0, game.openedAt + 300);
-  assert.equal(game.status, 'reveal');
+  assert.equal(game.status, 'playing');
+  assert.equal(game.cursor, 1);
   assert.equal(game.players[0].correct, 1);
+  assert.equal(publicView(game, 'anna').flash.good, true);
+  assert.throws(() => prepareRestart({ ...game, solo: false, status: 'playing' }), /solo/);
+  assert.throws(() => skipSolo({ ...game, solo: false, status: 'playing' }), /solo/);
+  assert.equal(plainPrompt('Testez vos connaissances : Quelle est la capitale du Ghana ? (série 2)'), 'Quelle est la capitale du Ghana ?');
 });

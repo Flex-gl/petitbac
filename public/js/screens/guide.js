@@ -133,26 +133,29 @@ const ARTICLES = {
     rules: {
       title: 'Règles de Quiz Battle',
       kicker: 'Questions',
-      html: `<p class="sheet-copy">Quiz Battle pose la même question à tout le monde. Quatre réponses, une seule est juste. Le serveur tient le temps et les points. La bonne réponse n’est montrée qu’après la fermeture de la question.</p>
+      html: `<p class="sheet-copy">Quiz Battle pose la même question à tout le monde. Quatre réponses, une seule est juste. Le serveur tient le temps et les points. Ta réponse passe au vert ou au rouge, puis la question suivante arrive tout de suite.</p>
       <h2>La salle</h2>
       <ol class="rules-list">
         <li>Tu peux jouer seul. Ton score, ton record et ta réussite sont gardés. Ce n’est pas une victoire au classement.</li>
         <li>Un salon accueille jusqu’à vingt joueurs. L’hôte peut aussi lancer la partie seul, puis les autres ne rejoignent plus une fois que c’est parti.</li>
         <li>L’hôte choisit le nombre de questions, de 5 à 30, la catégorie, la difficulté et le temps : 5, 10, 15, 20 ou 30 secondes.</li>
-        <li>Les questions viennent de la banque du serveur. Elles ne sont pas dans la page du jeu. Une question déjà vue est évitée tant qu’il en reste d’autres.</li>
+        <li>Les questions viennent de la banque du serveur. Une même question ne revient pas dans la partie. Celles déjà vues sont écartées tant qu’il en reste d’autres.</li>
       </ol>
       <h2>La question</h2>
       <ol class="rules-list">
         <li>Tout le monde voit la même question et les mêmes quatre réponses, A, B, C et D.</li>
         <li>Tu ne changes plus une réponse envoyée.</li>
         <li>Le temps affiché suit le serveur. Une réponse encore dans le court délai après la fin peut compter. Après, elle est refusée.</li>
-        <li>La question se ferme quand tout le monde a répondu, ou quand le temps et son délai sont passés.</li>
+        <li>Dès que tu choisis, ta case passe au vert ou au rouge. La question suivante arrive sans écran d’explication.</li>
+        <li>À plusieurs, on attend que chacun ait répondu, ou que le temps soit passé. Personne ne voit la réponse des autres.</li>
+        <li>Seul, tu peux quitter ou recommencer pendant la partie. À plusieurs, la partie continue jusqu’au bout.</li>
       </ol>
       <h2>Les points</h2>
       <ol class="rules-list">
         <li>Une bonne réponse immédiate vaut 100 points. Une bonne réponse au dernier instant vaut 60. Entre les deux, le score descend avec le temps.</li>
         <li>Une erreur vaut 0. Un silence vaut 0.</li>
-        <li>La bonne réponse, puis le classement, s’affichent. La question suivante part ensuite.</li>
+        <li>Le détail des réussites et des erreurs n’apparaît qu’à la fin, et seulement pour tes propres réponses.</li>
+        <li>À plusieurs, le classement s’affiche d’abord. Chacun peut ensuite ouvrir ses réponses.</li>
         <li>À la fin, l’hôte peut demander une revanche : mêmes joueurs, autres questions.</li>
         <li>Dans un salon de plusieurs joueurs, les premiers au score sont les vainqueurs. À égalité, ils partagent la victoire. Seul, l’écran montre ton résultat, sans victoire de classement.</li>
       </ol>`
@@ -178,9 +181,9 @@ const ARTICLES = {
       <h2>Répondre</h2>
       <ol class="rules-list">
         <li>Lis la question. Touche une des quatre réponses. Plus tu es rapide et juste, plus tu marques.</li>
-        <li>Attends la bonne réponse. Elle s’affiche pour tout le monde en même temps.</li>
-        <li>Le classement de la question suit, puis la suivante commence.</li>
-        <li>À la fin, l’hôte peut lancer une revanche. Quitter n’ajoute pas cette partie à un bouton Reprendre.</li>
+        <li>La case choisie passe au vert ou au rouge, et la suite arrive tout de suite.</li>
+        <li>À la fin, le classement s’affiche. Mes réponses montre où tu as réussi et où tu t’es trompé.</li>
+        <li>Seul, Recommencer relance d’autres questions. Quitter sort sans laisser un bouton Reprendre.</li>
       </ol>`
     }
   }

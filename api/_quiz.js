@@ -1,6 +1,6 @@
 import { createIfAbsent, getJson, redis, updateVersioned } from './_redis.js';
 import { importQuestions, rowsFromCsv } from '../games/quiz/csv.js';
-import { QuizError, abandon, advance, answer, beginQuiz, cleanQuestion, createPlayer, publicView, rematch, rulesFrom, selectIds, selectQuestions, summarize } from '../games/quiz/engine.js';
+import { QuizError, abandon, advance, answer, beginQuiz, cleanQuestion, createPlayer, prepareRestart, publicView, rematch, rulesFrom, selectIds, selectQuestions, skipSolo, summarize } from '../games/quiz/engine.js';
 
 const GAME_TTL = 604800;
 const ROOM_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -157,7 +157,7 @@ async function drawDeck(game) {
 }
 
 async function remember(game) {
-  if (game.status !== 'finished' || game.statsMarked) return;
+  if (game.skipped || game.status !== 'finished' || game.statsMarked) return;
   const players = game.players.filter(player => !player.abandoned).map(player => ({
     id: player.id,
     name: player.name,
@@ -173,12 +173,14 @@ async function remember(game) {
 
 async function markSeen(game) {
   if (game.status !== 'finished' || game.seenMarked) return;
-  const ids = (game.deck || []).map(card => String(card.id));
+  const deck = game.deck || [];
+  const shown = game.skipped ? deck.slice(0, Math.max(0, (game.cursor || 0) + 1)) : deck;
+  const ids = shown.map(card => String(card.id));
   for (const player of game.players) {
     if (player.abandoned) continue;
     const key = `arena:quiz:seen:${player.id}`;
     const previous = await getJson(key);
-    const next = [...ids, ...(Array.isArray(previous) ? previous.map(String).filter(id => !ids.includes(id)) : [])].slice(0, 150);
+    const next = [...ids, ...(Array.isArray(previous) ? previous.map(String).filter(id => !ids.includes(id)) : [])].slice(0, 4000);
     await redis('SET', key, JSON.stringify(next));
   }
   game.seenMarked = true;
@@ -318,7 +320,15 @@ export async function mutateQuiz(input) {
       const choice = typeof raw === 'string' && /^[ABCD]$/i.test(raw) ? 'ABCD'.indexOf(raw.toUpperCase()) : Number(raw);
       answer(game, playerId, choice, Number(input.cursor), Date.now());
     } else if (action === 'abandon') {
+      if (!game.solo && game.status !== 'lobby') throw new QuizError('On ne quitte pas une partie à plusieurs.', 403);
       abandon(game, playerId, Date.now());
+    } else if (action === 'restart') {
+      if (!game.solo || game.hostId !== playerId) throw new QuizError('Recommencer en plein jeu n’est possible qu’en solo.', 403);
+      prepareRestart(game);
+      beginQuiz(game, await drawDeck(game), Date.now());
+    } else if (action === 'drop') {
+      if (!game.solo || game.hostId !== playerId) throw new QuizError('Quitter en plein jeu n’est possible qu’en solo.', 403);
+      skipSolo(game, Date.now());
     } else if (action === 'rematch') {
       if (game.hostId !== playerId) throw new QuizError('Seul l’hôte peut lancer la revanche.', 403);
       game.startedAt = Date.now();

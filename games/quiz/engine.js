@@ -24,7 +24,7 @@ export const CATEGORIES = [
 ];
 
 export const DIFFICULTIES = ['facile', 'moyen', 'difficile'];
-export const REVEAL_MS = 4500;
+export const REVEAL_MS = 0;
 export const ANSWER_GRACE_MS = 1200;
 export const SCORE_FAST = 100;
 export const SCORE_SLOW = 60;
@@ -104,6 +104,39 @@ export function summarize(items = []) {
   };
 }
 
+function shuffle(list, random) {
+  const copy = [...list];
+  for (let index = copy.length - 1; index > 0; index -= 1) {
+    const swap = Math.floor(random() * (index + 1));
+    [copy[index], copy[swap]] = [copy[swap], copy[index]];
+  }
+  return copy;
+}
+
+function drawSome(list, wanted, random, seen) {
+  const picked = [];
+  for (const item of shuffle(list, random)) {
+    const id = String(item.id);
+    if (seen.has(id)) continue;
+    seen.add(id);
+    picked.push(item);
+    if (picked.length === wanted) break;
+  }
+  return picked;
+}
+
+function chooseItems(eligible, wanted, used, recent, random) {
+  const usedSet = new Set(used.map(String));
+  const recentSet = new Set(recent.map(String));
+  const unused = eligible.filter(item => !usedSet.has(String(item.id)));
+  const fresh = unused.filter(item => !recentSet.has(String(item.id)));
+  const seen = new Set();
+  const picked = drawSome(fresh, wanted, random, seen);
+  if (picked.length < wanted) picked.push(...drawSome(unused, wanted - picked.length, random, seen));
+  if (picked.length < wanted) throw new QuizError(`Pas assez de questions pour ce filtre (${picked.length} disponibles, ${wanted} demandées).`);
+  return picked;
+}
+
 export function selectIds(pool, { count, category = 'toutes', difficulty = 'toutes', used = [], recent = [], random = Math.random } = {}) {
   const wanted = Math.min(30, Math.max(1, Number(count) || 10));
   const eligible = pool.filter(item => {
@@ -112,27 +145,16 @@ export function selectIds(pool, { count, category = 'toutes', difficulty = 'tout
     if (difficulty && difficulty !== 'toutes' && item.difficulte !== difficulty) return false;
     return true;
   });
-  const usedSet = new Set(used.map(String));
-  const recentSet = new Set(recent.map(String));
-  const unused = eligible.filter(item => !usedSet.has(String(item.id)));
-  const fresh = unused.filter(item => !recentSet.has(String(item.id)));
-  const source = fresh.length >= wanted ? fresh : unused;
-  if (source.length < wanted) throw new QuizError(`Pas assez de questions pour ce filtre (${source.length} disponibles, ${wanted} demandées).`);
-  const copy = [...source];
-  for (let index = copy.length - 1; index > 0; index -= 1) {
-    const swap = Math.floor(random() * (index + 1));
-    [copy[index], copy[swap]] = [copy[swap], copy[index]];
-  }
-  const picked = [];
-  const seen = new Set();
-  for (const item of copy) {
-    const id = String(item.id);
-    if (seen.has(id)) continue;
-    seen.add(id);
-    picked.push(id);
-    if (picked.length === wanted) break;
-  }
-  return picked;
+  return chooseItems(eligible, wanted, used, recent, random).map(item => String(item.id));
+}
+
+export function plainPrompt(value) {
+  return String(value || '')
+    .replace(/^\s*(révision|question quiz battle|défi de connaissances|question rapide|saurez-vous répondre|testez vos connaissances|à vous de jouer)\s*[:\-–]?\s*/i, '')
+    .replace(/^dans un quiz de culture générale,\s*/i, '')
+    .replace(/\s*\(série\s*\d+\)\s*/gi, '')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 export function selectQuestions(pool, { count, category = 'toutes', difficulty = 'toutes', used = [], recent = [], random = Math.random } = {}) {
@@ -143,29 +165,7 @@ export function selectQuestions(pool, { count, category = 'toutes', difficulty =
     if (difficulty && difficulty !== 'toutes' && question.difficulte !== difficulty) return false;
     return true;
   });
-  const usedSet = new Set(used.map(String));
-  const recentSet = new Set(recent.map(String));
-  const unused = eligible.filter(question => !usedSet.has(String(question.id)));
-  const fresh = unused.filter(question => !recentSet.has(String(question.id)));
-  const source = fresh.length >= wanted ? fresh : unused;
-  if (source.length < wanted) {
-    throw new QuizError(`Pas assez de questions pour ce filtre (${source.length} disponibles, ${wanted} demandées).`);
-  }
-  const copy = [...source];
-  for (let index = copy.length - 1; index > 0; index -= 1) {
-    const swap = Math.floor(random() * (index + 1));
-    [copy[index], copy[swap]] = [copy[swap], copy[index]];
-  }
-  const picked = [];
-  const seen = new Set();
-  for (const question of copy) {
-    const id = String(question.id);
-    if (seen.has(id)) continue;
-    seen.add(id);
-    picked.push(packQuestion(question));
-    if (picked.length === wanted) break;
-  }
-  return picked;
+  return chooseItems(eligible, wanted, used, recent, random).map(packQuestion);
 }
 
 function packQuestion(question) {
@@ -176,7 +176,7 @@ function packQuestion(question) {
     id: String(question.id),
     categorie: question.categorie,
     difficulte: question.difficulte,
-    prompt: question.question,
+    prompt: plainPrompt(question.question),
     options,
     correct,
     explication: question.explication || ''
@@ -229,23 +229,26 @@ function grade(game, now) {
   const duration = game.rules.seconds * 1000;
   for (const player of activePlayers(game)) {
     const choice = Number.isInteger(player.choice) ? player.choice : null;
+    let gained = 0;
     if (choice === null) {
       player.blank += 1;
       player.gained = 0;
-      continue;
-    }
-    const elapsed = Math.min(duration, Math.max(0, (player.answeredAt || now) - game.openedAt));
-    player.timeSum += elapsed;
-    player.answeredCount += 1;
-    if (choice === card.correct) {
-      const gained = pointsFor(elapsed, duration);
-      player.correct += 1;
-      player.score += gained;
-      player.gained = gained;
     } else {
-      player.wrong += 1;
-      player.gained = 0;
+      const elapsed = Math.min(duration, Math.max(0, (player.answeredAt || now) - game.openedAt));
+      player.timeSum += elapsed;
+      player.answeredCount += 1;
+      if (choice === card.correct) {
+        gained = pointsFor(elapsed, duration);
+        player.correct += 1;
+        player.score += gained;
+        player.gained = gained;
+      } else {
+        player.wrong += 1;
+        player.gained = 0;
+      }
     }
+    if (!Array.isArray(player.review)) player.review = [];
+    player.review[game.cursor] = { choice, good: choice !== null && choice === card.correct, gained, blank: choice === null };
   }
   card.graded = true;
 }
@@ -265,22 +268,22 @@ function comparePlayers(a, b) {
   return (b.score - a.score) || (b.correct - a.correct) || a.name.localeCompare(b.name, 'fr');
 }
 
+function nextQuestion(game, now) {
+  game.cursor += 1;
+  if (game.cursor >= game.deck.length) return finish(game, now);
+  return openQuestion(game, now);
+}
+
 export function advance(game, now = Date.now()) {
   if (!game || game.status === 'lobby' || game.status === 'finished') return game;
+  if (game.status === 'reveal') return nextQuestion(game, now);
   if (game.status === 'playing') {
     const waiting = activePlayers(game).filter(player => !player.locked);
     const expired = now >= game.closesAt + ANSWER_GRACE_MS;
     if (expired || waiting.length === 0) {
       grade(game, Math.min(now, game.closesAt));
-      game.status = 'reveal';
-      game.revealUntil = now + REVEAL_MS;
+      return nextQuestion(game, now);
     }
-    return game;
-  }
-  if (game.status === 'reveal' && now >= (game.revealUntil || 0)) {
-    game.cursor += 1;
-    if (game.cursor >= game.deck.length) return finish(game, now);
-    return openQuestion(game, now);
   }
   return game;
 }
@@ -300,6 +303,8 @@ export function answer(game, playerId, choice, cursor, now = Date.now()) {
   player.choice = picked;
   player.answeredAt = Math.min(now, game.closesAt);
   player.locked = true;
+  const card = game.deck[game.cursor];
+  player.flash = { cursor: game.cursor, choice: picked, good: picked === card.correct };
   advance(game, now > game.closesAt ? game.closesAt : now);
   return game;
 }
@@ -315,7 +320,7 @@ export function beginQuiz(game, deck, now = Date.now()) {
   game.deck = deck;
   game.seenIds = [...new Set([...(game.seenIds || []), ...ids])];
   game.cursor = 0;
-  for (const player of game.players) Object.assign(player, blankStats(), { choice: null, answeredAt: 0, locked: false, gained: 0, ready: true });
+  for (const player of game.players) Object.assign(player, blankStats(), { choice: null, answeredAt: 0, locked: false, gained: 0, ready: true, review: [], flash: null });
   return openQuestion(game, now);
 }
 
@@ -324,6 +329,29 @@ export function rematch(game, deck, now = Date.now()) {
   game.players = activePlayers(game);
   game.status = 'lobby';
   return beginQuiz(game, deck, now);
+}
+
+export function prepareRestart(game) {
+  if (!game.solo) throw new QuizError('Recommencer en plein jeu n’est possible qu’en solo.');
+  if (game.status === 'lobby') throw new QuizError('La partie n’a pas commencé.');
+  game.status = 'lobby';
+  game.skipped = false;
+  game.statsMarked = false;
+  game.seenMarked = false;
+  game.winnerId = '';
+  game.winnerIds = [];
+  return game;
+}
+
+export function skipSolo(game, now = Date.now()) {
+  if (!game.solo) throw new QuizError('Quitter en plein jeu n’est possible qu’en solo.');
+  if (game.status === 'lobby' || game.status === 'finished') return game;
+  game.skipped = true;
+  game.status = 'finished';
+  game.finishedAt = now;
+  game.winnerId = '';
+  game.winnerIds = [];
+  return game;
 }
 
 export function abandon(game, playerId, now = Date.now()) {
@@ -368,28 +396,42 @@ function averageMs(player) {
   return Math.round(player.timeSum / player.answeredCount);
 }
 
+function reviewFor(game, player) {
+  if (!player || !Array.isArray(player.review)) return [];
+  return player.review.map((entry, index) => {
+    const card = game.deck?.[index];
+    if (!card || !entry) return null;
+    const choice = Number.isInteger(entry.choice) ? entry.choice : null;
+    return {
+      index: index + 1,
+      prompt: plainPrompt(card.prompt),
+      choice: choice === null ? '' : LETTERS[choice],
+      choiceText: choice === null ? '' : card.options[choice] || '',
+      correct: LETTERS[card.correct] || '',
+      correctText: card.options[card.correct] || '',
+      good: Boolean(entry.good),
+      blank: Boolean(entry.blank),
+      gained: entry.gained || 0
+    };
+  }).filter(Boolean);
+}
+
 export function publicView(game, viewerId, now = Date.now()) {
   const copy = game;
   const me = copy.players.find(player => player.id === viewerId) || null;
   const card = copy.deck?.[copy.cursor] || null;
-  const showAnswer = copy.status === 'reveal' || copy.status === 'finished';
-  const question = card && copy.status !== 'lobby' ? {
+  const question = card && copy.status === 'playing' ? {
     index: copy.cursor + 1,
     total: copy.deck.length,
     categorie: card.categorie,
     difficulte: difficultyLabel(card.difficulte),
-    prompt: card.prompt,
+    prompt: plainPrompt(card.prompt),
     options: card.options.map((text, index) => ({ key: LETTERS[index], text })),
     closesAt: copy.closesAt || 0,
     locked: Boolean(me?.locked),
-    choice: me?.locked ? LETTERS[me.choice] : ''
+    choice: me?.locked && me.flash?.cursor === copy.cursor ? LETTERS[me.flash.choice] : '',
+    verdict: me?.locked && me.flash?.cursor === copy.cursor ? (me.flash.good ? 'good' : 'bad') : ''
   } : null;
-  if (question && showAnswer && card) {
-    question.correct = LETTERS[card.correct];
-    question.correctText = card.options[card.correct];
-    question.gained = me?.gained || 0;
-    question.explication = card.explication || '';
-  }
   const players = copy.players.map(player => ({
     id: player.id,
     name: player.name,
@@ -416,21 +458,14 @@ export function publicView(game, viewerId, now = Date.now()) {
       correct: me.correct,
       wrong: me.wrong,
       blank: me.blank,
-      gained: showAnswer ? me.gained : 0,
-      rate: rate(me),
-      averageMs: averageMs(me)
+      gained: 0,
+      rate: copy.status === 'finished' ? rate(me) : 0,
+      averageMs: copy.status === 'finished' ? averageMs(me) : 0
     } : null,
     question,
-    standings: copy.status === 'lobby' ? [] : standings(copy).map(row => {
-      if (copy.status !== 'finished') return row;
-      const player = copy.players.find(entry => entry.id === row.id);
-      const total = row.correct + row.wrong + row.blank;
-      return {
-        ...row,
-        rate: total ? Math.round((row.correct / total) * 100) : 0,
-        averageMs: player?.answeredCount ? Math.round(player.timeSum / player.answeredCount) : 0
-      };
-    }),
+    flash: me?.flash ? { cursor: me.flash.cursor, choice: LETTERS[me.flash.choice] || '', good: Boolean(me.flash.good) } : null,
+    review: copy.status === 'finished' && !copy.skipped ? reviewFor(copy, me) : [],
+    standings: copy.status === 'finished' && !copy.skipped ? standings(copy).map(row => ({ rank: row.rank, id: row.id, name: row.name, score: row.score })) : [],
     solo: Boolean(copy.solo),
     winnerId: copy.status === 'finished' ? copy.winnerId : '',
     winnerIds: copy.status === 'finished' ? copy.winnerIds || [] : [],

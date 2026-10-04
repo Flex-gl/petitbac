@@ -15,7 +15,8 @@
 .qz-option.is-mine { border-color:var(--accent); box-shadow:inset 0 0 0 1px var(--accent); }
 .qz-option.is-good { border-color:var(--success); background:color-mix(in srgb, var(--success) 16%, var(--panel)); }
 .qz-option.is-good .qz-letter { background:var(--success); color:#06281a; }
-.qz-option.is-bad { border-color:#ff8f8f; }
+.qz-option.is-bad { border-color:var(--danger); background:color-mix(in srgb, var(--danger) 16%, var(--panel)); }
+.qz-option.is-bad .qz-letter { background:var(--danger); color:#2a0a0a; }
 .qz-result, .qz-board { display:flex; flex-direction:column; gap:6px; padding:14px; border-radius:18px; background:var(--panel-hi); }
 .qz-kicker { margin:0; color:var(--cyan); font:700 12px/1 'Space Grotesk',sans-serif; letter-spacing:.12em; text-transform:uppercase; }
 .qz-result h2, .qz-winner { margin:0; font:700 28px/1.15 Sora,'Space Grotesk',sans-serif; }
@@ -29,6 +30,12 @@
 .qz-people li { display:flex; justify-content:space-between; gap:12px; padding:12px 14px; border-radius:14px; background:var(--panel); }
 .qz-people em { color:var(--cyan); font-style:normal; font-size:13px; }
 .qz-final { text-align:left; }
+.qz-live-tools { display:flex; gap:8px; }
+.qz-live-tools .btn { min-height:40px; }
+.qz-review li { align-items:start; }
+.qz-review em { display:block; margin-top:3px; color:var(--muted); font-style:normal; font-size:13px; }
+.qz-review .is-good b { color:var(--success); }
+.qz-review .is-bad b { color:var(--danger); }
 .qz-counts { list-style:none; display:grid; grid-template-columns:1fr 1fr; gap:8px; margin:0; padding:0; }
 .qz-counts li { display:flex; justify-content:space-between; gap:8px; padding:10px 12px; border-radius:12px; background:var(--panel); }
 .qz-admin-list { display:flex; flex-direction:column; gap:10px; }

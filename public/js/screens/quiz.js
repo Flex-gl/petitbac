@@ -65,45 +65,38 @@ function filterLine(rules = {}) {
 
 export function quizTableScreen(game) {
   const question = game.question;
-  const reveal = game.status === 'reveal';
   const options = (question?.options || []).map((option, index) => {
     const mine = question.choice === option.key;
-    const good = reveal && question.correct === option.key;
-    const bad = reveal && mine && !good;
+    const good = mine && question.verdict === 'good';
+    const bad = mine && question.verdict === 'bad';
     const state = good ? 'is-good' : bad ? 'is-bad' : mine ? 'is-mine' : '';
-    return `<button type="button" class="qz-option ${state}" data-action="qz-answer" data-choice="${index}" data-cursor="${question.index - 1}" ${(question.locked || reveal) ? 'disabled' : ''}><span class="qz-letter">${option.key}</span><span>${esc(option.text)}</span></button>`;
+    return `<button type="button" class="qz-option ${state}" data-action="qz-answer" data-choice="${index}" data-cursor="${question.index - 1}" ${question.locked ? 'disabled' : ''}><span class="qz-letter">${option.key}</span><span>${esc(option.text)}</span></button>`;
   }).join('');
-  const rank = rankList(game.standings);
-  const result = reveal ? `<section class="qz-result"><p class="qz-kicker">Réponse</p><h2>${esc(question.correctText || '')}</h2><p class="qz-gain">${question.gained ? `+${question.gained} points` : '0 point'}</p>${question.choice ? `<p class="form-note">Ton choix : ${esc(question.choice)}</p>` : '<p class="form-note">Aucune réponse</p>'}${rank}</section>` : '';
-  const waiting = question?.locked && !reveal ? `<p class="form-note">Réponse envoyée. Les autres joueurs terminent.</p>` : '';
-  const content = `<section class="qz"><div class="qz-top"><span>Question ${question?.index || 1} / ${question?.total || game.rules?.questions || 10}</span><span>${esc(question?.categorie || '')}</span></div><h1 class="qz-prompt">${esc(question?.prompt || '')}</h1>${reveal ? '' : `<div class="qz-timer ${''}" data-qz-closes="${question?.closesAt || 0}"><b data-qz-left>--</b><span>secondes</span></div>`}<div class="qz-options">${options}</div>${waiting}${result}</section>`;
+  const soloTools = game.solo ? `<div class="qz-live-tools"><button type="button" class="btn btn-secondary btn-sm" data-action="qz-restart">Recommencer</button><button type="button" class="btn btn-secondary btn-sm" data-action="qz-quit">Quitter</button></div>` : '';
+  const content = `<section class="qz"><div class="qz-top"><span>${question?.index || 1} / ${question?.total || game.rules?.questions || 10}</span><span>${esc(question?.categorie || '')}</span></div><h1 class="qz-prompt">${esc(question?.prompt || '')}</h1><div class="qz-timer" data-qz-closes="${question?.closesAt || 0}"><b data-qz-left>--</b><span>secondes</span></div><div class="qz-options">${options}</div>${soloTools}</section>`;
   return shell(content, { nav: false, enter: false });
 }
 
-function rankList(rows = []) {
-  if (!rows.length) return '';
-  const body = rows.map(row => `<li><b>${row.rank}</b><span>${esc(row.name)}</span><strong>${row.score}</strong></li>`).join('');
-  return `<div class="qz-board"><p class="qz-kicker">Classement</p><ol class="qz-rank">${body}</ol></div>`;
-}
-
-export function quizFinalScreen(game, playerId) {
+export function quizFinalScreen(game, playerId, detail = false) {
   const winners = (game.standings || []).filter(row => (game.winnerIds || []).includes(row.id));
   const solo = Boolean(game.solo);
   const title = solo ? 'Résultat' : winners.length > 1 ? 'Vainqueurs' : 'Vainqueur';
   const mine = (game.standings || []).find(row => row.id === playerId) || game.standings?.[0];
   const names = solo ? `${esc(mine?.name || '')} · ${mine?.score ?? 0} pts` : winners.map(row => esc(row.name)).join(', ') || '—';
-  const rows = (game.standings || []).map(row => `<li><b>${row.rank}</b><span><strong>${esc(row.name)}</strong><em>${row.correct} justes · ${row.wrong} erreurs · ${row.blank} sans réponse · ${row.rate}% · ${formatSeconds(row.averageMs)}</em></span><strong>${row.score}</strong></li>`).join('');
+  const rows = (game.standings || []).map(row => `<li><b>${row.rank}</b><span>${esc(row.name)}</span><strong>${row.score}</strong></li>`).join('');
+  const review = (game.review || []).map(item => {
+    const mark = item.blank ? 'Sans réponse' : item.good ? 'Juste' : 'Erreur';
+    const yours = item.blank ? 'Pas de réponse' : `${item.choice}. ${item.choiceText}`;
+    return `<li class="${item.good ? 'is-good' : 'is-bad'}"><b>${item.index}</b><span><strong>${esc(item.prompt)}</strong><em>${mark} · ${esc(yours)}</em><em>Réponse : ${esc(item.correct)}. ${esc(item.correctText)}</em></span></li>`;
+  }).join('');
+  const board = detail
+    ? `<div class="qz-board"><ol class="qz-rank qz-review">${review || '<li>Aucune réponse enregistrée.</li>'}</ol></div>`
+    : `<ol class="qz-rank qz-rank-final">${rows}</ol>`;
   const meHost = game.hostId === playerId;
-  const revenge = meHost ? `<button class="btn btn-primary btn-full" data-action="qz-rematch">Revanche</button>` : '';
+  const revenge = !solo && meHost && !detail ? `<button class="btn btn-primary" data-action="qz-rematch">Revanche</button>` : '';
   const again = solo ? 'qz-solo' : 'qz-setup';
-  const content = `<section class="qz qz-final"><p class="qz-kicker">${solo ? 'Partie seul' : 'Quiz terminé'}</p><h1>${title}</h1><p class="qz-winner">${names}</p><ol class="qz-rank qz-rank-final">${rows}</ol><div class="home-actions">${revenge}<button class="btn btn-secondary" data-action="${again}">${solo ? 'Rejouer seul' : 'Nouvelle partie'}</button><button class="btn btn-secondary" data-action="qz-hub">Retour aux jeux</button></div></section>`;
+  const content = `<section class="qz qz-final"><p class="qz-kicker">${solo ? 'Partie seul' : 'Quiz terminé'}</p><h1>${detail ? 'Mes réponses' : title}</h1>${detail ? '' : `<p class="qz-winner">${names}</p>`}${board}<div class="home-actions"><button class="btn btn-secondary" data-action="qz-detail">${detail ? 'Classement' : 'Mes réponses'}</button>${revenge}<button class="btn btn-secondary" data-action="${again}">${solo ? 'Rejouer seul' : 'Nouvelle partie'}</button><button class="btn btn-secondary" data-action="qz-hub">Retour aux jeux</button></div></section>`;
   return shell(content, { nav: false });
-}
-
-function formatSeconds(ms) {
-  const value = Number(ms || 0);
-  if (!value) return '—';
-  return `${(value / 1000).toFixed(1).replace('.', ',')} s`;
 }
 
 export function quizAdminScreen({ summary = null, questions = [], page = 1, pages = 1, total = 0, query = '', category = '', difficulty = '', notice = '', editing = null }) {

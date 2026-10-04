@@ -50,11 +50,21 @@ function signature(game) {
     game.status,
     game.question?.index || 0,
     game.question?.locked ? 1 : 0,
-    game.question?.correct || '',
-    game.you?.gained || 0,
+    game.question?.verdict || '',
+    game.flash?.cursor ?? '',
     game.players.map(player => `${player.id}:${player.score}:${player.locked}:${player.abandoned}:${player.name}`).join('|'),
     (game.standings || []).map(row => row.score).join('.')
   ].join('~');
+}
+
+let colorHold = 0;
+
+function paintChoice(flash) {
+  const button = document.querySelector(`[data-action="qz-answer"][data-cursor="${flash.cursor}"][data-choice="${'ABCD'.indexOf(flash.choice)}"]`);
+  if (!button) return false;
+  button.classList.add(flash.good ? 'is-good' : 'is-bad');
+  document.querySelectorAll('[data-action="qz-answer"]').forEach(node => { node.disabled = true; });
+  return true;
 }
 
 export function stopQuiz() {
@@ -72,14 +82,29 @@ function schedule(delay = 700) {
   pollTimer = setTimeout(poll, delay);
 }
 
-function applyGame(next) {
+function applyGame(next, options = {}) {
   const current = ctx.state.quizGame;
   if (!next || (current && next.code === current.code && (next.version || 0) < (current.version || 0))) return;
   if (Number.isFinite(next.serverNow)) clockOffset = next.serverNow - Date.now();
   const changed = signature(next) !== signature(current);
+  const flash = next.flash;
+  const showing = document.querySelector('[data-action="qz-answer"]');
+  const moved = !current?.question || !next.question || next.question.index !== current.question.index || next.status === 'finished';
+  if (!options.now && flash && showing && String(showing.dataset.cursor) === String(flash.cursor) && moved && Date.now() >= colorHold) {
+    paintChoice(flash);
+    colorHold = Date.now() + 280;
+    ctx.state.quizGame = next;
+    setTimeout(() => applyGame(ctx.state.quizGame, { now: true }), 280);
+    return;
+  }
+  if (!options.now && Date.now() < colorHold) {
+    ctx.state.quizGame = next;
+    return;
+  }
   ctx.state.quizGame = next;
-  if (!changed) return;
+  if (!changed && !options.now) return;
   remember(next, false);
+  if (next.status !== 'finished') ctx.state.quizDetail = false;
   return ctx.render();
 }
 
@@ -135,6 +160,7 @@ export async function openQuiz(game) {
   ctx.state.quizGame = game;
   ctx.state.code = game.code;
   ctx.state.savedQuiz = null;
+  ctx.state.quizDetail = false;
   remember(game, false);
   stopQuiz();
   history.replaceState(null, '', `/q/${encodeURIComponent(game.code)}`);
@@ -388,6 +414,16 @@ export async function handleQuizAction(button) {
   if (action === 'qz-rules') return openQuizRules();
   if (action === 'qz-leave') return leaveQuiz(true);
   if (action === 'qz-hub') return leaveQuiz(false);
+  if (action === 'qz-quit') {
+    try { await api.quizAction({ action: 'drop', code: ctx.state.code, playerId: ctx.playerId }); }
+    catch { /* la sortie locale suffit */ }
+    return leaveQuiz(true);
+  }
+  if (action === 'qz-restart') return run('restart');
+  if (action === 'qz-detail') {
+    ctx.state.quizDetail = !ctx.state.quizDetail;
+    return ctx.render();
+  }
   if (action === 'qz-start') return run('start');
   if (action === 'qz-rematch') return run('rematch');
   if (action === 'qz-answer') {
@@ -435,7 +471,7 @@ export async function renderQuiz(root) {
   else if (ctx.state.page === 'quiz-admin') root.innerHTML = quizAdminScreen(admin);
   else if (!game) root.innerHTML = quizSetupScreen(ctx.state.name, ctx.state.quizMeta, ctx.state.quizSolo);
   else if (game.status === 'lobby') root.innerHTML = quizLobbyScreen(game, ctx.playerId);
-  else if (game.status === 'finished') root.innerHTML = quizFinalScreen(game, ctx.playerId);
+  else if (game.status === 'finished') root.innerHTML = quizFinalScreen(game, ctx.playerId, ctx.state.quizDetail);
   else root.innerHTML = quizTableScreen(game);
   if (ctx.state.page === 'quiz-room' && game?.status === 'finished') celebrate(`quiz:${game.code}`, { finale: true });
   else if (ctx.state.page === 'quiz-room') clearCelebration();
