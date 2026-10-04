@@ -21,7 +21,9 @@ function place(device) {
 
 function phone(device) {
   const model = device.model && device.model !== device.brand ? device.model : '';
-  return [device.brand, model].filter(Boolean).join(' · ') || 'Appareil';
+  const os = device.os || '';
+  const brand = device.brand && os.toLowerCase().startsWith(String(device.brand).toLowerCase()) ? '' : device.brand;
+  return [brand, model, os].filter(Boolean).join(' · ') || 'Appareil';
 }
 
 export function bannedScreen() {
@@ -44,7 +46,7 @@ export function adminScreen({ unlocked = false, devices = [], boards = {}, tab =
   const stats = `<div class="adm-stats"><article><b>${devices.length}</b><span>Appareils suivis</span></article><article><b>${blocked}</b><span>Bloqués ici</span></article><article><b>${cities.size}</b><span>Villes vues</span></article></div>`;
   const tabs = `<div class="adm-tabs"><button type="button" class="segment" data-action="adm-tab" data-tab="devices" aria-pressed="${tab === 'devices'}">Appareils</button>${GAMES.map(([id, label]) => `<button type="button" class="segment" data-action="adm-tab" data-tab="${id}" aria-pressed="${tab === id}">${label}</button>`).join('')}</div>`;
   const body = tab === 'devices' ? deviceList(visible, openId) : boardList(boards[tab] || [], tab);
-  const content = `<section class="adm"><div class="page-head"><button class="back-btn" data-action="adm-home" aria-label="Retour">${icon('back')}</button><div><div class="eyebrow">Administration</div><h1>La salle</h1><p>Connexions, classements, blocages. La ville vient de la connexion, pas du GPS.</p></div></div>${notice ? `<p class="notice">${esc(notice)}</p>` : ''}${stats}${tabs}<form id="admin-search" class="qz-form"><label class="field"><span class="field-label">Chercher</span><input class="text-input" name="q" value="${esc(query)}" placeholder="Nom, ville, marque, adresse…"></label></form>${body}</section>`;
+  const content = `<section class="adm"><div class="page-head"><button class="back-btn" data-action="adm-home" aria-label="Retour">${icon('back')}</button><div><div class="eyebrow">Administration</div><h1>La salle</h1><p>Connexions, classements, blocages. La ville vient de la connexion, pas du GPS.</p></div></div>${notice ? `<p class="notice">${esc(notice)}</p>` : ''}${stats}${tabs}<form id="admin-search" class="qz-form"><label class="field"><span class="field-label">Chercher</span><input class="text-input" name="q" value="${esc(query)}" placeholder="Nom, ville, système, adresse…"></label></form>${body}</section>`;
   return shell(content, { nav: false, wide: true });
 }
 

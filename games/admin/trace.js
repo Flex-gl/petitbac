@@ -48,19 +48,85 @@ function decodePlace(value) {
   catch { return text.slice(0, 80); }
 }
 
-export function deviceLabel(userAgent) {
+function cleanHint(value) {
+  return String(value || '').trim().replace(/^"|"$/g, '').slice(0, 80);
+}
+
+function trimVersion(value) {
+  const parts = String(value || '').replace(/_/g, '.').split('.').filter(Boolean);
+  if (!parts.length) return '';
+  if (parts.length === 1 || parts[1] === '0') return parts[0];
+  return `${parts[0]}.${parts[1]}`;
+}
+
+function androidName(userAgent, version) {
+  const frozen = /Android 10;\s*K/i.test(userAgent);
+  const fromAgent = userAgent.match(/Android\s+([\d.]+)/i)?.[1] || '';
+  const number = trimVersion(version || (frozen ? '' : fromAgent));
+  return number ? `Android ${number}` : 'Android';
+}
+
+function appleMobile(userAgent, version) {
+  const fromAgent = userAgent.match(/(?:iPhone OS|CPU OS)\s+([\d_]+)/i)?.[1] || '';
+  const number = trimVersion(version || fromAgent);
+  const name = /iPad/i.test(userAgent) ? 'iPadOS' : 'iOS';
+  return number ? `${name} ${number}` : name;
+}
+
+function windowsName(userAgent, version) {
+  const major = Number(String(version || '').split('.')[0]);
+  if (version && Number.isFinite(major)) {
+    if (major >= 13) return 'Windows 11';
+    if (major >= 1) return 'Windows 10';
+  }
+  const nt = userAgent.match(/Windows NT\s+([\d.]+)/i)?.[1];
+  if (nt === '10.0') return 'Windows 10';
+  if (nt === '6.3') return 'Windows 8.1';
+  if (nt === '6.2') return 'Windows 8';
+  if (nt === '6.1') return 'Windows 7';
+  return 'Windows';
+}
+
+function macName(userAgent, version) {
+  const fromAgent = userAgent.match(/Mac OS X\s+([\d_]+)/i)?.[1] || '';
+  const number = trimVersion(version || fromAgent);
+  return number ? `macOS ${number}` : 'macOS';
+}
+
+export function systemFrom(userAgent, hints = {}) {
   const ua = String(userAgent || '');
-  const brand = BRANDS.find(([, pattern]) => pattern.test(ua))?.[0] || '';
-  const samsung = ua.match(/\b(SM-[A-Z0-9]+|GT-[A-Z0-9]+)\b/i)?.[1] || '';
+  const platform = cleanHint(hints.platform).toLowerCase();
+  const version = cleanHint(hints.platformVersion);
+  if (platform === 'android' || /Android/i.test(ua)) return androidName(ua, version);
+  if (platform === 'ios' || /iPhone|iPad|iPod/i.test(ua)) return appleMobile(ua, version);
+  if (platform === 'windows' || /Windows NT/i.test(ua)) return windowsName(ua, version);
+  if (platform === 'macos' || platform === 'mac os x' || /Mac OS X/i.test(ua)) return macName(ua, version);
+  if (platform === 'chrome os' || /CrOS/i.test(ua)) return 'ChromeOS';
+  if (platform === 'linux' || /Linux/i.test(ua)) return 'Linux';
+  return '';
+}
+
+export function deviceLabel(userAgent, hints = {}) {
+  const ua = String(userAgent || '');
+  const hintedModel = cleanHint(hints.model);
+  const usableHint = hintedModel && !/^K$/i.test(hintedModel) ? hintedModel.slice(0, 48) : '';
+  const samsung = usableHint.match(/\b(SM-[A-Z0-9]+|GT-[A-Z0-9]+)\b/i)?.[1]
+    || ua.match(/\b(SM-[A-Z0-9]+|GT-[A-Z0-9]+)\b/i)?.[1]
+    || '';
   const androidModel = ua.match(/Android[^;]*;\s*([^;)]+)/)?.[1]?.trim() || '';
-  const model = brand === 'Samsung' && samsung ? samsung : androidModel && !/android|linux|build/i.test(androidModel) ? androidModel.slice(0, 48) : '';
-  const phone = /iPhone|Android.+Mobile|Mobile/i.test(ua);
-  const tablet = /iPad|Tablet/i.test(ua) || (/Android/i.test(ua) && !/Mobile/i.test(ua));
+  const model = samsung
+    || usableHint
+    || (androidModel && !/android|linux|build|^K$/i.test(androidModel) ? androidModel.slice(0, 48) : '');
+  const brand = BRANDS.find(([, pattern]) => pattern.test(`${ua} ${model}`))?.[0] || '';
+  const phone = /iPhone|Android.+Mobile|Mobile/i.test(ua) || hints.mobile === '?1';
+  const tablet = /iPad|Tablet/i.test(ua) || (/Android/i.test(ua) && !/Mobile/i.test(ua) && hints.mobile !== '?1');
   const kind = tablet ? 'tablette' : phone ? 'téléphone' : 'ordinateur';
-  const desktop = /Windows NT/i.test(ua) ? 'Windows' : /Mac OS X/i.test(ua) ? 'Mac' : /CrOS/i.test(ua) ? 'ChromeOS' : /Linux/i.test(ua) ? 'Linux' : '';
+  const os = systemFrom(ua, hints);
+  const desktop = /Windows/i.test(os) ? 'Windows' : /macOS/i.test(os) ? 'Mac' : /ChromeOS/i.test(os) ? 'ChromeOS' : os === 'Linux' ? 'Linux' : '';
   return {
     brand: brand || (kind === 'ordinateur' ? desktop || 'Ordinateur' : 'Appareil'),
-    model: brand === 'iPhone' || brand === 'iPad' ? brand : model,
+    model: brand === 'iPhone' || brand === 'iPad' ? '' : model,
+    os,
     kind
   };
 }
@@ -97,6 +163,9 @@ export function shouldWrite(previous, next, now, gap = 120000) {
   if ((previous.city || '') !== (next.city || '')) return true;
   if ((previous.game || '') !== (next.game || '')) return true;
   if (next.name && !(previous.names || []).includes(next.name)) return true;
+  if (next.os && (previous.os || '') !== next.os) return true;
+  if (next.brand && next.brand !== 'Appareil' && (previous.brand || '') !== next.brand) return true;
+  if (next.model && (previous.model || '') !== next.model) return true;
   return false;
 }
 
@@ -117,8 +186,9 @@ export function mergeDevice(previous, sighting, now) {
     id: sighting.id,
     names,
     playerIds,
-    brand: sighting.brand || prior.brand || '',
+    brand: sighting.brand && sighting.brand !== 'Appareil' ? sighting.brand : prior.brand || sighting.brand || '',
     model: sighting.model || prior.model || '',
+    os: sighting.os || prior.os || '',
     kind: sighting.kind || prior.kind || '',
     ip: sighting.ip || '',
     city: sighting.city || '',

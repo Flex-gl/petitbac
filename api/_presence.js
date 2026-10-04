@@ -26,7 +26,12 @@ export function readSight(request, now = Date.now()) {
   const url = new URL(request.url);
   const ip = clientAddress(headers['x-forwarded-for'] || headers['x-real-ip'] || '');
   const place = placeFrom(headers);
-  const label = deviceLabel(headers['user-agent'] || '');
+  const label = deviceLabel(headers['user-agent'] || '', {
+    platform: headers['sec-ch-ua-platform'],
+    platformVersion: headers['sec-ch-ua-platform-version'],
+    model: headers['sec-ch-ua-model'],
+    mobile: headers['sec-ch-ua-mobile']
+  });
   const given = cleanDeviceId(headers['x-petitbac-device']);
   return {
     id: given || legacyId(ip, headers['user-agent'] || ''),
@@ -77,7 +82,7 @@ export async function guard(request) {
 }
 
 async function remember(sight) {
-  const stamp = `${sight.ip}|${sight.city}|${sight.game}|${sight.name}`;
+  const stamp = `${sight.ip}|${sight.city}|${sight.game}|${sight.name}|${sight.os}|${sight.brand}|${sight.model}`;
   const previous = recentWrites.get(sight.id);
   if (previous && sight.at - previous.at < WRITE_GAP_MS && previous.stamp === stamp) return;
   const stored = await getJson(`arena:device:${sight.id}`);
