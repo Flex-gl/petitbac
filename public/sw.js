@@ -1,4 +1,4 @@
-const VERSION = 'arena-shell-v53';
+const VERSION = 'arena-shell-v54';
 const SHELL = ['/', '/index.html', '/version.json', '/manifest.webmanifest', '/og.jpg', '/css/app.css', '/css/animations.css', '/css/splash.css', '/css/controls.css', '/css/inter.css', '/css/quiz.css', '/js/app.js', '/js/version.js', '/js/api.js', '/js/ui.js', '/js/inter-session.js', '/js/inter-motion.js', '/js/inter-audio.js', '/js/fireworks.js', '/js/kombo.js', '/js/quiz-session.js', '/js/screens/home.js', '/js/screens/inter.js', '/js/screens/quiz.js', '/js/screens/guide.js', '/js/screens/admin.js', '/js/admin-session.js', '/js/dict.js', '/js/i18n/fr.json', '/audio/fond.mp3', '/covers/petitbac.jpg', '/covers/inter.jpg', '/covers/quiz.jpg', '/icons/mark.png', '/icons/icon-192.png', '/icons/icon-512.png', '/icons/icon-maskable.png', '/icons/apple-touch-icon.png'];
 
 self.addEventListener('install', event => {

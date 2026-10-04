@@ -31,7 +31,7 @@ export function bannedScreen() {
 
 export function adminScreen({ unlocked = false, devices = [], boards = {}, tab = 'devices', query = '', notice = '', openId = '' } = {}) {
   if (!unlocked) {
-    const content = `<section class="adm"><div class="page-head"><div><div class="eyebrow">Poséidon</div><h1>Administration</h1><p>La clé reste sur cet écran. Les joueurs ne la voient pas.</p></div></div><form id="admin-key" class="qz-form"><label class="field"><span class="field-label">Clé d’administration</span><input class="text-input" name="key" type="password" autocomplete="current-password" required></label><div class="error-note" data-form-error role="status">${esc(notice)}</div><button class="btn btn-primary btn-full" type="submit">Ouvrir ${icon('arrow', 17)}</button></form></section>`;
+    const content = `<section class="adm"><div class="page-head"><div><div class="eyebrow">Poséidon</div><h1>Administration</h1><p>Écris la clé dans le champ, puis ouvre la salle. Les joueurs n’ont pas cet écran.</p></div></div><form id="admin-key" class="qz-form"><label class="field"><span class="field-label">Clé d’administration</span><input class="text-input" name="key" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false" required></label><div class="error-note" data-form-error role="status">${esc(notice)}</div><button class="btn btn-primary btn-full" type="submit">Ouvrir ${icon('arrow', 17)}</button></form></section>`;
     return shell(content, { nav: false, wide: true });
   }
   const needle = query.trim().toLowerCase();
