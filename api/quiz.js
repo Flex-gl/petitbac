@@ -1,4 +1,8 @@
+import { setDefaultResultOrder } from 'node:dns';
 import { QuizError, adminQuiz, createQuiz, createSolo, getQuiz, mutateQuiz, presentQuiz, quizMeta } from './_quiz.js';
+
+// Sans ça, le fetch Node vers Upstash tente IPv6 et reste bloqué jusqu’au délai de la fonction.
+setDefaultResultOrder('ipv4first');
 
 function response(body, status = 200) {
   return new Response(JSON.stringify(body), {
