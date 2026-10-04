@@ -1,7 +1,7 @@
 import { api } from './api.js';
 import { celebrate, clearCelebration } from './fireworks.js';
 import { showSheet, toast } from './ui.js';
-import { quizAdminScreen, quizDoorScreen, quizFinalScreen, quizInviteScreen, quizLobbyScreen, quizRulesHtml, quizSetupScreen, quizTableScreen } from './screens/quiz.js';
+import { quizAdminScreen, quizDoorScreen, quizFinalScreen, quizHoldScreen, quizInviteScreen, quizLobbyScreen, quizRulesHtml, quizSetupScreen, quizTableScreen } from './screens/quiz.js';
 
 const sessionKey = 'petitbac.quiz.session';
 const adminKey = 'petitbac.quiz.admin';
@@ -49,10 +49,12 @@ function signature(game) {
   return [
     game.status,
     game.question?.index || 0,
+    game.question?.closesAt || 0,
     game.question?.locked ? 1 : 0,
     game.question?.verdict || '',
     game.flash?.cursor ?? '',
-    game.players.map(player => `${player.id}:${player.score}:${player.locked}:${player.abandoned}:${player.name}`).join('|'),
+    game.you?.score ?? '',
+    game.players.map(player => `${player.id}:${player.abandoned}:${player.name}`).join('|'),
     (game.standings || []).map(row => row.score).join('.')
   ].join('~');
 }
@@ -472,6 +474,7 @@ export async function renderQuiz(root) {
   else if (!game) root.innerHTML = quizSetupScreen(ctx.state.name, ctx.state.quizMeta, ctx.state.quizSolo);
   else if (game.status === 'lobby') root.innerHTML = quizLobbyScreen(game, ctx.playerId);
   else if (game.status === 'finished') root.innerHTML = quizFinalScreen(game, ctx.playerId, ctx.state.quizDetail);
+  else if (!game.question) root.innerHTML = quizHoldScreen(game);
   else root.innerHTML = quizTableScreen(game);
   if (ctx.state.page === 'quiz-room' && game?.status === 'finished') celebrate(`quiz:${game.code}`, { finale: true });
   else if (ctx.state.page === 'quiz-room') clearCelebration();

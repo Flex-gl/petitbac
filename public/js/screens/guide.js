@@ -133,7 +133,7 @@ const ARTICLES = {
     rules: {
       title: 'Règles de Quiz Battle',
       kicker: 'Questions',
-      html: `<p class="sheet-copy">Quiz Battle pose la même question à tout le monde. Quatre réponses, une seule est juste. Le serveur tient le temps et les points. Ta réponse passe au vert ou au rouge, puis la question suivante arrive tout de suite.</p>
+      html: `<p class="sheet-copy">Quiz Battle pose les mêmes questions à tout le monde. Quatre réponses, une seule est juste. Chacun a son temps en entier. Ta réponse passe au vert ou au rouge, puis ta question suivante arrive.</p>
       <h2>La salle</h2>
       <ol class="rules-list">
         <li>Tu peux jouer seul. Ton score, ton record et ta réussite sont gardés. Ce n’est pas une victoire au classement.</li>
@@ -146,8 +146,8 @@ const ARTICLES = {
         <li>Tout le monde voit la même question et les mêmes quatre réponses, A, B, C et D.</li>
         <li>Tu ne changes plus une réponse envoyée.</li>
         <li>Le temps affiché suit le serveur. Une réponse encore dans le court délai après la fin peut compter. Après, elle est refusée.</li>
-        <li>Dès que tu choisis, ta case passe au vert ou au rouge. La question suivante arrive sans écran d’explication.</li>
-        <li>À plusieurs, on attend que chacun ait répondu, ou que le temps soit passé. Personne ne voit la réponse des autres.</li>
+        <li>Dès que tu choisis, ta case passe au vert ou au rouge. Ta question suivante arrive, avec un temps neuf.</li>
+        <li>À plusieurs, la réponse de quelqu’un ne fait pas passer ta question. Tes secondes restent à toi, jusqu’au bout du temps ou jusqu’à ton choix.</li>
         <li>Seul, tu peux quitter ou recommencer pendant la partie. À plusieurs, la partie continue jusqu’au bout.</li>
       </ol>
       <h2>Les points</h2>
@@ -181,7 +181,7 @@ const ARTICLES = {
       <h2>Répondre</h2>
       <ol class="rules-list">
         <li>Lis la question. Touche une des quatre réponses. Plus tu es rapide et juste, plus tu marques.</li>
-        <li>La case choisie passe au vert ou au rouge, et la suite arrive tout de suite.</li>
+        <li>La case choisie passe au vert ou au rouge, et ta question suivante arrive. À plusieurs, les autres gardent la leur et tout leur temps.</li>
         <li>À la fin, le classement s’affiche. Mes réponses montre où tu as réussi et où tu t’es trompé.</li>
         <li>Seul, Recommencer relance d’autres questions. Quitter sort sans laisser un bouton Reprendre.</li>
       </ol>`

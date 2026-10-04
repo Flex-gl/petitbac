@@ -67,11 +67,16 @@ test('une réponse juste rapide vaut plus qu’une réponse lente, et une erreur
   const waiting = publicView(game, 'leo', game.openedAt + 200);
   assert.equal(waiting.question.verdict, '');
   assert.equal(waiting.question.correct, undefined);
+  const leoClock = game.players[1].closesAt;
   answer(game, 'anna', correct, 0, game.openedAt + 500);
   const mine = publicView(game, 'anna', game.openedAt + 600);
-  assert.equal(mine.question.verdict, 'good');
+  const his = publicView(game, 'leo', game.openedAt + 600);
+  assert.equal(mine.flash.good, true);
+  assert.equal(mine.question.index, 2);
   assert.equal(mine.question.correct, undefined);
-  assert.equal(publicView(game, 'leo', game.openedAt + 600).question.verdict, '');
+  assert.equal(his.question.index, 1);
+  assert.equal(his.question.verdict, '');
+  assert.equal(his.question.closesAt, leoClock);
   answer(game, 'leo', correct, 0, game.openedAt + 8000);
   assert.equal(game.status, 'playing');
   assert.equal(game.cursor, 1);
@@ -94,7 +99,7 @@ test('le serveur refuse une seconde réponse, une ancienne question et un temps 
   const game = lobby(9_000);
   const correct = game.deck[0].correct;
   answer(game, 'anna', correct, 0, game.openedAt + 1000);
-  assert.throws(() => answer(game, 'anna', correct === 0 ? 1 : 0, 0, game.openedAt + 1200), /déjà enregistrée/);
+  assert.throws(() => answer(game, 'anna', correct === 0 ? 1 : 0, 0, game.openedAt + 1200), /déjà passée/);
   assert.throws(() => answer(game, 'leo', correct, 4, game.openedAt + 1200), /déjà passée/);
   assert.throws(() => answer(game, 'leo', correct, 0, game.closesAt + 2000), /écoulé/);
   assert.equal(game.players[1].locked, false);

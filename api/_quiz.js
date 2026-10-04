@@ -62,7 +62,7 @@ function fingerprint(game) {
     game.hostId,
     game.statsMarked ? 1 : 0,
     game.seenMarked ? 1 : 0,
-    (game.players || []).map(player => `${player.id}:${player.score}:${player.locked}:${player.abandoned}:${player.ready}:${player.connected}:${player.name}`).join('|')
+    (game.players || []).map(player => `${player.id}:${player.score}:${player.cursor ?? ''}:${player.closesAt || 0}:${player.locked}:${player.abandoned}:${player.ready}:${player.connected}:${player.name}`).join('|')
   ].join('~');
 }
 

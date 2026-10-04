@@ -207,56 +207,80 @@ export function rulesFrom(input = {}) {
   };
 }
 
-export function openQuestion(game, now) {
-  const card = game.deck[game.cursor];
-  if (!card) return finish(game, now);
-  game.status = 'playing';
-  game.openedAt = now;
-  game.closesAt = now + game.rules.seconds * 1000;
-  game.revealUntil = 0;
-  for (const player of game.players) {
-    player.choice = null;
-    player.answeredAt = 0;
-    player.locked = false;
-    player.gained = 0;
+function seat(player, game, now) {
+  if (!Number.isInteger(player.cursor)) player.cursor = Number.isInteger(game.cursor) ? game.cursor : 0;
+  if (!player.closesAt) {
+    player.openedAt = game.openedAt || now;
+    player.closesAt = game.closesAt || player.openedAt + (game.rules?.seconds || 10) * 1000;
   }
-  return game;
+  return player;
 }
 
-function grade(game, now) {
-  const card = game.deck[game.cursor];
-  if (!card || card.graded) return;
+function release(player, now, seconds) {
+  player.choice = null;
+  player.answeredAt = 0;
+  player.locked = false;
+  player.gained = 0;
+  player.openedAt = now;
+  player.closesAt = now + seconds * 1000;
+}
+
+function gradeOne(game, player, now) {
+  const card = game.deck[player.cursor];
+  if (!card || player.review?.[player.cursor]) return;
   const duration = game.rules.seconds * 1000;
-  for (const player of activePlayers(game)) {
-    const choice = Number.isInteger(player.choice) ? player.choice : null;
-    let gained = 0;
-    if (choice === null) {
-      player.blank += 1;
-      player.gained = 0;
+  const choice = Number.isInteger(player.choice) ? player.choice : null;
+  let gained = 0;
+  if (choice === null) {
+    player.blank += 1;
+    player.gained = 0;
+  } else {
+    const elapsed = Math.min(duration, Math.max(0, (player.answeredAt || now) - player.openedAt));
+    player.timeSum += elapsed;
+    player.answeredCount += 1;
+    if (choice === card.correct) {
+      gained = pointsFor(elapsed, duration);
+      player.correct += 1;
+      player.score += gained;
+      player.gained = gained;
     } else {
-      const elapsed = Math.min(duration, Math.max(0, (player.answeredAt || now) - game.openedAt));
-      player.timeSum += elapsed;
-      player.answeredCount += 1;
-      if (choice === card.correct) {
-        gained = pointsFor(elapsed, duration);
-        player.correct += 1;
-        player.score += gained;
-        player.gained = gained;
-      } else {
-        player.wrong += 1;
-        player.gained = 0;
-      }
+      player.wrong += 1;
+      player.gained = 0;
     }
-    if (!Array.isArray(player.review)) player.review = [];
-    player.review[game.cursor] = { choice, good: choice !== null && choice === card.correct, gained, blank: choice === null };
   }
-  card.graded = true;
+  if (!Array.isArray(player.review)) player.review = [];
+  player.review[player.cursor] = { choice, good: choice !== null && choice === card.correct, gained, blank: choice === null };
+}
+
+function step(game, player, now) {
+  gradeOne(game, player, now);
+  player.cursor += 1;
+  if (player.cursor >= game.deck.length) {
+    player.locked = true;
+    player.choice = null;
+    player.closesAt = 0;
+    return player;
+  }
+  release(player, now, game.rules.seconds);
+  return player;
+}
+
+function allDone(game) {
+  const deck = game.deck?.length || 0;
+  return activePlayers(game).every(player => player.cursor >= deck);
+}
+
+function syncCursor(game) {
+  const pending = activePlayers(game).filter(player => player.cursor < (game.deck?.length || 0));
+  game.cursor = pending.length ? Math.min(...pending.map(player => player.cursor)) : (game.deck?.length || 0);
+  const clocks = pending.map(player => player.closesAt).filter(Boolean);
+  if (clocks.length) game.closesAt = Math.min(...clocks);
 }
 
 function finish(game, now) {
-  grade(game, now);
   game.status = 'finished';
   game.finishedAt = now;
+  syncCursor(game);
   const ranked = [...activePlayers(game)].sort(comparePlayers);
   const best = ranked[0]?.score ?? 0;
   game.winnerIds = ranked.filter(player => player.score === best).map(player => player.id);
@@ -268,44 +292,39 @@ function comparePlayers(a, b) {
   return (b.score - a.score) || (b.correct - a.correct) || a.name.localeCompare(b.name, 'fr');
 }
 
-function nextQuestion(game, now) {
-  game.cursor += 1;
-  if (game.cursor >= game.deck.length) return finish(game, now);
-  return openQuestion(game, now);
-}
-
 export function advance(game, now = Date.now()) {
   if (!game || game.status === 'lobby' || game.status === 'finished') return game;
-  if (game.status === 'reveal') return nextQuestion(game, now);
-  if (game.status === 'playing') {
-    const waiting = activePlayers(game).filter(player => !player.locked);
-    const expired = now >= game.closesAt + ANSWER_GRACE_MS;
-    if (expired || waiting.length === 0) {
-      grade(game, Math.min(now, game.closesAt));
-      return nextQuestion(game, now);
-    }
+  if (game.status === 'reveal') game.status = 'playing';
+  if (game.status !== 'playing') return game;
+  for (const player of activePlayers(game)) {
+    seat(player, game, now);
+    if (player.cursor >= (game.deck?.length || 0)) continue;
+    if (!player.locked && now >= player.closesAt + ANSWER_GRACE_MS) step(game, player, now);
   }
+  if (allDone(game)) return finish(game, now);
+  syncCursor(game);
   return game;
 }
 
 export function answer(game, playerId, choice, cursor, now = Date.now()) {
   if (game.status !== 'playing') throw new QuizError('Cette question est fermée.');
-  if (Number(cursor) !== game.cursor) throw new QuizError('Cette question est déjà passée.');
   const player = game.players.find(entry => entry.id === playerId && !entry.abandoned);
   if (!player) throw new QuizError('Tu ne fais pas partie de cette partie.', 403);
+  seat(player, game, now);
+  if (player.cursor >= game.deck.length) throw new QuizError('Cette question est fermée.');
+  if (Number(cursor) !== player.cursor) throw new QuizError('Cette question est déjà passée.');
   if (player.locked) throw new QuizError('Ta réponse est déjà enregistrée.');
-  if (now > game.closesAt + ANSWER_GRACE_MS) {
-    advance(game, now);
-    throw new QuizError('Le temps est écoulé.');
-  }
+  if (now > player.closesAt + ANSWER_GRACE_MS) throw new QuizError('Le temps est écoulé.');
   const picked = Number(choice);
   if (!Number.isInteger(picked) || picked < 0 || picked > 3) throw new QuizError('Choisis une des quatre réponses.');
   player.choice = picked;
-  player.answeredAt = Math.min(now, game.closesAt);
+  player.answeredAt = Math.min(now, player.closesAt);
   player.locked = true;
-  const card = game.deck[game.cursor];
-  player.flash = { cursor: game.cursor, choice: picked, good: picked === card.correct };
-  advance(game, now > game.closesAt ? game.closesAt : now);
+  const card = game.deck[player.cursor];
+  player.flash = { cursor: player.cursor, choice: picked, good: picked === card.correct };
+  step(game, player, now);
+  if (allDone(game)) return finish(game, now);
+  syncCursor(game);
   return game;
 }
 
@@ -320,8 +339,15 @@ export function beginQuiz(game, deck, now = Date.now()) {
   game.deck = deck;
   game.seenIds = [...new Set([...(game.seenIds || []), ...ids])];
   game.cursor = 0;
-  for (const player of game.players) Object.assign(player, blankStats(), { choice: null, answeredAt: 0, locked: false, gained: 0, ready: true, review: [], flash: null });
-  return openQuestion(game, now);
+  game.openedAt = now;
+  game.closesAt = now + game.rules.seconds * 1000;
+  game.revealUntil = 0;
+  game.status = 'playing';
+  for (const player of game.players) {
+    Object.assign(player, blankStats(), { choice: null, answeredAt: 0, locked: false, gained: 0, ready: true, review: [], flash: null, cursor: 0 });
+    release(player, now, game.rules.seconds);
+  }
+  return game;
 }
 
 export function rematch(game, deck, now = Date.now()) {
@@ -419,18 +445,19 @@ function reviewFor(game, player) {
 export function publicView(game, viewerId, now = Date.now()) {
   const copy = game;
   const me = copy.players.find(player => player.id === viewerId) || null;
-  const card = copy.deck?.[copy.cursor] || null;
+  const cursor = Number.isInteger(me?.cursor) ? me.cursor : (copy.cursor || 0);
+  const card = me && cursor < (copy.deck?.length || 0) ? copy.deck?.[cursor] : null;
   const question = card && copy.status === 'playing' ? {
-    index: copy.cursor + 1,
+    index: cursor + 1,
     total: copy.deck.length,
     categorie: card.categorie,
     difficulte: difficultyLabel(card.difficulte),
     prompt: plainPrompt(card.prompt),
     options: card.options.map((text, index) => ({ key: LETTERS[index], text })),
-    closesAt: copy.closesAt || 0,
-    locked: Boolean(me?.locked),
-    choice: me?.locked && me.flash?.cursor === copy.cursor ? LETTERS[me.flash.choice] : '',
-    verdict: me?.locked && me.flash?.cursor === copy.cursor ? (me.flash.good ? 'good' : 'bad') : ''
+    closesAt: me.closesAt || copy.closesAt || 0,
+    locked: Boolean(me.locked && me.flash?.cursor === cursor),
+    choice: me.locked && me.flash?.cursor === cursor ? LETTERS[me.flash.choice] : '',
+    verdict: me.locked && me.flash?.cursor === cursor ? (me.flash.good ? 'good' : 'bad') : ''
   } : null;
   const players = copy.players.map(player => ({
     id: player.id,
@@ -483,6 +510,9 @@ export function createPlayer(id, name) {
     abandoned: false,
     connected: true,
     seenAt: Date.now(),
+    cursor: 0,
+    openedAt: 0,
+    closesAt: 0,
     choice: null,
     answeredAt: 0,
     locked: false,

@@ -77,6 +77,13 @@ export function quizTableScreen(game) {
   return shell(content, { nav: false, enter: false });
 }
 
+export function quizHoldScreen(game) {
+  const seconds = game.rules?.seconds || 10;
+  const score = game.you?.score ?? 0;
+  const content = `<section class="qz qz-final"><p class="qz-kicker">Ton tour est fini</p><h1>${score} pts</h1><p class="qz-winner">Les autres gardent leurs ${seconds} secondes. Ta série ne bouge plus.</p></section>`;
+  return shell(content, { nav: false });
+}
+
 export function quizFinalScreen(game, playerId, detail = false) {
   const winners = (game.standings || []).filter(row => (game.winnerIds || []).includes(row.id));
   const solo = Boolean(game.solo);
