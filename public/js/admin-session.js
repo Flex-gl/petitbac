@@ -3,7 +3,7 @@ import { adminScreen } from './screens/admin.js';
 
 const keyName = 'petitbac.adminKey';
 let ctx = null;
-const desk = { unlocked: false, devices: [], boards: {}, tab: 'devices', query: '', notice: '', openId: '' };
+const desk = { unlocked: false, devices: [], boards: {}, tab: 'people', filter: 'players', query: '', notice: '', openKey: '', openId: '', shown: 6 };
 
 export function attachAdmin(context) {
   ctx = context;
@@ -15,6 +15,9 @@ export function renderAdmin(root) {
 
 export function submitAdminSearch(form) {
   desk.query = form.elements.q.value;
+  desk.openKey = '';
+  desk.openId = '';
+  desk.shown = 6;
   return ctx.render();
 }
 
@@ -41,15 +44,36 @@ export async function handleAdminAction(button) {
     return ctx.render();
   }
   if (action === 'adm-tab') {
-    desk.tab = button.dataset.tab || 'devices';
+    desk.tab = button.dataset.tab || 'people';
+    desk.openKey = '';
+    desk.openId = '';
+    desk.shown = 6;
+    return ctx.render();
+  }
+  if (action === 'adm-filter') {
+    desk.filter = button.dataset.filter || 'players';
+    desk.openKey = '';
+    desk.openId = '';
+    desk.shown = 6;
+    return ctx.render();
+  }
+  if (action === 'adm-more') {
+    desk.shown += 6;
     return ctx.render();
   }
   if (action === 'adm-open') {
+    const key = button.dataset.id || '';
+    desk.openKey = desk.openKey === key ? '' : key;
+    desk.openId = '';
+    return ctx.render();
+  }
+  if (action === 'adm-device') {
     desk.openId = desk.openId === button.dataset.id ? '' : button.dataset.id;
     return ctx.render();
   }
   if (action === 'adm-block' || action === 'adm-unblock' || action === 'adm-block-ip' || action === 'adm-unblock-ip') {
-    const reason = button.closest('.adm-card')?.querySelector('[data-reason]')?.value || '';
+    const scope = button.closest('.adm-phone') || button.closest('.adm-group-foot');
+    const reason = scope?.querySelector('[data-reason]')?.value || '';
     button.disabled = true;
     try {
       await api.admin({
@@ -58,8 +82,10 @@ export async function handleAdminAction(button) {
         ip: button.dataset.ip || '',
         reason
       });
-      desk.notice = action.includes('unblock') ? 'Accès rouvert.' : 'Accès fermé.';
+      const notice = action.includes('unblock') ? 'Accès rouvert.' : 'Accès fermé.';
       await loadAdmin();
+      desk.notice = notice;
+      return ctx.render();
     } catch (error) {
       desk.notice = error.message;
       button.disabled = false;
