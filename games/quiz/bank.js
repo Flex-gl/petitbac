@@ -27,13 +27,17 @@ export function baseQuestions() {
 }
 
 export function mergeBank(extras = [], overrides = {}) {
+  const extraList = Array.isArray(extras) ? extras : [];
+  const patches = overrides && typeof overrides === 'object' ? overrides : {};
+  const base = baseQuestions();
+  if (!extraList.length && !Object.keys(patches).length) return base;
   const map = new Map();
-  for (const question of baseQuestions()) map.set(String(question.id), { ...question });
-  for (const question of extras) {
+  for (const question of base) map.set(String(question.id), { ...question });
+  for (const question of extraList) {
     if (!question?.id) continue;
     map.set(String(question.id), { ...question });
   }
-  for (const [id, patch] of Object.entries(overrides || {})) {
+  for (const [id, patch] of Object.entries(patches)) {
     if (!patch || typeof patch !== 'object') continue;
     const current = map.get(String(id)) || { id: String(id) };
     map.set(String(id), { ...current, ...patch, id: String(id) });

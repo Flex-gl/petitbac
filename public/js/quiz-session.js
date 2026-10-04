@@ -230,10 +230,16 @@ async function ensureMeta() {
   return ctx.state.quizMeta;
 }
 
-export async function openQuizSetup() {
+export async function openQuizSetup(solo = false) {
   ctx.state.page = 'quiz-setup';
+  ctx.state.quizSolo = Boolean(solo);
   ctx.state.gameMode = 'quiz';
-  await ensureMeta();
+  ctx.render();
+  if (ctx.state.quizMeta) return;
+  const meta = await ensureMeta();
+  if (!meta || ctx.state.page !== 'quiz-setup' || ctx.state.quizSolo !== Boolean(solo)) return;
+  const form = document.getElementById('quiz-create');
+  if (form && document.activeElement && form.contains(document.activeElement)) return;
   return ctx.render();
 }
 
@@ -246,14 +252,14 @@ export async function submitQuizCreate(form) {
   form.querySelector('[type="submit"]').disabled = true;
   try {
     const data = await api.quizAction({
-      action: 'create',
+      action: ctx.state.quizSolo ? 'solo' : 'create',
       playerId: ctx.playerId,
       name,
       questions: Number(choice('questions', 10)),
       difficulty: choice('difficulty', 'toutes'),
       category: form.elements.category.value || 'toutes',
       seconds: Number(choice('seconds', 10)),
-      maxPlayers: Number(choice('maxPlayers', 20))
+      maxPlayers: ctx.state.quizSolo ? 1 : Number(choice('maxPlayers', 20))
     });
     await openQuiz(data.game);
   } catch (error) {
@@ -374,7 +380,8 @@ export async function submitQuizImport(form) {
 
 export async function handleQuizAction(button) {
   const action = button.dataset.action;
-  if (action === 'qz-setup') return openQuizSetup();
+  if (action === 'qz-setup') return openQuizSetup(false);
+  if (action === 'qz-solo') return openQuizSetup(true);
   if (action === 'qz-join') return openQuizJoin();
   if (action === 'qz-admin') return openQuizAdmin();
   if (action === 'qz-rules') return openQuizRules();
@@ -430,10 +437,10 @@ export async function handleQuizAction(button) {
 export async function renderQuiz(root) {
   const game = ctx.state.quizGame;
   if (ctx.state.page === 'quiz-door') root.innerHTML = quizDoorScreen({ top: ctx.state.quizTop, scoresState: ctx.state.scoresState, online: ctx.state.online, profile: ctx.state.quizProfile, savedQuiz: ctx.state.savedQuiz });
-  else if (ctx.state.page === 'quiz-setup') root.innerHTML = quizSetupScreen(ctx.state.name, ctx.state.quizMeta);
+  else if (ctx.state.page === 'quiz-setup') root.innerHTML = quizSetupScreen(ctx.state.name, ctx.state.quizMeta, ctx.state.quizSolo);
   else if (ctx.state.page === 'quiz-invite') root.innerHTML = quizInviteScreen(ctx.state.code);
   else if (ctx.state.page === 'quiz-admin') root.innerHTML = quizAdminScreen(admin);
-  else if (!game) root.innerHTML = quizSetupScreen(ctx.state.name, ctx.state.quizMeta);
+  else if (!game) root.innerHTML = quizSetupScreen(ctx.state.name, ctx.state.quizMeta, ctx.state.quizSolo);
   else if (game.status === 'lobby') root.innerHTML = quizLobbyScreen(game, ctx.playerId);
   else if (game.status === 'finished') root.innerHTML = quizFinalScreen(game, ctx.playerId);
   else root.innerHTML = quizTableScreen(game);

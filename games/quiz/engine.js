@@ -55,9 +55,9 @@ export function cleanQuestion(input, id) {
   if (!answer) throw new QuizError('Une question doit avoir une réponse.');
   if (!categorie) throw new QuizError('Choisis une catégorie.');
   if (!difficulte) throw new QuizError('Choisis une difficulté.');
-  const folded = options.map(option => option.toLocaleLowerCase('fr'));
+  const folded = options.map(option => option.toLowerCase());
   const unique = new Set(folded.filter(Boolean));
-  const complete = options.every(Boolean) && unique.size === 4 && folded.includes(answer.toLocaleLowerCase('fr'));
+  const complete = options.every(Boolean) && unique.size === 4 && folded.includes(answer.toLowerCase());
   const actif = complete && input?.actif !== 0 && input?.actif !== false && input?.actif !== '0' ? 1 : 0;
   return {
     id: String(id || input?.id || '').slice(0, 40),
@@ -75,13 +75,13 @@ export function cleanQuestion(input, id) {
 }
 
 export function playable(question) {
-  if (!question || question.deleted || !question.actif) return false;
-  try {
-    const clean = cleanQuestion(question, question.id);
-    return clean.actif === 1;
-  } catch {
-    return false;
-  }
+  if (!question || question.deleted) return false;
+  if (question.actif === 0 || question.actif === false || question.actif === '0') return false;
+  const options = [question.option_a, question.option_b, question.option_c, question.option_d].map(option => String(option || '').trim());
+  if (!String(question.question || '').trim() || options.some(option => !option)) return false;
+  const answer = String(question.reponse_correcte || '').trim().toLowerCase();
+  const folded = options.map(option => option.toLowerCase());
+  return Boolean(answer) && new Set(folded).size === 4 && folded.includes(answer);
 }
 
 export function selectQuestions(pool, { count, category = 'toutes', difficulty = 'toutes', used = [], recent = [], random = Math.random } = {}) {
@@ -119,7 +119,8 @@ export function selectQuestions(pool, { count, category = 'toutes', difficulty =
 
 function packQuestion(question) {
   const options = [question.option_a, question.option_b, question.option_c, question.option_d];
-  const correct = options.findIndex(option => option.toLocaleLowerCase('fr') === question.reponse_correcte.toLocaleLowerCase('fr'));
+  const answer = String(question.reponse_correcte || '').toLowerCase();
+  const correct = options.findIndex(option => String(option || '').toLowerCase() === answer);
   return {
     id: String(question.id),
     categorie: question.categorie,
@@ -150,8 +151,8 @@ export function rulesFrom(input = {}) {
     seconds: [5, 10, 15, 20, 30].includes(seconds) ? seconds : 10,
     difficulty,
     category,
-    minPlayers: 2,
-    maxPlayers: maxPlayers >= 2 && maxPlayers <= 20 ? maxPlayers : 20
+    minPlayers: 1,
+    maxPlayers: maxPlayers >= 1 && maxPlayers <= 20 ? maxPlayers : 20
   };
 }
 
@@ -254,7 +255,9 @@ export function answer(game, playerId, choice, cursor, now = Date.now()) {
 
 export function beginQuiz(game, deck, now = Date.now()) {
   if (game.status !== 'lobby') throw new QuizError('La partie a déjà commencé.');
-  if (activePlayers(game).length < game.rules.minPlayers) throw new QuizError('Il faut au moins deux joueurs.');
+  const needed = game.rules.minPlayers || 1;
+  if (activePlayers(game).length < needed) throw new QuizError(needed > 1 ? 'Il faut au moins deux joueurs.' : 'Il faut au moins un joueur.');
+  game.solo = activePlayers(game).length < 2;
   if (!Array.isArray(deck) || deck.length < 1) throw new QuizError('Aucune question disponible.');
   const ids = deck.map(card => card.id);
   if (new Set(ids).size !== ids.length) throw new QuizError('La sélection contient une question en double.');
@@ -377,6 +380,7 @@ export function publicView(game, viewerId, now = Date.now()) {
         averageMs: player?.answeredCount ? Math.round(player.timeSum / player.answeredCount) : 0
       };
     }),
+    solo: Boolean(copy.solo),
     winnerId: copy.status === 'finished' ? copy.winnerId : '',
     winnerIds: copy.status === 'finished' ? copy.winnerIds || [] : [],
     serverNow: now,

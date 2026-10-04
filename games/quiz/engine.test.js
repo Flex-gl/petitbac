@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { advance, answer, beginQuiz, createPlayer, pointsFor, publicView, rematch, selectQuestions, QuizError } from './engine.js';
+import { advance, answer, beginQuiz, createPlayer, pointsFor, publicView, rematch, rulesFrom, selectQuestions, QuizError } from './engine.js';
 import { importQuestions, parseCsv, rowsFromCsv } from './csv.js';
 
 function sample(id, answer = 'Dakar') {
@@ -145,8 +145,42 @@ test('la banque contient trois mille questions jouables, en UTF-8', () => {
   assert.ok(bank.questions.some(question => question.categorie === 'Géographie' && question.question.includes('é')));
   const broken = bank.questions.filter(question => {
     const options = [question.option_a, question.option_b, question.option_c, question.option_d];
-    const distinct = new Set(options.map(option => option.toLocaleLowerCase('fr')));
-    return !question.actif || distinct.size !== 4 || !options.some(option => option.toLocaleLowerCase('fr') === question.reponse_correcte.toLocaleLowerCase('fr'));
+    const distinct = new Set(options.map(option => option.toLowerCase()));
+    return !question.actif || distinct.size !== 4 || !options.some(option => option.toLowerCase() === question.reponse_correcte.toLowerCase());
   });
   assert.equal(broken.length, 0);
+  const started = Date.now();
+  const picked = selectQuestions(bank.questions, { count: 10, random: () => 0.42 });
+  assert.equal(picked.length, 10);
+  assert.ok(picked.every(card => card.correct >= 0 && card.correct <= 3 && card.options.length === 4));
+  assert.ok(Date.now() - started < 1500);
+});
+
+test('un joueur seul peut commencer, sans adversaire', () => {
+  const game = {
+    kind: 'quiz',
+    code: 'SOLO01',
+    version: 0,
+    status: 'lobby',
+    hostId: 'anna',
+    hostSecret: 'secret',
+    rules: rulesFrom({ questions: 5, seconds: 10, maxPlayers: 1, difficulty: 'toutes', category: 'toutes' }),
+    players: [createPlayer('anna', 'Anna')],
+    deck: [],
+    cursor: 0,
+    seenIds: [],
+    createdAt: 1_000
+  };
+  assert.equal(game.rules.minPlayers, 1);
+  assert.equal(game.rules.maxPlayers, 1);
+  const deck = selectQuestions([sample('q1'), sample('q2'), sample('q3')], { count: 2, random: () => 0.2 });
+  beginQuiz(game, deck, 1_000);
+  assert.equal(game.status, 'playing');
+  assert.equal(game.solo, true);
+  const view = publicView(game, 'anna', game.openedAt + 100);
+  assert.equal(view.solo, true);
+  assert.equal(view.question.correct, undefined);
+  answer(game, 'anna', game.deck[0].correct, 0, game.openedAt + 300);
+  assert.equal(game.status, 'reveal');
+  assert.equal(game.players[0].correct, 1);
 });

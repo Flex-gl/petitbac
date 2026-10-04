@@ -74,9 +74,20 @@ function touch(game, playerId) {
   }
 }
 
+let poolCache = null;
+let poolCachedAt = 0;
+
+function forgetPool() {
+  poolCache = null;
+  poolCachedAt = 0;
+}
+
 async function loadPool() {
+  if (poolCache && Date.now() - poolCachedAt < 30000) return poolCache;
   const [extras, overrides] = await Promise.all([getJson(EXTRAS_KEY), getJson(OVERRIDES_KEY)]);
-  return mergeBank(Array.isArray(extras) ? extras : [], overrides || {});
+  poolCache = mergeBank(Array.isArray(extras) ? extras : [], overrides || {});
+  poolCachedAt = Date.now();
+  return poolCache;
 }
 
 async function recentIds(players) {
@@ -106,7 +117,7 @@ async function remember(game) {
     wrong: player.wrong || 0,
     blank: player.blank || 0
   }));
-  const winners = Object.fromEntries((game.winnerIds || []).map(id => [id, true]));
+  const winners = players.length >= 2 ? Object.fromEntries((game.winnerIds || []).map(id => [id, true])) : {};
   await redis('EVAL', RECORD_SCRIPT, '1', `arena:quiz:recorded:${game.code}:${game.startedAt}`, JSON.stringify(players), JSON.stringify(winners), new Date().toISOString());
   game.statsMarked = true;
 }
@@ -165,6 +176,35 @@ export async function createQuiz(input) {
   throw new QuizError('Impossible de réserver un code de salon. Réessaie.', 503);
 }
 
+export async function createSolo(input) {
+  const name = cleanName(input.name);
+  const id = String(input.playerId || crypto.randomUUID()).slice(0, 80);
+  const rules = rulesFrom({ ...input, maxPlayers: 1 });
+  const player = createPlayer(id, name);
+  const deck = await drawDeck({ rules, players: [player], seenIds: [] });
+  for (let attempt = 0; attempt < 8; attempt += 1) {
+    const code = roomCode();
+    const game = {
+      kind: 'quiz',
+      code,
+      version: 0,
+      status: 'lobby',
+      hostId: id,
+      hostSecret: crypto.randomUUID(),
+      rules,
+      players: [player],
+      deck: [],
+      cursor: 0,
+      seenIds: [],
+      createdAt: Date.now(),
+      startedAt: Date.now()
+    };
+    beginQuiz(game, deck, Date.now());
+    if (await createIfAbsent(keyFor(code), game, GAME_TTL)) return game;
+  }
+  throw new QuizError('Impossible de lancer la partie. Réessaie.', 503);
+}
+
 export async function getQuiz(codeValue, viewerId = '') {
   const code = normalizedCode(codeValue);
   if (code.length !== 6) throw new QuizError('Le code doit contenir six caractères.');
@@ -218,7 +258,7 @@ export async function mutateQuiz(input) {
     } else if (action === 'start') {
       if (game.hostId !== playerId) throw new QuizError('Seul l’hôte peut lancer la partie.', 403);
       if (game.status !== 'lobby') throw new QuizError('La partie a déjà commencé.');
-      if (game.players.filter(player => !player.abandoned).length < 2) throw new QuizError('Il faut au moins deux joueurs.');
+      if (game.players.filter(player => !player.abandoned).length < 1) throw new QuizError('Il faut au moins un joueur.');
       game.startedAt = Date.now();
       game.statsMarked = false;
       game.seenMarked = false;
@@ -267,19 +307,20 @@ export async function adminQuiz(input) {
 
 async function writeOverrides(overrides) {
   await redis('SET', OVERRIDES_KEY, JSON.stringify(overrides));
+  forgetPool();
 }
 
 export async function adminList(input) {
   const questions = await loadPool();
   const summary = counts(questions);
-  const query = String(input.q || '').trim().toLocaleLowerCase('fr');
+  const query = String(input.q || '').trim().toLowerCase();
   const category = String(input.categorie || '');
   const difficulty = String(input.difficulte || '');
   const filtered = questions.filter(question => {
     if (category && question.categorie !== category) return false;
     if (difficulty && question.difficulte !== difficulty) return false;
     if (!query) return true;
-    return `${question.question} ${question.reponse_correcte}`.toLocaleLowerCase('fr').includes(query);
+    return `${question.question} ${question.reponse_correcte}`.toLowerCase().includes(query);
   });
   const pageSize = 12;
   const pages = Math.max(1, Math.ceil(filtered.length / pageSize));
@@ -347,6 +388,7 @@ async function adminImport(input) {
   if (result.imported.length) {
     const extras = (await getJson(EXTRAS_KEY)) || [];
     await redis('SET', EXTRAS_KEY, JSON.stringify([...(Array.isArray(extras) ? extras : []), ...result.imported]));
+    forgetPool();
   }
   return {
     imported: result.imported.length,

@@ -1,4 +1,4 @@
-import { QuizError, adminQuiz, createQuiz, getQuiz, mutateQuiz, presentQuiz, quizMeta } from './_quiz.js';
+import { QuizError, adminQuiz, createQuiz, createSolo, getQuiz, mutateQuiz, presentQuiz, quizMeta } from './_quiz.js';
 
 function response(body, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -79,7 +79,7 @@ export default async function handler(request) {
     if (request.method !== 'POST') return response({ error: 'Méthode non prise en charge.' }, 405);
     const input = await request.json();
     if (String(input.action || '').startsWith('admin-')) return response(await adminQuiz(input));
-    const game = input.action === 'create' ? await createQuiz(input) : await mutateQuiz(input);
+    const game = input.action === 'create' ? await createQuiz(input) : input.action === 'solo' ? await createSolo(input) : await mutateQuiz(input);
     return response({ game: presentQuiz(game, input.playerId || '') });
   } catch (error) {
     const status = error instanceof QuizError || error.status ? error.status || 400 : 500;

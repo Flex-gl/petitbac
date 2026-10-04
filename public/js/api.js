@@ -6,7 +6,8 @@ async function request(url, options = {}) {
     throw new Error('Connexion interrompue. Vérifie ton réseau puis réessaie.');
   }
   const body = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(body.error || `Le serveur a répondu ${response.status}.`);
+  const fallback = response.status === 504 ? 'Le serveur a mis trop de temps. Réessaie.' : `Le serveur a répondu ${response.status}.`;
+  if (!response.ok) throw new Error(body.error || fallback);
   return body;
 }
 
