@@ -29,17 +29,24 @@ const ICONS = {
   sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2.8v2.2M12 19v2.2M2.8 12h2.2M19 12h2.2M5.4 5.4l1.6 1.6M17 17l1.6 1.6M18.6 5.4 17 7M7 17l-1.6 1.6"/>',
   moon: '<path d="M20 14.6A7.6 7.6 0 0 1 9.4 4 6.2 6.2 0 1 0 20 14.6Z"/>',
   music: '<path d="M9 18V5.5L20 3v12.2"/><circle cx="6.2" cy="18" r="2.6"/><circle cx="17.2" cy="15.2" r="2.6"/>',
-  musicOff: '<path d="m3 3 18 18M9 18V9.5M9 5.5 16.2 4M16.2 8.2V4"/><circle cx="6.2" cy="18" r="2.6"/>'
+  musicOff: '<path d="m3 3 18 18M9 18V9.5M9 5.5 16.2 4M16.2 8.2V4"/><circle cx="6.2" cy="18" r="2.6"/>',
+  search: '<circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4"/>',
+  play: '<path d="M8 5.5v13l11-6.5-11-6.5Z" fill="currentColor" stroke="none"/>'
 };
 
 export function icon(name, size = 20) { return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name] || ICONS.spark}</svg>`; }
 export function esc(value) { return String(value ?? '').replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character]); }
 export function shell(content, options = {}) {
-  const nav = options.nav === false ? '' : `<nav class="bottom-nav" aria-label="Navigation principale"><button class="nav-item ${options.active === 'home' ? 'active' : ''}" data-action="home">${icon('home')}<span>Accueil</span></button><button class="nav-item ${options.active === 'rank' ? 'active' : ''}" data-action="rankings">${icon('trophy')}<span>Scores</span></button><button class="nav-item" data-action="rules">${icon('rules')}<span>Règles</span></button></nav>`;
+  const deck = options.chrome === 'deck';
+  const homeLabel = deck ? 'Hub' : 'Accueil';
+  const nav = options.nav === false ? '' : `<nav class="bottom-nav" aria-label="Navigation principale"><button class="nav-item ${options.active === 'home' ? 'active' : ''}" data-action="home">${icon(deck ? 'spark' : 'home')}<span>${homeLabel}</span></button><button class="nav-item ${options.active === 'rank' ? 'active' : ''}" data-action="rankings">${icon('trophy')}<span>Scores</span></button><button class="nav-item" data-action="rules">${icon('rules')}<span>Règles</span></button></nav>`;
   const enter = options.enter === false ? '' : 'view-enter';
   const theme = `<button type="button" class="icon-btn theme-toggle" data-action="theme" aria-label="Changer le thème"><span class="theme-icon theme-icon-sun">${icon('sun', 18)}</span><span class="theme-icon theme-icon-moon">${icon('moon', 18)}</span></button>`;
   const music = `<button type="button" class="icon-btn music-toggle" data-action="music" aria-label="Musique de fond"><span class="music-icon music-icon-on">${icon('music', 18)}</span><span class="music-icon music-icon-off">${icon('musicOff', 18)}</span></button>`;
-  return `<div class="app-shell ${options.wide ? 'wide' : ''}"><header class="topbar"><a class="brand" href="/" data-action="home" aria-label="Poséidon - Del'Hiver, accueil"><span class="brand-mark">P</span><span class="brand-name">Poséidon<span class="brand-tag">Del'Hiver</span></span></a><div class="top-tools">${music}${theme}${options.right || ''}</div></header><main id="main" class="${enter}">${content}</main>${nav}</div><div class="toast" role="status" aria-live="polite"></div>`;
+  const header = deck
+    ? `<header class="nx-top"><div class="nx-top-row"><a class="nx-id" href="/" data-action="home" aria-label="Poséidon - Del'Hiver, accueil"><span class="nx-avatar">P<i></i></span><span class="nx-lvl">Arène</span><span class="nx-title">Poséidon</span></a><div class="top-tools">${music}${theme}</div></div><label class="nx-search">${icon('search', 18)}<input data-hub-search type="search" placeholder="Petit Bac, INTER, Poséidon…" value="${esc(options.query || '')}" aria-label="Chercher un jeu"></label></header>`
+    : `<header class="topbar"><a class="brand" href="/" data-action="home" aria-label="Poséidon - Del'Hiver, accueil"><span class="brand-mark">P</span><span class="brand-name">Poséidon<span class="brand-tag">Del'Hiver</span></span></a><div class="top-tools">${music}${theme}${options.right || ''}</div></header>`;
+  return `<div class="app-shell ${options.wide ? 'wide' : ''} ${deck ? 'is-deck' : ''}">${header}<main id="main" class="${enter}">${content}</main>${nav}</div><div class="toast" role="status" aria-live="polite"></div>`;
 }
 export function pageHead(title, subtitle, back = true, extra = '') { return `<div class="page-head${extra ? ` ${extra}` : ''}">${back ? `<button class="back-btn" data-action="back" aria-label="Retour">${icon('back')}</button>` : ''}<div><h1>${esc(title)}</h1><p>${esc(subtitle)}</p></div></div>`; }
 export function button(label, action, style = 'primary', extra = '') { return `<button class="btn btn-${style} ${extra}" data-action="${action}">${label}</button>`; }

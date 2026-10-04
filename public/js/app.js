@@ -37,7 +37,7 @@ const state = {
   top: loadStoredRanks(), profile: readJson(profileKey),
   interTop: loadList('petitbac.inter.leaderboard'), interProfile: readJson('petitbac.inter.profile'),
   scoresState: loadStoredRanks().length ? 'ready' : 'loading',
-  savedRoom: null, gameMode: 'petitbac', interGame: null, savedInter: null, hubFilter: 'all',
+  savedRoom: null, gameMode: 'petitbac', interGame: null, savedInter: null, hubFilter: 'all', hubQuery: '',
   online: navigator.onLine, deferredPrompt: null, sheet: null, pollTimer: null,
   roomSignature: '', pollBusy: false, priorGameStatus: null, lastReveal: '',
   lastRankRefresh: 0, roomError: '', pollFailures: 0, eventSource: null, usingSse: false,
@@ -74,7 +74,7 @@ function roomSignature(game) {
 
 async function render() {
   if (state.page === 'home') {
-    root.innerHTML = hubScreen({ online: state.online, canInstall: Boolean(state.deferredPrompt) || !matchMedia('(display-mode: standalone)').matches, savedRoom: state.savedRoom, savedInter: state.savedInter, profile: state.profile, interProfile: state.interProfile, name: state.name, filter: state.hubFilter });
+    root.innerHTML = hubScreen({ online: state.online, canInstall: Boolean(state.deferredPrompt) || !matchMedia('(display-mode: standalone)').matches, savedRoom: state.savedRoom, savedInter: state.savedInter, profile: state.profile, interProfile: state.interProfile, name: state.name, filter: state.hubFilter, query: state.hubQuery });
   } else if (state.page === 'letters') {
     root.innerHTML = lettersScreen({ top: state.top, scoresState: state.scoresState, online: state.online, profile: state.profile, savedRoom: state.savedRoom });
   } else if (state.page === 'cards') {
@@ -548,6 +548,8 @@ async function handleAction(button) {
   if (['home', 'create', 'join', 'rankings', 'rules', 'back', 'install'].includes(action)) haptic();
   if (action === 'hub-filter') {
     state.hubFilter = ['letters', 'cards'].includes(button.dataset.filter) ? button.dataset.filter : 'all';
+    const typed = document.querySelector('[data-hub-search]');
+    if (typed) state.hubQuery = typed.value;
     return render();
   }
   if (action === 'open-game') {
@@ -669,6 +671,13 @@ document.addEventListener('click', event => {
   }
 });
 document.addEventListener('input', event => {
+  const search = event.target.closest('[data-hub-search]');
+  if (search) {
+    state.hubQuery = search.value;
+    const q = search.value.trim().toLowerCase();
+    document.querySelectorAll('[data-hub-item]').forEach(node => { node.hidden = Boolean(q) && !node.dataset.hubItem.toLowerCase().includes(q); });
+    return;
+  }
   const input = event.target.closest('[data-answer]');
   if (!input || !state.game) return;
   const draft = readJson(draftKey(state.game)) || {};

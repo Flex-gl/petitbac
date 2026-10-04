@@ -1,74 +1,91 @@
 import { esc, icon, scoreCard, shell } from '../ui.js';
 
 const CATALOG = [
-  { id: 'petitbac', lane: 'letters', mark: 'A', badge: 'Lettres', title: 'Petit Bac', text: 'Dix catégories', status: 'Entre amis' },
-  { id: 'inter', lane: 'cards', mark: 'I', badge: 'Cartes', title: 'INTER', text: 'Enseigne et valeur', status: 'Face à face' },
-  { id: 'next', lane: 'soon', mark: '+', badge: 'À venir', title: 'Prochain jeu', text: 'Place réservée', status: 'Bientôt' }
+  { id: 'petitbac', lane: 'letters', mark: 'A', art: 'letters', badge: 'Lettres', title: 'Petit Bac', text: 'Dix catégories', status: 'Prêt' },
+  { id: 'inter', lane: 'cards', mark: 'I', art: 'cards', badge: 'Cartes', title: 'INTER', text: 'Enseigne et valeur', status: 'Prêt' },
+  { id: 'next', lane: 'soon', mark: '+', art: 'soon', badge: 'À venir', title: 'Prochain jeu', text: 'Place réservée', status: 'Bientôt' }
 ];
 
-export function hubScreen({ online = true, canInstall = false, savedRoom = null, savedInter = null, profile = null, interProfile = null, name = '', filter = 'all' }) {
-  const shown = CATALOG.filter(game => filter === 'all' || game.lane === filter);
-  const games = shown.map(game => {
-    const body = `<span class="deck-card-top"><span class="deck-glyph deck-glyph-${game.id}">${game.mark}</span><span class="deck-badge">${game.badge}</span></span><span class="deck-card-copy"><strong>${game.title}</strong><span>${game.text}</span></span><span class="deck-card-foot"><span class="deck-status-line"><i></i>${game.status}</span><span class="deck-play" aria-hidden="true">${icon('arrow', 16)}</span></span>`;
-    return game.id === 'next'
-      ? `<div class="deck-card is-soon">${body}</div>`
-      : `<button type="button" class="deck-card" data-action="open-game" data-game="${game.id}">${body}</button>`;
-  }).join('');
-  const filters = [
-    ['all', 'Tous'],
-    ['letters', 'Lettres'],
-    ['cards', 'Cartes']
-  ].map(([id, label]) => `<button type="button" class="deck-filter" data-action="hub-filter" data-filter="${id}" aria-pressed="${filter === id}">${label}</button>`).join('');
-  const resumes = [
-    savedRoom ? { action: 'resume', kicker: 'Lettres', title: 'Petit Bac', meta: savedRoom.code } : null,
-    savedInter ? { action: 'ix-resume', kicker: 'Cartes', title: 'INTER', meta: savedInter.code } : null
-  ].filter(Boolean);
-  const shelf = resumes.length ? `<section class="deck-block"><div class="deck-head"><h2>Reprendre</h2><span>${resumes.length}</span></div><div class="deck-shelf deck-bleed">${resumes.map(item => `<button type="button" class="deck-resume" data-action="${item.action}"><span class="deck-badge">${item.kicker}</span><strong>${item.title}</strong><span>Salle ${esc(item.meta)}</span></button>`).join('')}</div></section>` : '';
+function matches(query, ...parts) {
+  const q = String(query || '').trim().toLowerCase();
+  if (!q) return true;
+  return parts.join(' ').toLowerCase().includes(q);
+}
+
+export function hubScreen({ online = true, canInstall = false, savedRoom = null, savedInter = null, profile = null, interProfile = null, name = '', filter = 'all', query = '' }) {
+  const you = name.trim() ? esc(name.trim().slice(0, 2).toUpperCase()) : 'TO';
   const points = Number(profile?.totalScore || 0);
   const wins = Number(interProfile?.wins || 0);
-  const player = name.trim().length >= 2 ? `<span class="deck-chip">${esc(name.trim())}</span>` : '';
-  const install = canInstall ? `<button type="button" class="deck-chip deck-chip-btn" data-action="install">${icon('install', 14)}Installer</button>` : '';
-  const content = `<div class="deck">
-    <div class="deck-row deck-bleed" aria-label="État de l’arène">
-      <span class="deck-chip"><i class="deck-live ${online ? '' : 'is-off'}"></i>${online ? 'Connecté' : 'Hors ligne'}</span>
-      <span class="deck-chip">2 jeux</span>
-      ${player}${install}
-    </div>
-    <section class="deck-poster" aria-label="Partie contre Poséidon">
-      <div class="deck-poster-top">
-        <span class="deck-pill"><i class="deck-live"></i>Face à face</span>
-        <span class="deck-pill deck-pill-gold">3 niveaux</span>
-      </div>
-      <div class="deck-poster-copy">
-        <span class="deck-kicker">Cartes · IA</span>
-        <h1>Poséidon</h1>
-        <p>Facile, moyen ou difficile. Les règles d’INTER restent les mêmes.</p>
-        <button type="button" class="btn btn-primary deck-launch" data-action="ix-solo">${icon('spark', 18)}Lancer la partie</button>
-      </div>
+  const shown = CATALOG.filter(game => (filter === 'all' || game.lane === filter) && matches(query, game.title, game.text, game.badge));
+  const games = shown.map(game => {
+    const body = `<span class="nx-lib-top"><span class="nx-cover nx-art-${game.art}">${game.mark}</span><span class="nx-badge">${game.badge}</span></span><span class="nx-lib-copy"><strong>${game.title}</strong><span>${game.text}</span></span><span class="nx-lib-foot"><span class="nx-dotline">${game.status}</span><span class="nx-go" aria-hidden="true">${icon('play', 14)}</span></span>`;
+    return game.id === 'next'
+      ? `<article class="nx-lib-card is-soon" data-hub-item="${esc(`${game.title} ${game.text} ${game.badge}`)}">${body}</article>`
+      : `<button type="button" class="nx-lib-card" data-action="open-game" data-game="${game.id}" data-hub-item="${esc(`${game.title} ${game.text} ${game.badge}`)}">${body}</button>`;
+  }).join('') || `<p class="nx-empty">Aucun jeu pour cette recherche.</p>`;
+  const filters = [['all', 'Tous'], ['letters', 'Lettres'], ['cards', 'Cartes']]
+    .map(([id, label]) => `<button type="button" class="nx-filter" data-action="hub-filter" data-filter="${id}" aria-pressed="${filter === id}">${label}</button>`).join('');
+  const jumps = [
+    savedRoom ? { action: 'resume', art: 'letters', tag: 'Reprise', title: 'Petit Bac', meta: `Salle ${savedRoom.code}`, when: 'En cours' } : null,
+    savedInter ? { action: 'ix-resume', art: 'cards', tag: 'Reprise', title: 'INTER', meta: `Salle ${savedInter.code}`, when: 'En cours' } : null,
+    { action: 'open-game', game: 'petitbac', art: 'letters', tag: 'Lettres', title: 'Petit Bac', meta: 'Entre amis', when: 'Prêt' },
+    { action: 'open-game', game: 'inter', art: 'cards', tag: 'Cartes', title: 'INTER', meta: 'Face à face', when: 'Prêt' },
+    { action: 'ix-solo', art: 'poseidon', tag: 'IA', title: 'Poséidon', meta: '3 niveaux', when: 'Seul' }
+  ].filter(item => item && matches(query, item.title, item.meta, item.tag));
+  const shelf = jumps.map(item => `<button type="button" class="nx-jump" data-action="${item.action}" ${item.game ? `data-game="${item.game}"` : ''} data-hub-item="${esc(`${item.title} ${item.meta} ${item.tag}`)}"><span class="nx-jump-art nx-art-${item.art}"><span class="nx-jump-tag">${item.tag}</span><span class="nx-jump-play" aria-hidden="true">${icon('play', 16)}</span></span><span class="nx-jump-copy"><strong>${esc(item.title)}</strong><span><em>${esc(item.meta)}</em><em>${item.when}</em></span></span></button>`).join('');
+  const install = canInstall ? `<button type="button" class="nx-pill nx-pill-violet" data-action="install">${icon('install', 14)}Installer</button>` : '';
+  const content = `<div class="nx">
+    <section class="nx-ribbon" aria-label="État de l’arène">
+      <span class="nx-pill"><i class="nx-ping ${online ? '' : 'is-off'}"></i><b>${online ? 'Connecté' : 'Hors ligne'}</b></span>
+      <span class="nx-pill"><b>2 jeux</b><span>ouverts</span></span>
+      <span class="nx-pill nx-pill-cyan">${icon('spark', 14)}<b>IA</b><span>3 niveaux</span></span>
+      ${install}
     </section>
-    <section class="deck-spot">
-      <div class="deck-spot-main">
-        <span class="deck-spot-mark">${icon('trophy', 20)}</span>
-        <div>
-          <span class="deck-kicker">Classements</span>
-          <h2>Deux tableaux</h2>
+    <section class="nx-hero" aria-label="Partie contre Poséidon">
+      <div class="nx-hero-art">
+        <span class="nx-watermark" aria-hidden="true">P</span>
+        <span class="nx-scrim"></span>
+        <div class="nx-hero-top">
+          <span class="nx-pill"><i class="nx-ping"></i>Face à face</span>
+          <span class="nx-pill nx-pill-cyan">3 niveaux</span>
+        </div>
+        <div class="nx-hero-copy">
+          <div class="nx-hero-meta"><span class="nx-tag">Cartes · IA</span><span>${icon('spark', 14)} Règles intactes</span></div>
+          <h1>Poséidon</h1>
+          <div class="nx-squad">
+            <span class="nx-faces" aria-hidden="true"><b>${you}</b><b class="is-ai">IA</b></span>
+            <span>Partie prête</span>
+          </div>
+          <button type="button" class="nx-launch" data-action="ix-solo">${icon('play', 22)}Lancer la partie</button>
         </div>
       </div>
-      <p>Petit Bac en points. INTER en victoires. Rien n’est mélangé.</p>
-      <button type="button" class="btn btn-secondary btn-sm" data-action="rankings">Ouvrir</button>
     </section>
-    ${shelf}
-    <section class="deck-block">
-      <div class="deck-head"><h2>Bibliothèque</h2><span>2 jeux</span></div>
-      <div class="deck-row deck-bleed" role="toolbar" aria-label="Filtrer les jeux">${filters}</div>
-      <div class="deck-grid">${games}</div>
-      <div class="deck-meter">
-        <div><span>Petit Bac</span><b>${points} pts</b></div>
-        <div><span>INTER</span><b>${wins} victoire${wins === 1 ? '' : 's'}</b></div>
+    <section class="nx-banner">
+      <div class="nx-banner-top">
+        <span class="nx-banner-mark">${icon('trophy', 22)}</span>
+        <div><span class="nx-kicker">Classements</span><h2>Deux tableaux</h2></div>
+        <span class="nx-count">${points} pts</span>
+      </div>
+      <div class="nx-banner-foot">
+        <span>${icon('spark', 14)} ${points} pts · ${wins} victoire${wins === 1 ? '' : 's'}</span>
+        <button type="button" class="nx-join" data-action="rankings">Ouvrir</button>
+      </div>
+    </section>
+    <section class="nx-block">
+      <div class="nx-head"><h2>Reprendre</h2><span>${jumps.length} prêt${jumps.length > 1 ? 's' : ''}</span></div>
+      <div class="nx-shelf">${shelf}</div>
+    </section>
+    <section class="nx-block">
+      <div class="nx-head"><h2>Bibliothèque</h2><span class="nx-count-badge">2 jeux</span></div>
+      <div class="nx-filters" role="toolbar" aria-label="Filtrer les jeux">${filters}</div>
+      <div class="nx-grid">${games}</div>
+      <div class="nx-storage">
+        <div><span>${icon('spark', 14)} Arène</span><b>2 / 3 places</b></div>
+        <div class="nx-bar" aria-hidden="true"><i style="width:66%"></i></div>
       </div>
     </section>
   </div>`;
-  return shell(content, { active: 'home' });
+  return shell(content, { active: 'home', chrome: 'deck', query });
 }
 
 export function lettersScreen({ top = [], scoresState = 'loading', online = true, profile = null, savedRoom = null }) {
