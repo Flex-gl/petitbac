@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { advance, answer, beginQuiz, createPlayer, pointsFor, publicView, rematch, rulesFrom, selectQuestions, QuizError } from './engine.js';
+import { advance, answer, beginQuiz, createPlayer, pointsFor, publicView, rematch, rulesFrom, selectIds, selectQuestions, QuizError } from './engine.js';
 import { importQuestions, parseCsv, rowsFromCsv } from './csv.js';
 
 function sample(id, answer = 'Dakar') {
@@ -154,6 +154,9 @@ test('la banque contient trois mille questions jouables, en UTF-8', () => {
   assert.equal(picked.length, 10);
   assert.ok(picked.every(card => card.correct >= 0 && card.correct <= 3 && card.options.length === 4));
   assert.ok(Date.now() - started < 1500);
+  const ids = selectIds(bank.questions.map(question => ({ id: question.id, categorie: question.categorie, difficulte: question.difficulte, actif: question.actif })), { count: 10, random: () => 0.2 });
+  assert.equal(ids.length, 10);
+  assert.equal(new Set(ids).size, 10);
 });
 
 test('un joueur seul peut commencer, sans adversaire', () => {

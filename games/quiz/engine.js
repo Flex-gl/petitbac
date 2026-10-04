@@ -84,6 +84,57 @@ export function playable(question) {
   return Boolean(answer) && new Set(folded).size === 4 && folded.includes(answer);
 }
 
+export function summarize(items = []) {
+  const byCategory = {};
+  const byDifficulty = { facile: 0, moyen: 0, difficile: 0 };
+  let active = 0;
+  for (const item of items) {
+    if (!item || item.deleted || !item.actif) continue;
+    active += 1;
+    byCategory[item.categorie] = (byCategory[item.categorie] || 0) + 1;
+    if (byDifficulty[item.difficulte] != null) byDifficulty[item.difficulte] += 1;
+  }
+  const known = new Set([...CATEGORIES, ...Object.keys(byCategory)]);
+  return {
+    active,
+    total: items.filter(item => item && !item.deleted).length,
+    byCategory,
+    byDifficulty,
+    categories: [...known]
+  };
+}
+
+export function selectIds(pool, { count, category = 'toutes', difficulty = 'toutes', used = [], recent = [], random = Math.random } = {}) {
+  const wanted = Math.min(30, Math.max(1, Number(count) || 10));
+  const eligible = pool.filter(item => {
+    if (!item || item.deleted || !item.actif) return false;
+    if (category && category !== 'toutes' && item.categorie !== category) return false;
+    if (difficulty && difficulty !== 'toutes' && item.difficulte !== difficulty) return false;
+    return true;
+  });
+  const usedSet = new Set(used.map(String));
+  const recentSet = new Set(recent.map(String));
+  const unused = eligible.filter(item => !usedSet.has(String(item.id)));
+  const fresh = unused.filter(item => !recentSet.has(String(item.id)));
+  const source = fresh.length >= wanted ? fresh : unused;
+  if (source.length < wanted) throw new QuizError(`Pas assez de questions pour ce filtre (${source.length} disponibles, ${wanted} demandées).`);
+  const copy = [...source];
+  for (let index = copy.length - 1; index > 0; index -= 1) {
+    const swap = Math.floor(random() * (index + 1));
+    [copy[index], copy[swap]] = [copy[swap], copy[index]];
+  }
+  const picked = [];
+  const seen = new Set();
+  for (const item of copy) {
+    const id = String(item.id);
+    if (seen.has(id)) continue;
+    seen.add(id);
+    picked.push(id);
+    if (picked.length === wanted) break;
+  }
+  return picked;
+}
+
 export function selectQuestions(pool, { count, category = 'toutes', difficulty = 'toutes', used = [], recent = [], random = Math.random } = {}) {
   const wanted = Math.min(30, Math.max(1, Number(count) || 10));
   const eligible = pool.filter(question => {

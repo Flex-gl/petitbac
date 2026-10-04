@@ -1,12 +1,12 @@
 import { createIfAbsent, getJson, redis, updateVersioned } from './_redis.js';
-import { counts, mergeBank } from '../games/quiz/bank.js';
 import { importQuestions, rowsFromCsv } from '../games/quiz/csv.js';
-import { QuizError, abandon, advance, answer, beginQuiz, cleanQuestion, createPlayer, publicView, rematch, rulesFrom, selectQuestions } from '../games/quiz/engine.js';
+import { QuizError, abandon, advance, answer, beginQuiz, cleanQuestion, createPlayer, publicView, rematch, rulesFrom, selectIds, selectQuestions, summarize } from '../games/quiz/engine.js';
 
 const GAME_TTL = 604800;
 const ROOM_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const EXTRAS_KEY = 'arena:quiz:extras';
 const OVERRIDES_KEY = 'arena:quiz:overrides';
+const CATALOG_KEY = 'arena:quiz:catalog';
 
 const RECORD_SCRIPT = `
 if redis.call('SET', KEYS[1], '1', 'NX', 'EX', 31536000) == false then return 0 end
@@ -82,12 +82,57 @@ function forgetPool() {
   poolCachedAt = 0;
 }
 
-async function loadPool() {
+async function loadCatalog() {
   if (poolCache && Date.now() - poolCachedAt < 30000) return poolCache;
-  const [extras, overrides] = await Promise.all([getJson(EXTRAS_KEY), getJson(OVERRIDES_KEY)]);
-  poolCache = mergeBank(Array.isArray(extras) ? extras : [], overrides || {});
+  const [catalog, extras, overrides] = await Promise.all([getJson(CATALOG_KEY), getJson(EXTRAS_KEY), getJson(OVERRIDES_KEY)]);
+  const extraList = Array.isArray(extras) ? extras : [];
+  const patches = overrides && typeof overrides === 'object' ? overrides : {};
+  const source = Array.isArray(catalog?.items) ? catalog.items : [];
+  const items = source.map(item => ({ ...item }));
+  for (const extra of extraList) {
+    if (!extra?.id) continue;
+    items.push({ id: String(extra.id), categorie: extra.categorie, difficulte: extra.difficulte, actif: extra.actif ? 1 : 0, chunk: -1 });
+  }
+  for (const [id, patch] of Object.entries(patches)) {
+    if (!patch || typeof patch !== 'object') continue;
+    const current = items.find(item => String(item.id) === String(id));
+    const next = {
+      id: String(id),
+      categorie: patch.categorie || current?.categorie || '',
+      difficulte: patch.difficulte || current?.difficulte || '',
+      actif: patch.deleted ? 0 : patch.actif === 0 || patch.actif === false ? 0 : (patch.actif ?? current?.actif ?? 0),
+      deleted: Boolean(patch.deleted),
+      chunk: current?.chunk ?? -1
+    };
+    if (current) Object.assign(current, next);
+    else items.push(next);
+  }
+  poolCache = { chunks: Number(catalog?.chunks) || 0, items, extras: extraList, overrides: patches };
   poolCachedAt = Date.now();
   return poolCache;
+}
+
+async function questionsByIds(ids, catalog) {
+  const wanted = new Set(ids.map(String));
+  const numbers = [...new Set(catalog.items.filter(item => wanted.has(String(item.id)) && item.chunk >= 0).map(item => item.chunk))];
+  const chunks = await Promise.all(numbers.map(number => getJson(`arena:quiz:chunk:${number}`)));
+  const byId = new Map();
+  for (const chunk of chunks) {
+    if (!chunk || typeof chunk !== 'object') continue;
+    for (const [id, question] of Object.entries(chunk)) byId.set(String(id), question);
+  }
+  for (const extra of catalog.extras) if (extra?.id) byId.set(String(extra.id), extra);
+  for (const [id, patch] of Object.entries(catalog.overrides)) {
+    if (!patch || typeof patch !== 'object') continue;
+    const current = byId.get(String(id)) || { id: String(id) };
+    byId.set(String(id), { ...current, ...patch, id: String(id) });
+  }
+  return ids.map(id => byId.get(String(id))).filter(Boolean);
+}
+
+async function loadQuestions() {
+  const catalog = await loadCatalog();
+  return questionsByIds(catalog.items.map(item => item.id), catalog);
 }
 
 async function recentIds(players) {
@@ -96,15 +141,19 @@ async function recentIds(players) {
 }
 
 async function drawDeck(game) {
-  const pool = await loadPool();
+  const catalog = await loadCatalog();
+  if (!catalog.items.length) throw new QuizError('La banque de questions n’est pas encore disponible.', 503);
   const recent = await recentIds(game.players.filter(player => !player.abandoned));
-  return selectQuestions(pool, {
+  const ids = selectIds(catalog.items, {
     count: game.rules.questions,
     category: game.rules.category,
     difficulty: game.rules.difficulty,
     used: game.seenIds || [],
     recent
   });
+  const questions = await questionsByIds(ids, catalog);
+  if (questions.length < ids.length) throw new QuizError('Certaines questions sont introuvables.', 503);
+  return selectQuestions(questions, { count: questions.length });
 }
 
 async function remember(game) {
@@ -148,7 +197,8 @@ async function persist(key, game, version) {
 }
 
 export async function quizMeta() {
-  return counts(await loadPool());
+  const catalog = await loadCatalog();
+  return summarize(catalog.items);
 }
 
 export async function createQuiz(input) {
@@ -311,8 +361,8 @@ async function writeOverrides(overrides) {
 }
 
 export async function adminList(input) {
-  const questions = await loadPool();
-  const summary = counts(questions);
+  const questions = await loadQuestions();
+  const summary = summarize(questions);
   const query = String(input.q || '').trim().toLowerCase();
   const category = String(input.categorie || '');
   const difficulty = String(input.difficulte || '');
@@ -349,12 +399,12 @@ async function adminSave(input) {
   const overrides = (await getJson(OVERRIDES_KEY)) || {};
   overrides[clean.id] = { ...clean, deleted: false, origine: 'admin' };
   await writeOverrides(overrides);
-  return { question: overrides[clean.id], summary: counts(await loadPool()) };
+  return { question: overrides[clean.id], summary: summarize((await loadCatalog()).items) };
 }
 
 async function adminToggle(input) {
   const id = String(input.id || '');
-  const questions = await loadPool();
+  const questions = await loadQuestions();
   const current = questions.find(question => question.id === id);
   if (!current) throw new QuizError('Question introuvable.', 404);
   const nextActive = current.actif ? 0 : 1;
@@ -363,18 +413,18 @@ async function adminToggle(input) {
   const overrides = (await getJson(OVERRIDES_KEY)) || {};
   overrides[id] = { ...current, ...clean, deleted: false };
   await writeOverrides(overrides);
-  return { id, actif: clean.actif, summary: counts(await loadPool()) };
+  return { id, actif: clean.actif, summary: summarize((await loadCatalog()).items) };
 }
 
 async function adminRemove(input) {
   const id = String(input.id || '');
-  const questions = await loadPool();
+  const questions = await loadQuestions();
   const current = questions.find(question => question.id === id);
   if (!current) throw new QuizError('Question introuvable.', 404);
   const overrides = (await getJson(OVERRIDES_KEY)) || {};
   overrides[id] = { ...current, deleted: true, actif: 0 };
   await writeOverrides(overrides);
-  return { id, summary: counts(await loadPool()) };
+  return { id, summary: summarize((await loadCatalog()).items) };
 }
 
 async function adminImport(input) {
@@ -383,7 +433,7 @@ async function adminImport(input) {
   const records = rowsFromCsv(csv);
   if (!records.length) throw new QuizError('Aucune ligne à importer.');
   if (records.length > 400) throw new QuizError('Importe au maximum 400 questions à la fois.');
-  const existing = await loadPool();
+  const existing = await loadQuestions();
   const result = importQuestions(existing, records, index => `x${Date.now().toString(36)}${index}`);
   if (result.imported.length) {
     const extras = (await getJson(EXTRAS_KEY)) || [];
@@ -395,7 +445,7 @@ async function adminImport(input) {
     duplicates: result.duplicates,
     inactive: result.inactive,
     errors: result.errors.slice(0, 30),
-    summary: counts(await loadPool())
+    summary: summarize((await loadCatalog()).items)
   };
 }
 
