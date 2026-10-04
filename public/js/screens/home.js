@@ -3,7 +3,7 @@ import { esc, icon, scoreCard, shell } from '../ui.js';
 const CATALOG = [
   { id: 'petitbac', lane: 'letters', mark: 'A', art: 'letters', badge: 'Lettres', title: 'Petit Bac', text: 'Dix catégories', status: 'Prêt' },
   { id: 'inter', lane: 'cards', mark: 'I', art: 'cards', badge: 'Cartes', title: 'INTER', text: 'Enseigne et valeur', status: 'Prêt' },
-  { id: 'next', lane: 'soon', mark: '+', art: 'soon', badge: 'À venir', title: 'Prochain jeu', text: 'Place réservée', status: 'Bientôt' }
+  { id: 'quiz', lane: 'quiz', mark: 'Q', art: 'quiz', badge: 'Questions', title: 'Quiz Battle', text: 'Quatre réponses', status: 'Prêt' }
 ];
 
 function matches(query, ...parts) {
@@ -12,24 +12,25 @@ function matches(query, ...parts) {
   return parts.join(' ').toLowerCase().includes(q);
 }
 
-export function hubScreen({ online = true, canInstall = false, savedRoom = null, savedInter = null, profile = null, interProfile = null, name = '', filter = 'all', query = '' }) {
+export function hubScreen({ online = true, canInstall = false, savedRoom = null, savedInter = null, savedQuiz = null, profile = null, interProfile = null, quizProfile = null, name = '', filter = 'all', query = '' }) {
   const you = name.trim() ? esc(name.trim().slice(0, 2).toUpperCase()) : 'TO';
   const points = Number(profile?.totalScore || 0);
   const wins = Number(interProfile?.wins || 0);
+  const quizWins = Number(quizProfile?.wins || 0);
   const shown = CATALOG.filter(game => (filter === 'all' || game.lane === filter) && matches(query, game.title, game.text, game.badge));
   const games = shown.map(game => {
     const body = `<span class="nx-lib-top"><span class="nx-cover nx-art-${game.art}">${game.mark}</span><span class="nx-badge">${game.badge}</span></span><span class="nx-lib-copy"><strong>${game.title}</strong><span>${game.text}</span></span><span class="nx-lib-foot"><span class="nx-dotline">${game.status}</span><span class="nx-go" aria-hidden="true">${icon('play', 14)}</span></span>`;
-    return game.id === 'next'
-      ? `<article class="nx-lib-card is-soon" data-hub-item="${esc(`${game.title} ${game.text} ${game.badge}`)}">${body}</article>`
-      : `<button type="button" class="nx-lib-card" data-action="open-game" data-game="${game.id}" data-hub-item="${esc(`${game.title} ${game.text} ${game.badge}`)}">${body}</button>`;
+    return `<button type="button" class="nx-lib-card" data-action="open-game" data-game="${game.id}" data-hub-item="${esc(`${game.title} ${game.text} ${game.badge}`)}">${body}</button>`;
   }).join('') || `<p class="nx-empty">Aucun jeu pour cette recherche.</p>`;
-  const filters = [['all', 'Tous'], ['letters', 'Lettres'], ['cards', 'Cartes']]
+  const filters = [['all', 'Tous'], ['letters', 'Lettres'], ['cards', 'Cartes'], ['quiz', 'Questions']]
     .map(([id, label]) => `<button type="button" class="nx-filter" data-action="hub-filter" data-filter="${id}" aria-pressed="${filter === id}">${label}</button>`).join('');
   const jumps = [
     savedRoom ? { action: 'resume', art: 'letters', tag: 'Reprise', title: 'Petit Bac', meta: `Salle ${savedRoom.code}`, when: 'En cours' } : null,
     savedInter ? { action: 'ix-resume', art: 'cards', tag: 'Reprise', title: 'INTER', meta: `Salle ${savedInter.code}`, when: 'En cours' } : null,
+    savedQuiz ? { action: 'qz-resume', art: 'quiz', tag: 'Reprise', title: 'Quiz Battle', meta: `Salon ${savedQuiz.code}`, when: 'En cours' } : null,
     { action: 'open-game', game: 'petitbac', art: 'letters', tag: 'Lettres', title: 'Petit Bac', meta: 'Entre amis', when: 'Prêt' },
     { action: 'open-game', game: 'inter', art: 'cards', tag: 'Cartes', title: 'INTER', meta: 'Face à face', when: 'Prêt' },
+    { action: 'open-game', game: 'quiz', art: 'quiz', tag: 'Questions', title: 'Quiz Battle', meta: 'Quatre réponses', when: 'Prêt' },
     { action: 'ix-solo', art: 'poseidon', tag: 'IA', title: 'Poséidon', meta: '3 niveaux', when: 'Seul' }
   ].filter(item => item && matches(query, item.title, item.meta, item.tag));
   const shelf = jumps.map(item => `<button type="button" class="nx-jump" data-action="${item.action}" ${item.game ? `data-game="${item.game}"` : ''} data-hub-item="${esc(`${item.title} ${item.meta} ${item.tag}`)}"><span class="nx-jump-art nx-art-${item.art}"><span class="nx-jump-tag">${item.tag}</span><span class="nx-jump-play" aria-hidden="true">${icon('play', 16)}</span></span><span class="nx-jump-copy"><strong>${esc(item.title)}</strong><span><em>${esc(item.meta)}</em><em>${item.when}</em></span></span></button>`).join('');
@@ -37,7 +38,7 @@ export function hubScreen({ online = true, canInstall = false, savedRoom = null,
   const content = `<div class="nx">
     <section class="nx-ribbon" aria-label="État de l’arène">
       <span class="nx-pill"><i class="nx-ping ${online ? '' : 'is-off'}"></i><b>${online ? 'Connecté' : 'Hors ligne'}</b></span>
-      <span class="nx-pill"><b>2 jeux</b><span>ouverts</span></span>
+      <span class="nx-pill"><b>3 jeux</b><span>ouverts</span></span>
       <span class="nx-pill nx-pill-cyan">${icon('spark', 14)}<b>IA</b><span>3 niveaux</span></span>
       ${install}
     </section>
@@ -63,11 +64,11 @@ export function hubScreen({ online = true, canInstall = false, savedRoom = null,
     <section class="nx-banner">
       <div class="nx-banner-top">
         <span class="nx-banner-mark">${icon('trophy', 22)}</span>
-        <div><span class="nx-kicker">Classements</span><h2>Deux tableaux</h2></div>
+        <div><span class="nx-kicker">Classements</span><h2>Trois tableaux</h2></div>
         <span class="nx-count">${points} pts</span>
       </div>
       <div class="nx-banner-foot">
-        <span>${icon('spark', 14)} ${points} pts · ${wins} victoire${wins === 1 ? '' : 's'}</span>
+        <span>${icon('spark', 14)} ${points} pts · ${wins} cartes · ${quizWins} quiz</span>
         <button type="button" class="nx-join" data-action="rankings">Ouvrir</button>
       </div>
     </section>
@@ -76,12 +77,12 @@ export function hubScreen({ online = true, canInstall = false, savedRoom = null,
       <div class="nx-shelf">${shelf}</div>
     </section>
     <section class="nx-block">
-      <div class="nx-head"><h2>Bibliothèque</h2><span class="nx-count-badge">2 jeux</span></div>
+      <div class="nx-head"><h2>Bibliothèque</h2><span class="nx-count-badge">3 jeux</span></div>
       <div class="nx-filters" role="toolbar" aria-label="Filtrer les jeux">${filters}</div>
       <div class="nx-grid">${games}</div>
       <div class="nx-storage">
-        <div><span>${icon('spark', 14)} Arène</span><b>2 / 3 places</b></div>
-        <div class="nx-bar" aria-hidden="true"><i style="width:66%"></i></div>
+        <div><span>${icon('spark', 14)} Arène</span><b>3 / 3 places</b></div>
+        <div class="nx-bar" aria-hidden="true"><i style="width:100%"></i></div>
       </div>
     </section>
   </div>`;
@@ -114,19 +115,27 @@ function boardCards(top, scoresState, mode) {
 
 export function rankingsScreen(top = [], profile = null, mode = 'petitbac') {
   const inter = mode === 'inter';
+  const quiz = mode === 'quiz';
   const rows = top.length ? top.map((player, index) => {
-    const detail = inter
-      ? `${Number(player.wins || 0)} victoire${Number(player.wins) === 1 ? '' : 's'} · ${Number(player.games || 0)} parties · ${Number(player.penalties || 0)} cartes ramassées`
-      : `${Number(player.wins || 0)} victoire${player.wins === 1 ? '' : 's'} · ${Number(player.games || 0)} parties · record ${Number(player.bestScore || 0)} pts`;
-    const points = inter ? Number(player.wins || 0) : Number(player.totalScore || 0);
+    const detail = quiz
+      ? `${Number(player.wins || 0)} victoire${Number(player.wins) === 1 ? '' : 's'} · ${Number(player.games || 0)} parties · record ${Number(player.bestScore || 0)} pts`
+      : inter
+        ? `${Number(player.wins || 0)} victoire${Number(player.wins) === 1 ? '' : 's'} · ${Number(player.games || 0)} parties · ${Number(player.penalties || 0)} cartes ramassées`
+        : `${Number(player.wins || 0)} victoire${player.wins === 1 ? '' : 's'} · ${Number(player.games || 0)} parties · record ${Number(player.bestScore || 0)} pts`;
+    const points = inter || quiz ? Number(player.wins || 0) : Number(player.totalScore || 0);
     return `<div class="rank-row"><span class="rank-medal">${index + 1}</span><div><div class="rank-player">${esc(player.name)}</div><div class="rank-stats">${detail}</div></div><span class="rank-points">${points}</span></div>`;
-  }).join('') : `<div class="empty-state">${inter ? 'Aucune partie INTER terminée pour l’instant.' : 'Aucune partie terminée pour l’instant. Le classement reste enregistré après chaque salon.'}</div>`;
+  }).join('') : `<div class="empty-state">${quiz ? 'Aucune partie Quiz Battle terminée pour l’instant.' : inter ? 'Aucune partie INTER terminée pour l’instant.' : 'Aucune partie terminée pour l’instant. Le classement reste enregistré après chaque salon.'}</div>`;
+  const quizRate = profile && (Number(profile.correct || 0) + Number(profile.wrong || 0) + Number(profile.blank || 0))
+    ? Math.round((Number(profile.correct || 0) / (Number(profile.correct || 0) + Number(profile.wrong || 0) + Number(profile.blank || 0))) * 100)
+    : 0;
   const own = profile
-    ? inter
-      ? `<section class="surface stats-card" aria-label="Tes statistiques INTER"><div><div class="stat-num">${Number(profile.wins || 0)}</div><div class="stat-label">Victoires</div></div><div><div class="stat-num">${Number(profile.games || 0)}</div><div class="stat-label">Parties</div></div><div><div class="stat-num">${Number(profile.penalties || 0)}</div><div class="stat-label">Cartes ramassées</div></div></section>`
-      : `<section class="surface stats-card" aria-label="Tes statistiques"><div><div class="stat-num">${Number(profile.totalScore || 0)}</div><div class="stat-label">Points cumulés</div></div><div><div class="stat-num">${Number(profile.games || 0)}</div><div class="stat-label">Parties jouées</div></div><div><div class="stat-num">${Number(profile.wins || 0)}</div><div class="stat-label">Victoires</div></div></section>`
+    ? quiz
+      ? `<section class="surface stats-card is-quiz" aria-label="Tes statistiques Quiz Battle"><div><div class="stat-num">${Number(profile.wins || 0)}</div><div class="stat-label">Victoires</div></div><div><div class="stat-num">${Number(profile.games || 0)}</div><div class="stat-label">Parties</div></div><div><div class="stat-num">${Number(profile.bestScore || 0)}</div><div class="stat-label">Record</div></div><div><div class="stat-num">${quizRate}%</div><div class="stat-label">Réussite</div></div></section>`
+      : inter
+        ? `<section class="surface stats-card" aria-label="Tes statistiques INTER"><div><div class="stat-num">${Number(profile.wins || 0)}</div><div class="stat-label">Victoires</div></div><div><div class="stat-num">${Number(profile.games || 0)}</div><div class="stat-label">Parties</div></div><div><div class="stat-num">${Number(profile.penalties || 0)}</div><div class="stat-label">Cartes ramassées</div></div></section>`
+        : `<section class="surface stats-card" aria-label="Tes statistiques"><div><div class="stat-num">${Number(profile.totalScore || 0)}</div><div class="stat-label">Points cumulés</div></div><div><div class="stat-num">${Number(profile.games || 0)}</div><div class="stat-label">Parties jouées</div></div><div><div class="stat-num">${Number(profile.wins || 0)}</div><div class="stat-label">Victoires</div></div></section>`
     : '';
-  const title = inter ? 'Classement INTER' : 'Classement global';
-  const subtitle = inter ? 'Les victoires de toutes les parties de cartes' : 'Les points cumulés de toutes les parties';
+  const title = quiz ? 'Classement Quiz Battle' : inter ? 'Classement INTER' : 'Classement global';
+  const subtitle = quiz ? 'Les victoires de toutes les parties de questions' : inter ? 'Les victoires de toutes les parties de cartes' : 'Les points cumulés de toutes les parties';
   return shell(`<div class="page-head"><div><div class="eyebrow">Hall of fame</div><h1>${title}</h1><p>${subtitle}</p></div></div>${own}<div class="rank-list">${rows}</div><p class="footer-note">Poséidon - Del'Hiver</p>`, { active: 'rank' });
 }

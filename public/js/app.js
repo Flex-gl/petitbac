@@ -5,6 +5,7 @@ import { cardsScreen, hubScreen, lettersScreen, rankingsScreen } from './screens
 import { armMusic, setMusic } from './inter-audio.js';
 import { celebrate as celebrateVictory, clearCelebration } from './fireworks.js';
 import { attachInter, followInter, handleInterAction, interPathCode, leaveInter, loadInterSession, openInterRules, renderInter, stopInter, submitInterCreate, submitInterJoin, submitInterSolo } from './inter-session.js';
+import { attachQuiz, followQuiz, handleQuizAction, leaveQuiz, loadQuizSession, openQuizRules, quizPathCode, renderQuiz, stopQuiz, submitQuizCreate, submitQuizEdit, submitQuizFilter, submitQuizImport, submitQuizJoin, submitQuizKey } from './quiz-session.js';
 
 document.documentElement.dataset.appVersion = APP_VERSION;
 window.dispatchEvent(new CustomEvent('petitbac-version', { detail: APP_VERSION }));
@@ -36,6 +37,8 @@ const state = {
   page: 'home', name: localStorage.getItem(nameStorage) || '', game: null, code: '',
   top: loadStoredRanks(), profile: readJson(profileKey),
   interTop: loadList('petitbac.inter.leaderboard'), interProfile: readJson('petitbac.inter.profile'),
+  quizTop: loadList('petitbac.quiz.leaderboard'), quizProfile: readJson('petitbac.quiz.profile'),
+  quizGame: null, savedQuiz: null, quizMeta: null,
   scoresState: loadStoredRanks().length ? 'ready' : 'loading',
   savedRoom: null, gameMode: 'petitbac', interGame: null, savedInter: null, hubFilter: 'all', hubQuery: '',
   online: navigator.onLine, deferredPrompt: null, sheet: null, pollTimer: null,
@@ -74,7 +77,7 @@ function roomSignature(game) {
 
 async function render() {
   if (state.page === 'home') {
-    root.innerHTML = hubScreen({ online: state.online, canInstall: Boolean(state.deferredPrompt) || !matchMedia('(display-mode: standalone)').matches, savedRoom: state.savedRoom, savedInter: state.savedInter, profile: state.profile, interProfile: state.interProfile, name: state.name, filter: state.hubFilter, query: state.hubQuery });
+    root.innerHTML = hubScreen({ online: state.online, canInstall: Boolean(state.deferredPrompt) || !matchMedia('(display-mode: standalone)').matches, savedRoom: state.savedRoom, savedInter: state.savedInter, savedQuiz: state.savedQuiz, profile: state.profile, interProfile: state.interProfile, quizProfile: state.quizProfile, name: state.name, filter: state.hubFilter, query: state.hubQuery });
   } else if (state.page === 'letters') {
     root.innerHTML = lettersScreen({ top: state.top, scoresState: state.scoresState, online: state.online, profile: state.profile, savedRoom: state.savedRoom });
   } else if (state.page === 'cards') {
@@ -84,10 +87,13 @@ async function render() {
     const { setupScreen } = await import('./screens/setup.js');
     root.innerHTML = setupScreen(state.name);
   } else if (state.page === 'rankings') {
-    const interBoard = state.gameMode === 'inter';
-    root.innerHTML = rankingsScreen(interBoard ? state.interTop : state.top, interBoard ? state.interProfile : state.profile, state.gameMode);
+    const board = state.gameMode === 'inter' ? state.interTop : state.gameMode === 'quiz' ? state.quizTop : state.top;
+    const profile = state.gameMode === 'inter' ? state.interProfile : state.gameMode === 'quiz' ? state.quizProfile : state.profile;
+    root.innerHTML = rankingsScreen(board, profile, state.gameMode);
   } else if (state.page === 'invite') {
     root.innerHTML = inviteScreen(state.code);
+  } else if (String(state.page).startsWith('quiz')) {
+    await renderQuiz(root);
   } else if (String(state.page).startsWith('inter')) {
     await renderInter(root);
   } else if (state.page === 'room' && state.game) {
@@ -108,7 +114,8 @@ async function render() {
     if (main) main.insertAdjacentHTML('afterbegin', `<div class="error-panel" role="alert">${esc(state.roomError)}</div>`);
     state.roomError = '';
   }
-  if (!String(state.page).startsWith('inter') && !(state.page === 'room' && state.game?.status === 'finished')) clearCelebration();
+  const quizFinale = state.page === 'quiz-room' && state.quizGame?.status === 'finished';
+  if (!String(state.page).startsWith('inter') && !(state.page === 'room' && state.game?.status === 'finished') && !quizFinale) clearCelebration();
   updateTimers();
   updateChatIfOpen();
 }
@@ -152,8 +159,8 @@ function updateTimers() {
 async function refreshScores(force = false) {
   if (!state.online || (!force && Date.now() - state.lastRankRefresh < 30000)) return;
   try {
-    const [letters, cards] = await Promise.allSettled([api.scores(playerId), api.scores(playerId, { game: 'inter' })]);
-    if (letters.status === 'rejected' && cards.status === 'rejected') throw letters.reason;
+    const [letters, cards, quiz] = await Promise.allSettled([api.scores(playerId), api.scores(playerId, { game: 'inter' }), api.scores(playerId, { game: 'quiz' })]);
+    if (letters.status === 'rejected' && cards.status === 'rejected' && quiz.status === 'rejected') throw letters.reason;
     if (letters.status === 'fulfilled') {
       state.top = letters.value.top || [];
       state.profile = letters.value.profile || state.profile;
@@ -166,13 +173,19 @@ async function refreshScores(force = false) {
       localStorage.setItem('petitbac.inter.leaderboard', JSON.stringify(state.interTop));
       if (state.interProfile) localStorage.setItem('petitbac.inter.profile', JSON.stringify(state.interProfile));
     }
+    if (quiz.status === 'fulfilled') {
+      state.quizTop = quiz.value.top || [];
+      state.quizProfile = quiz.value.profile || state.quizProfile;
+      localStorage.setItem('petitbac.quiz.leaderboard', JSON.stringify(state.quizTop));
+      if (state.quizProfile) localStorage.setItem('petitbac.quiz.profile', JSON.stringify(state.quizProfile));
+    }
     state.scoresState = 'ready';
     state.lastRankRefresh = Date.now();
-    if (['home', 'letters', 'cards', 'rankings'].includes(state.page)) await render();
+    if (['home', 'letters', 'cards', 'quiz-door', 'rankings'].includes(state.page)) await render();
   } catch {
     state.scoresState = state.top.length ? 'ready' : 'error';
     state.online = navigator.onLine;
-    if (['home', 'letters', 'cards', 'rankings'].includes(state.page)) await render();
+    if (['home', 'letters', 'cards', 'quiz-door', 'rankings'].includes(state.page)) await render();
   }
 }
 
@@ -423,7 +436,7 @@ function openRules() {
 function openHubChooser(kind) {
   const rankings = kind === 'rankings';
   const action = rankings ? 'rank-game' : 'rules-game';
-  const inner = `<p class="sheet-copy">Chaque jeu garde ${rankings ? 'son classement' : 'ses règles'}.</p><div class="home-actions"><button class="btn btn-secondary" data-action="${action}" data-game="petitbac">Petit Bac</button><button class="btn btn-secondary" data-action="${action}" data-game="inter">INTER</button></div>`;
+  const inner = `<p class="sheet-copy">Chaque jeu garde ${rankings ? 'son classement' : 'ses règles'}.</p><div class="home-actions"><button class="btn btn-secondary" data-action="${action}" data-game="petitbac">Petit Bac</button><button class="btn btn-secondary" data-action="${action}" data-game="inter">INTER</button><button class="btn btn-secondary" data-action="${action}" data-game="quiz">Quiz Battle</button></div>`;
   state.sheet?.close?.();
   const sheet = showSheet(rankings ? 'Quel classement ?' : 'Quelles règles ?', inner, () => { if (state.sheet === sheet) state.sheet = null; });
   state.sheet = sheet;
@@ -522,6 +535,12 @@ async function handleSubmit(event) {
   if (form.id === 'inter-create') return submitInterCreate(form);
   if (form.id === 'inter-join') return submitInterJoin(form);
   if (form.id === 'inter-solo') return submitInterSolo(form);
+  if (form.id === 'quiz-create') return submitQuizCreate(form);
+  if (form.id === 'quiz-join') return submitQuizJoin(form);
+  if (form.id === 'quiz-admin-key') return submitQuizKey(form);
+  if (form.id === 'quiz-filter') return submitQuizFilter(form);
+  if (form.id === 'quiz-edit') return submitQuizEdit(form);
+  if (form.id === 'quiz-import') return submitQuizImport(form);
   if (form.id === 'answer-form') return submitAnswers(form);
   if (form.id === 'chat-form') {
     const input = form.elements.message;
@@ -547,14 +566,15 @@ async function handleAction(button) {
   }
   if (['home', 'create', 'join', 'rankings', 'rules', 'back', 'install'].includes(action)) haptic();
   if (action === 'hub-filter') {
-    state.hubFilter = ['letters', 'cards'].includes(button.dataset.filter) ? button.dataset.filter : 'all';
+    state.hubFilter = ['letters', 'cards', 'quiz'].includes(button.dataset.filter) ? button.dataset.filter : 'all';
     const typed = document.querySelector('[data-hub-search]');
     if (typed) state.hubQuery = typed.value;
     return render();
   }
   if (action === 'open-game') {
-    state.gameMode = button.dataset.game === 'inter' ? 'inter' : 'petitbac';
-    state.page = state.gameMode === 'inter' ? 'cards' : 'letters';
+    const picked = button.dataset.game;
+    state.gameMode = picked === 'inter' ? 'inter' : picked === 'quiz' ? 'quiz' : 'petitbac';
+    state.page = state.gameMode === 'inter' ? 'cards' : state.gameMode === 'quiz' ? 'quiz-door' : 'letters';
     return render();
   }
   if (action === 'ix-solo') { state.page = 'inter-solo'; state.gameMode = 'inter'; return render(); }
@@ -569,9 +589,11 @@ async function handleAction(button) {
     return followInter(session.code);
   }
   if (String(action).startsWith('ix-')) return handleInterAction(button);
+  if (String(action).startsWith('qz-')) return handleQuizAction(button);
   if (action === 'home') {
     if (state.page === 'inter-room') return leaveInter(true);
-    if (String(state.page).startsWith('inter')) { state.page = 'home'; return render(); }
+    if (state.page === 'quiz-room') return leaveQuiz(true);
+    if (String(state.page).startsWith('inter') || String(state.page).startsWith('quiz')) { state.page = 'home'; return render(); }
     return goHome(state.page === 'room');
   }
   if (action === 'leave') return goHome(true, 'letters');
@@ -590,21 +612,27 @@ async function handleAction(button) {
   if (action === 'join') return openJoinSheet(inviteCode());
   if (action === 'rank-game' || action === 'rules-game') {
     state.sheet?.close?.();
-    state.gameMode = button.dataset.game === 'inter' ? 'inter' : 'petitbac';
-    if (action === 'rules-game') return state.gameMode === 'inter' ? openInterRules() : openRules();
+    const picked = button.dataset.game;
+    state.gameMode = picked === 'inter' ? 'inter' : picked === 'quiz' ? 'quiz' : 'petitbac';
+    if (action === 'rules-game') return state.gameMode === 'inter' ? openInterRules() : state.gameMode === 'quiz' ? openQuizRules() : openRules();
     if (state.page === 'room') { clearTimeout(state.pollTimer); closeSse(); }
+    if (state.page === 'quiz-room') stopQuiz();
+    if (state.page === 'inter-room') stopInter();
     state.page = 'rankings';
     await refreshScores(true);
     return render();
   }
   if (action === 'rules') {
     if (state.page === 'home') return openHubChooser('rules');
+    if (state.gameMode === 'quiz' || String(state.page).startsWith('quiz')) return openQuizRules();
     if (state.gameMode === 'inter' || String(state.page).startsWith('inter')) return openInterRules();
     return openRules();
   }
   if (action === 'rankings') {
     if (state.page === 'home') return openHubChooser('rankings');
     if (state.page === 'room') { clearTimeout(state.pollTimer); closeSse(); }
+    if (state.page === 'quiz-room') stopQuiz();
+    if (state.page === 'inter-room') stopInter();
     state.page = 'rankings';
     await refreshScores(true);
     return render();
@@ -614,12 +642,18 @@ async function handleAction(button) {
       state.page = 'cards';
       return render();
     }
+    if (state.page === 'quiz-setup' || state.page === 'quiz-invite' || state.page === 'quiz-admin') {
+      state.page = 'quiz-door';
+      return render();
+    }
     if (String(state.page).startsWith('inter')) return leaveInter(state.page === 'inter-room');
+    if (state.page === 'quiz-room') return leaveQuiz(true);
+    if (state.page === 'quiz-door') { state.page = 'home'; return render(); }
     if (state.page === 'letters' || state.page === 'cards') { state.page = 'home'; return render(); }
     if (state.page === 'setup' || state.page === 'rankings' || state.page === 'invite') {
       const session = loadSession();
       if (state.page === 'rankings' && session?.code && !session.paused) return followInvite(session.code);
-      state.page = state.page === 'setup' ? 'letters' : state.gameMode === 'inter' ? 'cards' : 'home';
+      state.page = state.page === 'setup' ? 'letters' : state.gameMode === 'inter' ? 'cards' : state.gameMode === 'quiz' ? 'quiz-door' : 'home';
       state.savedRoom = session?.code ? session : null;
       history.replaceState(null, '', '/');
       return render();
@@ -697,6 +731,7 @@ addEventListener('appinstalled', () => { state.deferredPrompt = null; if (state.
 setInterval(() => refreshScores(true), 30000);
 setInterval(updateTimers, 250);
 attachInter({ state, playerId, render });
+attachQuiz({ state, playerId, render });
 armMusic();
 splash();
 setTimeout(async () => {
@@ -714,12 +749,18 @@ setTimeout(async () => {
     else setTimeout(prefetch, 1400);
   }
   refreshScores(true);
+  const quizCode = quizPathCode();
   const interCode = interPathCode();
   const code = inviteCode();
   const session = loadSession();
   const interSession = loadInterSession();
+  const quizSession = loadQuizSession();
   const pausedHere = (stored, current) => stored?.code && stored.code === current && stored.paused;
-  if (interCode && pausedHere(interSession, interCode)) {
+  if (quizCode && pausedHere(quizSession, quizCode)) {
+    history.replaceState(null, '', '/');
+    state.savedQuiz = quizSession;
+    if (state.page === 'home') render();
+  } else if (interCode && pausedHere(interSession, interCode)) {
     history.replaceState(null, '', '/');
     state.savedInter = interSession;
     if (state.page === 'home') render();
@@ -727,15 +768,22 @@ setTimeout(async () => {
     history.replaceState(null, '', '/');
     state.savedRoom = session;
     if (state.page === 'home') render();
-  } else if (interCode) followInter(interCode);
+  } else if (quizCode) followQuiz(quizCode);
+  else if (interCode) followInter(interCode);
   else if (code.length === 6) followInvite(code);
   else {
-    const interFirst = interSession?.code && !interSession.paused && (!session?.code || session.paused || interSession.savedAt > (session.savedAt || 0));
-    if (interFirst) followInter(interSession.code);
-    else if (session?.code && !session.paused) followInvite(session.code);
+    const resumable = [
+      quizSession?.code && !quizSession.paused ? { kind: 'quiz', at: quizSession.savedAt || 0, code: quizSession.code } : null,
+      interSession?.code && !interSession.paused ? { kind: 'inter', at: interSession.savedAt || 0, code: interSession.code } : null,
+      session?.code && !session.paused ? { kind: 'letters', at: session.savedAt || 0, code: session.code } : null
+    ].filter(Boolean).sort((a, b) => b.at - a.at)[0];
+    if (resumable?.kind === 'quiz') followQuiz(resumable.code);
+    else if (resumable?.kind === 'inter') followInter(resumable.code);
+    else if (resumable?.kind === 'letters') followInvite(resumable.code);
     else {
       if (session?.code) state.savedRoom = session;
       if (interSession?.code) state.savedInter = interSession;
+      if (quizSession?.code) state.savedQuiz = quizSession;
       if (state.page === 'home') render();
     }
   }

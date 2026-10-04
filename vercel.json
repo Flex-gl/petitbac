@@ -1,7 +1,8 @@
 {
   "rewrites": [
     { "source": "/s/:code", "destination": "/index.html" },
-    { "source": "/i/:code", "destination": "/index.html" }
+    { "source": "/i/:code", "destination": "/index.html" },
+    { "source": "/q/:code", "destination": "/index.html" }
   ],
   "headers": [
     {

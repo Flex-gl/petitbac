@@ -1,0 +1,46 @@
+.stats-card.is-quiz { grid-template-columns:repeat(2, 1fr); }
+.qz { display:flex; flex-direction:column; gap:16px; width:min(100%, 640px); margin:0 auto; }
+.qz-hero .display { background:linear-gradient(100deg, var(--accent), var(--cyan)); -webkit-background-clip:text; background-clip:text; color:transparent; }
+.qz-top { display:flex; justify-content:space-between; gap:12px; color:var(--cyan); font:600 13px/1 'Space Grotesk',sans-serif; letter-spacing:.04em; text-transform:uppercase; }
+.qz-prompt { margin:0; font:700 clamp(26px, 6vw, 40px)/1.15 Sora,'Space Grotesk',sans-serif; letter-spacing:-.03em; }
+.qz-timer { display:flex; align-items:baseline; justify-content:center; gap:8px; margin:4px 0; color:var(--ink); }
+.qz-timer b { font:700 42px/1 Sora,'Space Grotesk',sans-serif; font-variant-numeric:tabular-nums; }
+.qz-timer span { color:var(--muted); font-size:14px; }
+.qz-timer.is-low b { color:#ff8f8f; }
+.qz-options { display:flex; flex-direction:column; gap:10px; }
+.qz-option { display:flex; align-items:center; gap:12px; width:100%; min-height:64px; padding:12px 14px; border:1px solid color-mix(in srgb, var(--cyan) 35%, transparent); border-radius:16px; background:var(--panel); color:var(--ink); text-align:left; cursor:pointer; }
+.qz-option:disabled { cursor:default; }
+.qz-letter { display:grid; place-items:center; width:36px; height:36px; flex:none; border-radius:12px; background:color-mix(in srgb, var(--cyan) 18%, transparent); color:var(--cyan); font:700 16px/1 'Space Grotesk',sans-serif; }
+.qz-option span:last-child { flex:1; min-width:0; }
+.qz-option.is-mine { border-color:var(--accent); box-shadow:inset 0 0 0 1px var(--accent); }
+.qz-option.is-good { border-color:var(--success); background:color-mix(in srgb, var(--success) 16%, var(--panel)); }
+.qz-option.is-good .qz-letter { background:var(--success); color:#06281a; }
+.qz-option.is-bad { border-color:#ff8f8f; }
+.qz-result, .qz-board { display:flex; flex-direction:column; gap:6px; padding:14px; border-radius:18px; background:var(--panel-hi); }
+.qz-kicker { margin:0; color:var(--cyan); font:700 12px/1 'Space Grotesk',sans-serif; letter-spacing:.12em; text-transform:uppercase; }
+.qz-result h2, .qz-winner { margin:0; font:700 28px/1.15 Sora,'Space Grotesk',sans-serif; }
+.qz-gain { margin:0; color:var(--success); font:700 20px/1 'Space Grotesk',sans-serif; }
+.qz-rank { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:8px; }
+.qz-rank li { display:grid; grid-template-columns:28px 1fr auto; gap:10px; align-items:center; }
+.qz-rank b { color:var(--cyan); font:700 14px/1 'Space Grotesk',sans-serif; }
+.qz-rank-final li { align-items:start; }
+.qz-rank-final em { display:block; margin-top:3px; color:var(--muted); font-style:normal; font-size:12px; }
+.qz-people { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:8px; }
+.qz-people li { display:flex; justify-content:space-between; gap:12px; padding:12px 14px; border-radius:14px; background:var(--panel); }
+.qz-people em { color:var(--cyan); font-style:normal; font-size:13px; }
+.qz-final { text-align:left; }
+.qz-counts { list-style:none; display:grid; grid-template-columns:1fr 1fr; gap:8px; margin:0; padding:0; }
+.qz-counts li { display:flex; justify-content:space-between; gap:8px; padding:10px 12px; border-radius:12px; background:var(--panel); }
+.qz-admin-list { display:flex; flex-direction:column; gap:10px; }
+.qz-admin-card { display:flex; flex-direction:column; gap:8px; padding:12px; border-radius:16px; background:var(--panel); }
+.qz-admin-card header { display:flex; gap:8px; align-items:center; color:var(--muted); font-size:12px; }
+.qz-admin-card header b { color:var(--cyan); }
+.qz-admin-card p { margin:0; }
+.qz-admin-actions { display:flex; flex-wrap:wrap; gap:8px; }
+.qz-form .segmented { flex-wrap:wrap; }
+.qz-form .segment { flex:1 1 72px; }
+.qz-form textarea.text-input { min-height:88px; resize:vertical; }
+.btn-sm { min-height:40px; padding:8px 12px; }
+@media (prefers-reduced-motion: reduce) {
+  .qz-option { transition:none; }
+}

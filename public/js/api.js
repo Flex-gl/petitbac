@@ -25,6 +25,16 @@ export const api = {
   interAction(data) {
     return request('/api/inter', { method: 'POST', body: JSON.stringify(data) });
   },
+  quiz(code, playerId, signal) {
+    const query = new URLSearchParams({ code, playerId });
+    return request(`/api/quiz?${query}`, { signal });
+  },
+  quizMeta(signal) {
+    return request('/api/quiz?meta=1', { signal });
+  },
+  quizAction(data) {
+    return request('/api/quiz', { method: 'POST', body: JSON.stringify(data) });
+  },
   scores(playerId, options = {}) {
     const params = new URLSearchParams();
     if (playerId) params.set('playerId', playerId);

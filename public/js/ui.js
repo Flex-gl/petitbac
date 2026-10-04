@@ -44,7 +44,7 @@ export function shell(content, options = {}) {
   const theme = `<button type="button" class="icon-btn theme-toggle" data-action="theme" aria-label="Changer le thème"><span class="theme-icon theme-icon-sun">${icon('sun', 18)}</span><span class="theme-icon theme-icon-moon">${icon('moon', 18)}</span></button>`;
   const music = `<button type="button" class="icon-btn music-toggle" data-action="music" aria-label="Musique de fond"><span class="music-icon music-icon-on">${icon('music', 18)}</span><span class="music-icon music-icon-off">${icon('musicOff', 18)}</span></button>`;
   const header = deck
-    ? `<header class="nx-top"><div class="nx-top-row"><a class="nx-id" href="/" data-action="home" aria-label="Poséidon - Del'Hiver, accueil"><span class="nx-avatar">P<i></i></span><span class="nx-lvl">Arène</span><span class="nx-title">Poséidon</span></a><div class="top-tools">${music}${theme}</div></div><label class="nx-search">${icon('search', 18)}<input data-hub-search type="search" placeholder="Petit Bac, INTER, Poséidon…" value="${esc(options.query || '')}" aria-label="Chercher un jeu"></label></header>`
+    ? `<header class="nx-top"><div class="nx-top-row"><a class="nx-id" href="/" data-action="home" aria-label="Poséidon - Del'Hiver, accueil"><span class="nx-avatar">P<i></i></span><span class="nx-lvl">Arène</span><span class="nx-title">Poséidon</span></a><div class="top-tools">${music}${theme}</div></div><label class="nx-search">${icon('search', 18)}<input data-hub-search type="search" placeholder="Petit Bac, INTER, Quiz…" value="${esc(options.query || '')}" aria-label="Chercher un jeu"></label></header>`
     : `<header class="topbar"><a class="brand" href="/" data-action="home" aria-label="Poséidon - Del'Hiver, accueil"><span class="brand-mark">P</span><span class="brand-name">Poséidon<span class="brand-tag">Del'Hiver</span></span></a><div class="top-tools">${music}${theme}${options.right || ''}</div></header>`;
   return `<div class="app-shell ${options.wide ? 'wide' : ''} ${deck ? 'is-deck' : ''}">${header}<main id="main" class="${enter}">${content}</main>${nav}</div><div class="toast" role="status" aria-live="polite"></div>`;
 }
@@ -56,11 +56,14 @@ export function navIcon(name) { return icon(name, 19); }
 export function scoreCard(player, index, mode = 'petitbac') {
   const place = String(index + 1).padStart(2, '0');
   const inter = mode === 'inter';
-  const score = inter ? Number(player.wins || 0) : Number(player.totalScore || 0);
-  const unit = inter ? (score > 1 ? 'victoires' : 'victoire') : 'pts';
-  const meta = inter
-    ? `${Number(player.games || 0)} partie${Number(player.games) > 1 ? 's' : ''} · ${Number(player.penalties || 0)} cartes ramassées`
-    : `${Number(player.wins || 0)} victoire${player.wins === 1 ? '' : 's'} · ${Number(player.games || 0)} parties`;
+  const quiz = mode === 'quiz';
+  const score = inter || quiz ? Number(player.wins || 0) : Number(player.totalScore || 0);
+  const unit = inter || quiz ? (score > 1 ? 'victoires' : 'victoire') : 'pts';
+  const meta = quiz
+    ? `${Number(player.games || 0)} partie${Number(player.games) > 1 ? 's' : ''} · record ${Number(player.bestScore || 0)} pts`
+    : inter
+      ? `${Number(player.games || 0)} partie${Number(player.games) > 1 ? 's' : ''} · ${Number(player.penalties || 0)} cartes ramassées`
+      : `${Number(player.wins || 0)} victoire${player.wins === 1 ? '' : 's'} · ${Number(player.games || 0)} parties`;
   return `<article class="leader-card"><span class="leader-badge">${place}</span><span class="leader-copy"><b class="leader-name">${esc(player.name)}</b><span class="leader-meta">${meta}</span></span><span class="leader-score">${score} ${unit}</span></article>`;
 }
 export function showSheet(title, inner, onClose) {
