@@ -1,19 +1,73 @@
 import { esc, icon, scoreCard, shell } from '../ui.js';
 
 const CATALOG = [
-  { id: 'petitbac', kicker: 'Lettres', title: 'Petit Bac', text: 'Une lettre, dix catégories, entre amis.', live: true },
-  { id: 'inter', kicker: 'Cartes', title: 'INTER', text: 'Couleur, valeur, et Poséidon en face à face.', live: true },
-  { id: 'next', kicker: 'À venir', title: 'Prochain jeu', text: 'La place est prête pour un autre jeu.', live: false }
+  { id: 'petitbac', lane: 'letters', mark: 'A', badge: 'Lettres', title: 'Petit Bac', text: 'Dix catégories', status: 'Entre amis' },
+  { id: 'inter', lane: 'cards', mark: 'I', badge: 'Cartes', title: 'INTER', text: 'Enseigne et valeur', status: 'Face à face' },
+  { id: 'next', lane: 'soon', mark: '+', badge: 'À venir', title: 'Prochain jeu', text: 'Place réservée', status: 'Bientôt' }
 ];
 
-export function hubScreen({ online = true, canInstall = false, savedRoom = null, savedInter = null }) {
-  const install = canInstall ? `<div class="install-badge">${icon('install', 18)}<span>À installer sur ton écran d’accueil</span><button data-action="install">Installer</button></div>` : '';
-  const resume = savedRoom ? `<button class="btn btn-secondary" data-action="resume">${icon('crown', 16)}Reprendre Petit Bac ${esc(savedRoom.code)}</button>` : '';
-  const resumeInter = savedInter ? `<button class="btn btn-secondary" data-action="ix-resume">${icon('spark', 16)}Reprendre INTER ${esc(savedInter.code)}</button>` : '';
-  const games = CATALOG.map(game => game.live
-    ? `<button type="button" class="hub-game" data-action="open-game" data-game="${game.id}"><span class="hub-kicker">${game.kicker}</span><strong>${game.title}</strong><span>${game.text}</span></button>`
-    : `<div class="hub-game is-soon"><span class="hub-kicker">${game.kicker}</span><strong>${game.title}</strong><span>${game.text}</span></div>`).join('');
-  const content = `<div class="hub"><div class="eyebrow">Poséidon · Del'Hiver</div><h1 class="display">Choisis<br><span class="gradient-text">ton jeu.</span></h1><p class="intro">Chaque jeu a sa salle, ses scores et ses règles.</p><div class="hub-grid">${games}</div><div class="home-actions">${resume}${resumeInter}</div>${install}<div class="notice-row"><span class="status-dot ${online ? '' : 'offline'}"></span><span>${online ? 'Connecté à l’arène' : 'Hors ligne · accueil et règles disponibles'}</span></div></div>`;
+export function hubScreen({ online = true, canInstall = false, savedRoom = null, savedInter = null, profile = null, interProfile = null, name = '', filter = 'all' }) {
+  const shown = CATALOG.filter(game => filter === 'all' || game.lane === filter);
+  const games = shown.map(game => {
+    const body = `<span class="deck-card-top"><span class="deck-glyph deck-glyph-${game.id}">${game.mark}</span><span class="deck-badge">${game.badge}</span></span><span class="deck-card-copy"><strong>${game.title}</strong><span>${game.text}</span></span><span class="deck-card-foot"><span class="deck-status-line"><i></i>${game.status}</span><span class="deck-play" aria-hidden="true">${icon('arrow', 16)}</span></span>`;
+    return game.id === 'next'
+      ? `<div class="deck-card is-soon">${body}</div>`
+      : `<button type="button" class="deck-card" data-action="open-game" data-game="${game.id}">${body}</button>`;
+  }).join('');
+  const filters = [
+    ['all', 'Tous'],
+    ['letters', 'Lettres'],
+    ['cards', 'Cartes']
+  ].map(([id, label]) => `<button type="button" class="deck-filter" data-action="hub-filter" data-filter="${id}" aria-pressed="${filter === id}">${label}</button>`).join('');
+  const resumes = [
+    savedRoom ? { action: 'resume', kicker: 'Lettres', title: 'Petit Bac', meta: savedRoom.code } : null,
+    savedInter ? { action: 'ix-resume', kicker: 'Cartes', title: 'INTER', meta: savedInter.code } : null
+  ].filter(Boolean);
+  const shelf = resumes.length ? `<section class="deck-block"><div class="deck-head"><h2>Reprendre</h2><span>${resumes.length}</span></div><div class="deck-shelf deck-bleed">${resumes.map(item => `<button type="button" class="deck-resume" data-action="${item.action}"><span class="deck-badge">${item.kicker}</span><strong>${item.title}</strong><span>Salle ${esc(item.meta)}</span></button>`).join('')}</div></section>` : '';
+  const points = Number(profile?.totalScore || 0);
+  const wins = Number(interProfile?.wins || 0);
+  const player = name.trim().length >= 2 ? `<span class="deck-chip">${esc(name.trim())}</span>` : '';
+  const install = canInstall ? `<button type="button" class="deck-chip deck-chip-btn" data-action="install">${icon('install', 14)}Installer</button>` : '';
+  const content = `<div class="deck">
+    <div class="deck-row deck-bleed" aria-label="État de l’arène">
+      <span class="deck-chip"><i class="deck-live ${online ? '' : 'is-off'}"></i>${online ? 'Connecté' : 'Hors ligne'}</span>
+      <span class="deck-chip">2 jeux</span>
+      ${player}${install}
+    </div>
+    <section class="deck-poster" aria-label="Partie contre Poséidon">
+      <div class="deck-poster-top">
+        <span class="deck-pill"><i class="deck-live"></i>Face à face</span>
+        <span class="deck-pill deck-pill-gold">3 niveaux</span>
+      </div>
+      <div class="deck-poster-copy">
+        <span class="deck-kicker">Cartes · IA</span>
+        <h1>Poséidon</h1>
+        <p>Facile, moyen ou difficile. Les règles d’INTER restent les mêmes.</p>
+        <button type="button" class="btn btn-primary deck-launch" data-action="ix-solo">${icon('spark', 18)}Lancer la partie</button>
+      </div>
+    </section>
+    <section class="deck-spot">
+      <div class="deck-spot-main">
+        <span class="deck-spot-mark">${icon('trophy', 20)}</span>
+        <div>
+          <span class="deck-kicker">Classements</span>
+          <h2>Deux tableaux</h2>
+        </div>
+      </div>
+      <p>Petit Bac en points. INTER en victoires. Rien n’est mélangé.</p>
+      <button type="button" class="btn btn-secondary btn-sm" data-action="rankings">Ouvrir</button>
+    </section>
+    ${shelf}
+    <section class="deck-block">
+      <div class="deck-head"><h2>Bibliothèque</h2><span>2 jeux</span></div>
+      <div class="deck-row deck-bleed" role="toolbar" aria-label="Filtrer les jeux">${filters}</div>
+      <div class="deck-grid">${games}</div>
+      <div class="deck-meter">
+        <div><span>Petit Bac</span><b>${points} pts</b></div>
+        <div><span>INTER</span><b>${wins} victoire${wins === 1 ? '' : 's'}</b></div>
+      </div>
+    </section>
+  </div>`;
   return shell(content, { active: 'home' });
 }
 

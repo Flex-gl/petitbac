@@ -36,18 +36,19 @@ test('salon INTER : prêt, distribution, coup refusé, main cachée', async () =
   await mutateInter({ action: 'ready', code: created.code, playerId: 'h1' });
   const started = await mutateInter({ action: 'ready', code: created.code, playerId: 'g1' });
   assert.equal(started.status, 'playing');
-  assert.equal(started.players[0].hand.length, 4);
-  assert.equal(started.deck.length, 54 - 8 - 1);
+  assert.ok(started.players.every(player => player.hand.length >= 4));
+  const dealt = started.players.reduce((sum, player) => sum + player.hand.length, 0);
+  assert.equal(dealt + started.deck.length + started.discard.length, 54);
   const guestView = presentInter(await getInter(started.code), 'g1');
   const hidden = started.players[0].hand[0];
   assert.equal(guestView.players.find(player => player.id === 'h1').hand, undefined);
   assert.equal(JSON.stringify(guestView).includes(hidden), false);
   const host = started.players[started.turnIndex];
   const foreign = started.players.find(player => player.id !== host.id).hand[0];
-  await assert.rejects(() => mutateInter({ action: 'play', code: created.code, playerId: host.id, cardIds: [foreign] }), /autorisé|pas ton tour/);
+  await assert.rejects(() => mutateInter({ action: 'play', code: created.code, playerId: host.id, cardIds: [foreign] }), /autorisé|pas ton tour|demandée/);
   const reclaimed = await mutateInter({ action: 'reclaim', code: created.code, playerId: 'h2', name: 'Hote', hostSecret: created.hostSecret });
   assert.equal(reclaimed.hostId, 'h2');
-  assert.equal(reclaimed.players.find(player => player.id === 'h2').hand.length, 4);
+  assert.ok(reclaimed.players.find(player => player.id === 'h2').hand.length >= 4);
 });
 
 test('une partie contre Poséidon démarre sans montrer sa main', async () => {

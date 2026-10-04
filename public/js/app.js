@@ -37,7 +37,7 @@ const state = {
   top: loadStoredRanks(), profile: readJson(profileKey),
   interTop: loadList('petitbac.inter.leaderboard'), interProfile: readJson('petitbac.inter.profile'),
   scoresState: loadStoredRanks().length ? 'ready' : 'loading',
-  savedRoom: null, gameMode: 'petitbac', interGame: null, savedInter: null,
+  savedRoom: null, gameMode: 'petitbac', interGame: null, savedInter: null, hubFilter: 'all',
   online: navigator.onLine, deferredPrompt: null, sheet: null, pollTimer: null,
   roomSignature: '', pollBusy: false, priorGameStatus: null, lastReveal: '',
   lastRankRefresh: 0, roomError: '', pollFailures: 0, eventSource: null, usingSse: false,
@@ -74,7 +74,7 @@ function roomSignature(game) {
 
 async function render() {
   if (state.page === 'home') {
-    root.innerHTML = hubScreen({ online: state.online, canInstall: Boolean(state.deferredPrompt) || !matchMedia('(display-mode: standalone)').matches, savedRoom: state.savedRoom, savedInter: state.savedInter });
+    root.innerHTML = hubScreen({ online: state.online, canInstall: Boolean(state.deferredPrompt) || !matchMedia('(display-mode: standalone)').matches, savedRoom: state.savedRoom, savedInter: state.savedInter, profile: state.profile, interProfile: state.interProfile, name: state.name, filter: state.hubFilter });
   } else if (state.page === 'letters') {
     root.innerHTML = lettersScreen({ top: state.top, scoresState: state.scoresState, online: state.online, profile: state.profile, savedRoom: state.savedRoom });
   } else if (state.page === 'cards') {
@@ -546,6 +546,10 @@ async function handleAction(button) {
     return;
   }
   if (['home', 'create', 'join', 'rankings', 'rules', 'back', 'install'].includes(action)) haptic();
+  if (action === 'hub-filter') {
+    state.hubFilter = ['letters', 'cards'].includes(button.dataset.filter) ? button.dataset.filter : 'all';
+    return render();
+  }
   if (action === 'open-game') {
     state.gameMode = button.dataset.game === 'inter' ? 'inter' : 'petitbac';
     state.page = state.gameMode === 'inter' ? 'cards' : 'letters';
