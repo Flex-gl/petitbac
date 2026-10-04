@@ -563,7 +563,8 @@ export function publicView(state, viewerId = '') {
       cardsPlayed: player.cardsPlayed || 0,
       matchScore: player.matchScore || 0,
       roundPoints: player.roundPoints || 0,
-      connected: Boolean(player.seenAt && Date.now() - player.seenAt < 25000),
+      bot: Boolean(player.bot),
+      connected: Boolean(player.bot) || Boolean(player.seenAt && Date.now() - player.seenAt < 25000),
       seenAt: player.seenAt || null
     };
     if (self || finished) base.hand = (player.hand || []).map(id => publicCard(state, id)).filter(Boolean);
@@ -573,6 +574,7 @@ export function publicView(state, viewerId = '') {
   return {
     kind: 'inter',
     code: state.code,
+    ai: state.ai ? { level: state.ai.level, id: state.ai.id } : null,
     version: state.version || 0,
     status: state.status,
     phase: state.phase || state.status,

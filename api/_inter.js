@@ -1,5 +1,6 @@
 import { createIfAbsent, getJson, updateVersioned, redis } from './_redis.js';
 import { InterError, beginMatch, play, chooseRank, draw, passDrawn, announce, abandon, continueMatch, finishMatch, publicView, transferPlayer, defaultRules, absorbPending } from '../games/inter/engine.js';
+import { applyPoseidon, normalizeLevel } from '../games/inter/ai.js';
 
 const GAME_TTL = 604800;
 const ROOM_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -61,7 +62,7 @@ function blankPlayer(id, name) {
 
 async function remember(game) {
   if (game.status !== 'finished') return;
-  const players = game.players.filter(player => !player.abandoned).map(player => ({ id: player.id, name: player.name, penalties: player.penaltiesReceived || 0 }));
+  const players = game.players.filter(player => !player.abandoned && !player.bot).map(player => ({ id: player.id, name: player.name, penalties: player.penaltiesReceived || 0 }));
   await redis('EVAL', RECORD_SCRIPT, '1', `arena:inter:recorded:${game.code}:${game.startedAt}`, JSON.stringify(players), String(game.winnerId || ''), new Date().toISOString());
 }
 
@@ -95,7 +96,22 @@ function touch(game, playerId) {
     player.connected = true;
   }
   const now = Date.now();
-  for (const entry of game.players) entry.connected = Boolean(entry.seenAt && now - entry.seenAt < 25000);
+  for (const entry of game.players) {
+    if (entry.bot) {
+      entry.seenAt = now;
+      entry.connected = true;
+    } else entry.connected = Boolean(entry.seenAt && now - entry.seenAt < 25000);
+  }
+}
+
+function stepBots(game) {
+  if (!game?.ai) return;
+  for (let guard = 0; guard < 12; guard += 1) {
+    if (game.status !== 'playing') return;
+    const current = game.players[game.turnIndex];
+    if (!current?.bot || current.abandoned) return;
+    applyPoseidon(game, current.id, game.ai.level);
+  }
 }
 
 export async function createInter(input) {
@@ -123,6 +139,34 @@ export async function createInter(input) {
   throw new InterError('Impossible de réserver un code de salon. Réessaie.', 503);
 }
 
+export async function createSolo(input) {
+  const name = cleanName(input.name);
+  const id = String(input.playerId || crypto.randomUUID()).slice(0, 80);
+  const level = normalizeLevel(input.level);
+  const rules = rulesFrom({ maxPlayers: 2, initialHand: 4 });
+  for (let attempt = 0; attempt < 8; attempt += 1) {
+    const code = roomCode();
+    const started = beginMatch([{ id, name }, { id: 'poseidon', name: 'Poséidon' }], rules);
+    const bot = started.players.find(player => player.id === 'poseidon');
+    if (bot) bot.bot = true;
+    const game = {
+      ...started,
+      kind: 'inter',
+      code,
+      version: 0,
+      hostId: id,
+      hostSecret: crypto.randomUUID(),
+      ai: { level, id: 'poseidon' },
+      private: true,
+      createdAt: Date.now()
+    };
+    for (const player of game.players) player.seenAt = Date.now();
+    stepBots(game);
+    if (await createIfAbsent(keyFor(code), game, GAME_TTL)) return game;
+  }
+  throw new InterError('Impossible d’ouvrir une partie contre Poséidon. Réessaie.', 503);
+}
+
 export async function getInter(codeValue) {
   const code = normalizedCode(codeValue);
   if (code.length !== 6) throw new InterError('Le code doit contenir six caractères.');
@@ -130,15 +174,19 @@ export async function getInter(codeValue) {
   for (let attempt = 0; attempt < 4; attempt += 1) {
     const game = await getJson(key);
     if (!game) throw new InterError('Ce salon n’existe plus. Vérifie le code.', 404);
+    const version = game.version || 0;
     const penaltyDue = game.status === 'playing' && game.phase !== 'demand' && game.pendingDraw > 0 && !game.freePlay;
-    if (!penaltyDue) {
+    if (penaltyDue) absorbPending(game);
+    const before = `${game.turnIndex}:${game.turnCount}:${game.log?.length || 0}:${game.phase}:${game.status}`;
+    stepBots(game);
+    const after = `${game.turnIndex}:${game.turnCount}:${game.log?.length || 0}:${game.phase}:${game.status}`;
+    if (before === after && !penaltyDue) {
       if (game.status === 'finished') await remember(game);
       return game;
     }
-    const version = game.version || 0;
-    if (game.pendingDraw > 0 && !game.freePlay && game.phase !== 'demand') absorbPending(game);
     if (await updateVersioned(key, { version }, game, GAME_TTL)) {
       game.version = version + 1;
+      if (game.status === 'finished') await remember(game);
       return game;
     }
   }
@@ -201,6 +249,7 @@ export async function mutateInter(input) {
       throw new InterError('Action inconnue.');
     }
     touch(game, playerId);
+    stepBots(game);
     if (await updateVersioned(key, { version }, game, GAME_TTL)) {
       game.version = version + 1;
       if (game.status === 'finished') await remember(game);

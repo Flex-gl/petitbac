@@ -33,8 +33,16 @@ export function cardFlightHtml(card) {
 }
 
 function seat(player, active) {
-  const status = player.abandoned ? 'Abandon' : !player.connected ? 'Hors ligne' : player.cardCount === 1 ? 'Dernière carte' : `${player.cardCount} carte${player.cardCount > 1 ? 's' : ''}`;
-  return `<div class="seat-chip ${active ? 'is-turn' : ''}" data-player="${esc(player.id)}"><span class="avatar" aria-hidden="true">${esc(player.name.slice(0, 1).toUpperCase())}</span><span><strong>${esc(player.name)}</strong><span>${status}</span></span></div>`;
+  const status = player.abandoned ? 'Abandon' : player.bot ? 'IA' : !player.connected ? 'Hors ligne' : player.cardCount === 1 ? 'Dernière carte' : `${player.cardCount} carte${player.cardCount > 1 ? 's' : ''}`;
+  return `<div class="seat-chip ${active ? 'is-turn' : ''} ${player.bot ? 'is-bot' : ''}" data-player="${esc(player.id)}"><span class="avatar" aria-hidden="true">${esc(player.name.slice(0, 1).toUpperCase())}</span><span><strong>${esc(player.name)}</strong><span>${status}</span></span></div>`;
+}
+
+const AI_LABEL = { easy: 'Facile', medium: 'Moyen', hard: 'Difficile' };
+
+export function interSoloScreen(name) {
+  const levels = [['easy', 'Facile'], ['medium', 'Moyen'], ['hard', 'Difficile']].map(([value, label]) => `<button type="button" class="segment" data-choice="level" data-value="${value}" aria-pressed="${value === 'medium'}">${label}</button>`).join('');
+  const content = `${pageHead('Contre Poséidon', 'Une partie en face à face. Le niveau change la façon de jouer, pas les règles.')}<form id="inter-solo" novalidate><label class="field"><span class="field-label">Pseudo ou nom complet</span><input class="text-input" name="name" maxlength="40" minlength="2" autocomplete="name" required value="${esc(name)}" placeholder="Ex. Alex Martin"></label><div class="field"><span class="field-label">Niveau</span><div class="segmented" data-choice="level">${levels}</div></div><p class="notice">Facile pose au hasard. Moyen joue proprement. Difficile garde les 8 et les jokers, et vise la main adverse.</p><div class="error-note" data-form-error role="status"></div><div class="form-footer"><button class="btn btn-primary btn-full" type="submit">Lancer la partie ${icon('arrow', 17)}</button></div></form>`;
+  return shell(content, { nav: false });
 }
 
 export function interSetupScreen(name) {
@@ -114,7 +122,8 @@ export function interTableScreen(game, viewerId, { enter = true } = {}) {
     : `<div class="card-back" aria-hidden="true"></div>`;
   const tools = `<div class="inter-tools">${iconButton('ix-sound', 'Son')}${iconButton('ix-haptic', 'Vibrations')}</div>`;
   const actions = `<div class="inter-actions">${game.mustResolveDraw && game.yourTurn ? '<button class="btn btn-secondary" data-action="ix-pass">Passer mon tour</button>' : ''}${me?.cardCount === 1 && !me.announced ? '<button class="btn btn-primary" data-action="ix-announce">INTER</button>' : ''}<button class="btn btn-secondary" data-action="ix-rules">Règles</button><button class="btn btn-secondary" data-action="ix-abandon">Abandonner</button></div>`;
-  const manche = Number(game.rules.rounds) > 0 ? `Manche ${game.round} / ${game.rules.rounds}` : `Manche ${game.round}`;
+  const level = AI_LABEL[game.ai?.level];
+  const manche = `${Number(game.rules.rounds) > 0 ? `Manche ${game.round} / ${game.rules.rounds}` : `Manche ${game.round}`}${level ? ` · Poséidon ${level}` : ''}`;
   const crowd = hand.length >= 13 ? 'is-crowd' : hand.length >= 9 ? 'is-packed' : hand.length >= 6 ? 'is-full' : '';
   const content = `<div class="table-bar">${pageHead('INTER', manche, false, 'is-compact')}${tools}</div>${banners(game, viewerId)}${demand}<div class="inter-table">${zone(seats.north, 'north')}${zone(seats.west, 'west')}<div class="felt"><div class="pile" data-role="center"><span>Défausse</span>${center}${game.lastPlayCount > 1 ? `<span>${game.lastPlayCount} cartes</span>` : ''}</div><div class="pile" data-role="draw"><span>Pioche</span>${pile}<span>${game.deckCount}</span></div></div>${zone(seats.east, 'east')}<div class="seat seat-me"><div class="hand-fan ${crowd}" data-count="${hand.length}" aria-label="Tes cartes">${cards || '<p>Plus de cartes</p>'}</div>${actions}</div></div>`;
   return shell(content, { nav: false, wide: true, enter });

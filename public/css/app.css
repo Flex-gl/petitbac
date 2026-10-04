@@ -286,6 +286,51 @@ html[data-theme="light"] .display .gradient-text {
   gap:11px;
   margin:20px 0 26px
 }
+.hub { max-width:980px }
+.hub-grid {
+  display:grid;
+  grid-template-columns:1fr;
+  gap:12px;
+  margin:18px 0
+}
+.hub-game {
+  display:flex;
+  flex-direction:column;
+  align-items:flex-start;
+  gap:6px;
+  width:100%;
+  min-height:156px;
+  padding:20px;
+  border:1px solid var(--line);
+  border-radius:24px;
+  background:var(--panel);
+  color:var(--ink);
+  font:inherit;
+  text-align:left;
+  cursor:pointer
+}
+.hub-game strong {
+  font:700 30px/1.05 'Space Grotesk',sans-serif;
+  letter-spacing:-.03em
+}
+.hub-game > span:last-child {
+  color:var(--muted);
+  font-size:13px;
+  line-height:1.45
+}
+.hub-kicker {
+  color:var(--accent);
+  font-size:11px;
+  font-weight:700;
+  letter-spacing:.14em;
+  text-transform:uppercase
+}
+.hub-game.is-soon {
+  background:transparent;
+  border-style:dashed;
+  opacity:.7
+}
+.seat-chip.is-bot { box-shadow:inset 0 0 0 1px color-mix(in srgb, var(--gold) 55%, transparent) }
 .btn {
   min-height:54px;
   position:relative;
@@ -1468,6 +1513,7 @@ html[data-theme="light"] .back-btn { background:var(--wash) }
     grid-template-columns:repeat(2,minmax(180px,240px));
     justify-content:start
   }
+  .hub-grid { grid-template-columns:repeat(3,minmax(0,1fr)) }
   .home-actions .btn,
   .room-actions .btn,
   .form-footer .btn,

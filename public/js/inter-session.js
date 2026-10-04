@@ -1,7 +1,7 @@
 import { api } from './api.js';
 import { haptic, showSheet, toast } from './ui.js';
 import { playCue } from './inter-audio.js';
-import { interSetupScreen, interInviteScreen, interLobbyScreen, interTableScreen, interBetweenScreen, interFinalScreen, interRulesHtml } from './screens/inter.js';
+import { interSetupScreen, interInviteScreen, interLobbyScreen, interSoloScreen, interTableScreen, interBetweenScreen, interFinalScreen, interRulesHtml } from './screens/inter.js';
 import { animateTable, captureTable, launchOwnPlay, clearFlights } from './inter-motion.js';
 import { celebrate, clearCelebration } from './fireworks.js';
 import { showKombo, watchKombo } from './kombo.js';
@@ -192,7 +192,7 @@ export async function leaveInter(pause = true) {
   roomEpoch += 1;
   stopInter();
   painted = null;
-  ctx.state.page = 'home';
+  ctx.state.page = 'cards';
   ctx.state.interGame = null;
   ctx.state.code = '';
   const session = readSession();
@@ -291,6 +291,23 @@ export async function submitInterCreate(form) {
   }
 }
 
+export async function submitInterSolo(form) {
+  const name = String(form.elements.name.value || '').trim();
+  const errorNode = form.querySelector('[data-form-error]');
+  const level = document.querySelector('[data-choice="level"] .segment[aria-pressed="true"]')?.dataset.value || 'medium';
+  if (name.length < 2) { errorNode.textContent = 'Entre un pseudo ou un nom d’au moins deux lettres.'; return; }
+  ctx.state.name = name;
+  localStorage.setItem('petitbac.playerName', name);
+  form.querySelector('[type="submit"]').disabled = true;
+  try {
+    const data = await api.interAction({ action: 'solo', playerId: ctx.playerId, name, level });
+    await openInter(data.game);
+  } catch (error) {
+    errorNode.textContent = error.message;
+    form.querySelector('[type="submit"]').disabled = false;
+  }
+}
+
 export async function submitInterJoin(form) {
   const name = String(form.elements.name.value || '').trim();
   const code = String(form.elements.code.value || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6);
@@ -318,6 +335,7 @@ export async function renderInter(root) {
   const continuous = previous?.status === 'playing' && game?.status === 'playing' && previous.code === game?.code;
   const dealt = previous && previous.code === game?.code && previous.status !== 'playing' && game?.status === 'playing';
   if (ctx.state.page === 'inter-setup') root.innerHTML = interSetupScreen(ctx.state.name);
+  else if (ctx.state.page === 'inter-solo') root.innerHTML = interSoloScreen(ctx.state.name);
   else if (ctx.state.page === 'inter-invite') root.innerHTML = interInviteScreen(ctx.state.code);
   else if (!game) root.innerHTML = interSetupScreen(ctx.state.name);
   else if (game.status === 'lobby') root.innerHTML = interLobbyScreen(game, ctx.playerId);

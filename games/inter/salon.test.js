@@ -28,7 +28,7 @@ globalThis.fetch = async (_url, options) => {
   return { ok: true, json: async () => ({ result }) };
 };
 
-const { createInter, mutateInter, getInter, presentInter } = await import('../../api/_inter.js');
+const { createInter, createSolo, mutateInter, getInter, presentInter } = await import('../../api/_inter.js');
 
 test('salon INTER : prêt, distribution, coup refusé, main cachée', async () => {
   const created = await createInter({ playerId: 'h1', name: 'Hote', maxPlayers: 2, rounds: 1 });
@@ -48,4 +48,16 @@ test('salon INTER : prêt, distribution, coup refusé, main cachée', async () =
   const reclaimed = await mutateInter({ action: 'reclaim', code: created.code, playerId: 'h2', name: 'Hote', hostSecret: created.hostSecret });
   assert.equal(reclaimed.hostId, 'h2');
   assert.equal(reclaimed.players.find(player => player.id === 'h2').hand.length, 4);
+});
+
+test('une partie contre Poséidon démarre sans montrer sa main', async () => {
+  const game = await createSolo({ playerId: 'h1', name: 'Amina', level: 'hard' });
+  assert.equal(game.status, 'playing');
+  assert.equal(game.ai.level, 'hard');
+  assert.equal(game.players.find(player => player.bot).name, 'Poséidon');
+  assert.notEqual(game.players[game.turnIndex].id, 'poseidon');
+  const view = presentInter(await getInter(game.code), 'h1');
+  assert.equal(view.players.find(player => player.id === 'poseidon').hand, undefined);
+  assert.equal(view.ai.level, 'hard');
+  assert.ok(view.players.find(player => player.id === 'h1').hand.length >= 1);
 });

@@ -1,10 +1,10 @@
 import { APP_VERSION } from './version.js';
 import { api } from './api.js';
 import { esc, haptic, icon, pageHead, shell, showSheet, toast } from './ui.js';
-import { homeScreen, rankingsScreen } from './screens/home.js';
+import { cardsScreen, hubScreen, lettersScreen, rankingsScreen } from './screens/home.js';
 import { armMusic, setMusic } from './inter-audio.js';
 import { celebrate as celebrateVictory, clearCelebration } from './fireworks.js';
-import { attachInter, followInter, handleInterAction, interPathCode, leaveInter, loadInterSession, openInterRules, renderInter, stopInter, submitInterCreate, submitInterJoin } from './inter-session.js';
+import { attachInter, followInter, handleInterAction, interPathCode, leaveInter, loadInterSession, openInterRules, renderInter, stopInter, submitInterCreate, submitInterJoin, submitInterSolo } from './inter-session.js';
 
 document.documentElement.dataset.appVersion = APP_VERSION;
 window.dispatchEvent(new CustomEvent('petitbac-version', { detail: APP_VERSION }));
@@ -74,8 +74,11 @@ function roomSignature(game) {
 
 async function render() {
   if (state.page === 'home') {
-    const inter = state.gameMode === 'inter';
-    root.innerHTML = homeScreen({ top: inter ? state.interTop : state.top, scoresState: state.scoresState, online: state.online, canInstall: Boolean(state.deferredPrompt) || !matchMedia('(display-mode: standalone)').matches, profile: inter ? state.interProfile : state.profile, savedRoom: state.savedRoom, gameMode: state.gameMode, savedInter: state.savedInter });
+    root.innerHTML = hubScreen({ online: state.online, canInstall: Boolean(state.deferredPrompt) || !matchMedia('(display-mode: standalone)').matches, savedRoom: state.savedRoom, savedInter: state.savedInter });
+  } else if (state.page === 'letters') {
+    root.innerHTML = lettersScreen({ top: state.top, scoresState: state.scoresState, online: state.online, profile: state.profile, savedRoom: state.savedRoom });
+  } else if (state.page === 'cards') {
+    root.innerHTML = cardsScreen({ top: state.interTop, scoresState: state.scoresState, online: state.online, profile: state.interProfile, savedInter: state.savedInter });
   } else if (state.page === 'setup') {
     await loadGameFeatures();
     const { setupScreen } = await import('./screens/setup.js');
@@ -165,11 +168,11 @@ async function refreshScores(force = false) {
     }
     state.scoresState = 'ready';
     state.lastRankRefresh = Date.now();
-    if (state.page === 'home' || state.page === 'rankings') await render();
+    if (['home', 'letters', 'cards', 'rankings'].includes(state.page)) await render();
   } catch {
     state.scoresState = state.top.length ? 'ready' : 'error';
     state.online = navigator.onLine;
-    if (state.page === 'home' || state.page === 'rankings') await render();
+    if (['home', 'letters', 'cards', 'rankings'].includes(state.page)) await render();
   }
 }
 
@@ -324,13 +327,13 @@ function pauseSession() {
   state.savedRoom = session;
 }
 
-function goHome(pauseRoom = false) {
+function goHome(pauseRoom = false, page = 'home') {
   roomEpoch += 1;
   clearTimeout(state.pollTimer);
   closeSse();
   state.sheet?.close?.();
   state.sheet = null;
-  state.page = 'home';
+  state.page = page;
   state.game = null;
   state.code = '';
   if (pauseRoom) pauseSession();
@@ -415,6 +418,15 @@ function inviteScreen(code) {
 function openRules() {
   const inner = `<p class="sheet-copy">Le Petit Bac se joue en manches. L’hôte choisit les catégories, le temps et le nombre de tours. Une lettre apparaît : trouve un mot par catégorie avant la fin du compte à rebours.</p><ol class="rules-list"><li>Au moins deux catégories sont sélectionnées avant le départ.</li><li>Chaque mot doit commencer par la lettre de la manche.</li><li>Valide ta grille pour rejoindre l’attente. La correction démarre quand tout le monde a fini ou quand le temps est écoulé.</li><li>Celui qui a lancé le salon corrige chaque réponse, joueur après joueur. Tout le monde voit la correction en direct.</li><li>Les autres joueurs peuvent contester. Le vote du groupe tranche alors : une réponse unique vaut 2 points, un doublon 1 point.</li><li>Les manches s’enchaînent, puis le classement final est sauvegardé au classement global.</li></ol><p class="sheet-copy">Une arène signée Poséidon - Del'Hiver. Rejoins une salle avec le lien ou le QR.</p>`;
   state.sheet = showSheet('Règles du jeu', inner, () => { state.sheet = null; });
+}
+
+function openHubChooser(kind) {
+  const rankings = kind === 'rankings';
+  const action = rankings ? 'rank-game' : 'rules-game';
+  const inner = `<p class="sheet-copy">Chaque jeu garde ${rankings ? 'son classement' : 'ses règles'}.</p><div class="home-actions"><button class="btn btn-secondary" data-action="${action}" data-game="petitbac">Petit Bac</button><button class="btn btn-secondary" data-action="${action}" data-game="inter">INTER</button></div>`;
+  state.sheet?.close?.();
+  const sheet = showSheet(rankings ? 'Quel classement ?' : 'Quelles règles ?', inner, () => { if (state.sheet === sheet) state.sheet = null; });
+  state.sheet = sheet;
 }
 
 function openChat() {
@@ -509,6 +521,7 @@ async function handleSubmit(event) {
   if (form.id === 'join-form') return joinRoom(form);
   if (form.id === 'inter-create') return submitInterCreate(form);
   if (form.id === 'inter-join') return submitInterJoin(form);
+  if (form.id === 'inter-solo') return submitInterSolo(form);
   if (form.id === 'answer-form') return submitAnswers(form);
   if (form.id === 'chat-form') {
     const input = form.elements.message;
@@ -533,11 +546,13 @@ async function handleAction(button) {
     return;
   }
   if (['home', 'create', 'join', 'rankings', 'rules', 'back', 'install'].includes(action)) haptic();
-  if (action === 'pick-game') {
+  if (action === 'open-game') {
     state.gameMode = button.dataset.game === 'inter' ? 'inter' : 'petitbac';
+    state.page = state.gameMode === 'inter' ? 'cards' : 'letters';
     return render();
   }
-  if (action === 'ix-setup') { state.page = 'inter-setup'; return render(); }
+  if (action === 'ix-solo') { state.page = 'inter-solo'; state.gameMode = 'inter'; return render(); }
+  if (action === 'ix-setup') { state.page = 'inter-setup'; state.gameMode = 'inter'; return render(); }
   if (action === 'ix-join') return openInterJoin();
   if (action === 'ix-resume') {
     const session = loadInterSession();
@@ -549,10 +564,11 @@ async function handleAction(button) {
   }
   if (String(action).startsWith('ix-')) return handleInterAction(button);
   if (action === 'home') {
-    if (String(state.page).startsWith('inter')) return leaveInter(state.page === 'inter-room');
+    if (state.page === 'inter-room') return leaveInter(true);
+    if (String(state.page).startsWith('inter')) { state.page = 'home'; return render(); }
     return goHome(state.page === 'room');
   }
-  if (action === 'leave') return goHome(true);
+  if (action === 'leave') return goHome(true, 'letters');
   if (action === 'resume') {
     const session = loadSession();
     if (!session?.code) return;
@@ -566,22 +582,38 @@ async function handleAction(button) {
     return render();
   }
   if (action === 'join') return openJoinSheet(inviteCode());
+  if (action === 'rank-game' || action === 'rules-game') {
+    state.sheet?.close?.();
+    state.gameMode = button.dataset.game === 'inter' ? 'inter' : 'petitbac';
+    if (action === 'rules-game') return state.gameMode === 'inter' ? openInterRules() : openRules();
+    if (state.page === 'room') { clearTimeout(state.pollTimer); closeSse(); }
+    state.page = 'rankings';
+    await refreshScores(true);
+    return render();
+  }
   if (action === 'rules') {
+    if (state.page === 'home') return openHubChooser('rules');
     if (state.gameMode === 'inter' || String(state.page).startsWith('inter')) return openInterRules();
     return openRules();
   }
   if (action === 'rankings') {
+    if (state.page === 'home') return openHubChooser('rankings');
     if (state.page === 'room') { clearTimeout(state.pollTimer); closeSse(); }
     state.page = 'rankings';
     await refreshScores(true);
     return render();
   }
   if (action === 'back') {
+    if (state.page === 'inter-setup' || state.page === 'inter-solo' || state.page === 'inter-invite') {
+      state.page = 'cards';
+      return render();
+    }
     if (String(state.page).startsWith('inter')) return leaveInter(state.page === 'inter-room');
+    if (state.page === 'letters' || state.page === 'cards') { state.page = 'home'; return render(); }
     if (state.page === 'setup' || state.page === 'rankings' || state.page === 'invite') {
       const session = loadSession();
       if (state.page === 'rankings' && session?.code && !session.paused) return followInvite(session.code);
-      state.page = 'home';
+      state.page = state.page === 'setup' ? 'letters' : state.gameMode === 'inter' ? 'cards' : 'home';
       state.savedRoom = session?.code ? session : null;
       history.replaceState(null, '', '/');
       return render();

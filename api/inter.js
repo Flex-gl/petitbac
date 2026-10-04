@@ -1,4 +1,4 @@
-import { createInter, getInter, mutateInter, presentInter, InterError } from './_inter.js';
+import { createInter, createSolo, getInter, mutateInter, presentInter, InterError } from './_inter.js';
 
 function response(body, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', 'Access-Control-Allow-Origin': '*' } });
@@ -58,7 +58,7 @@ export default async function handler(request) {
     }
     if (request.method !== 'POST') return response({ error: 'Méthode non prise en charge.' }, 405);
     const input = await request.json();
-    const game = input.action === 'create' ? await createInter(input) : await mutateInter(input);
+    const game = input.action === 'create' ? await createInter(input) : input.action === 'solo' ? await createSolo(input) : await mutateInter(input);
     return response({ game: presentInter(game, input.playerId || '') });
   } catch (error) {
     const status = error instanceof InterError || error.status ? error.status || 400 : 500;
