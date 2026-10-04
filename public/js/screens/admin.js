@@ -245,7 +245,7 @@ function groupCard(group, { tab, open, openId, now }) {
   const title = ipView ? (group.ips[0] || 'Adresse inconnue') : (group.titleName || 'Visite sans pseudo');
   const mark = ipView ? '#' : (title.replace(/[^A-Za-zÀ-ÿ0-9]/g, '').charAt(0) || '?').toUpperCase();
   const detail = ipView
-    ? [group.places[0] || 'Lieu non transmis', countLabel(group.devices.length, 'téléphone', 'téléphones'), group.named ? countLabel(group.names.length, 'joueur', 'joueurs') : 'sans pseudo'].join(' · ')
+    ? [group.places[0] || 'Lieu non transmis', countLabel(group.devices.length, 'téléphone', 'téléphones'), peopleCount(group) ? countLabel(peopleCount(group), 'joueur', 'joueurs') : 'sans pseudo'].join(' · ')
     : [countLabel(group.devices.length, 'téléphone', 'téléphones'), countLabel(group.ips.length || 0, 'adresse', 'adresses'), group.systems[0] || group.places[0] || 'Appareil'].join(' · ');
   const played = group.games.filter(game => game !== 'Hall');
   const pills = [
@@ -258,7 +258,9 @@ function groupCard(group, { tab, open, openId, now }) {
 }
 
 function groupBody(group, { ipView, openId, now }) {
-  const aliases = group.aliases.length ? `<p>Autres pseudos : ${esc(group.aliases.join(', '))}</p>` : '';
+  const aliases = ipView
+    ? (group.names.length ? `<p>Joueurs : ${esc(group.names.join(', '))}</p>` : '')
+    : (group.aliases.length ? `<p>Autres pseudos : ${esc(group.aliases.join(', '))}</p>` : '');
   const shared = !ipView && group.devices.length > 1 && group.ips.length === 1
     ? `<p>Ces téléphones partagent l’adresse ${esc(group.ips[0])}.</p>`
     : '';
@@ -269,13 +271,24 @@ function groupBody(group, { ipView, openId, now }) {
   return `<div class="adm-group-body">${summary}${placeLine}${aliases}${shared}<div class="adm-phones">${phones}</div>${foot}</div>`;
 }
 
+function peopleCount(group) {
+  const names = unique(group.devices.map(device => norm((device.names || []).find(Boolean))));
+  const kept = [];
+  for (const name of [...names].sort((a, b) => b.length - a.length)) {
+    if (kept.some(other => other === name || other.startsWith(`${name} `))) continue;
+    kept.push(name);
+  }
+  return kept.length;
+}
+
 function phoneCard(device, { open, now, shareIp }) {
+  const who = (device.names || []).find(Boolean) || 'Sans pseudo';
   const state = device.blocked ? 'Téléphone bloqué' : device.ipBlocked ? 'Adresse bloquée' : '';
   const where = [place(device) || 'Lieu non transmis', shareIp ? '' : device.ip, device.game, ago(device.lastSeen, now)].filter(Boolean).join(' · ');
   const visits = (device.visits || []).slice(0, 6).map(visit => `<li><b>${esc(when(visit.at))}</b><span>${esc(visit.game || 'Jeu')} · ${esc([visit.city, countryName(visit.country)].filter(Boolean).join(' · ') || 'Lieu non transmis')}</span></li>`).join('');
   const hidden = Math.max(0, (device.visits || []).length - 6);
   const detail = open ? `<div class="adm-detail"><p>Identifiants ${esc((device.playerIds || []).join(', ') || '—')}</p><ul>${visits || '<li><span>Aucun passage détaillé.</span></li>'}</ul>${hidden ? `<p class="form-note">${hidden} passage${hidden > 1 ? 's' : ''} plus ancien${hidden > 1 ? 's' : ''} restent en mémoire.</p>` : ''}<label class="field"><span class="field-label">Motif</span><input class="text-input" data-reason maxlength="80" placeholder="Ex. triche, insultes"></label><div class="adm-actions">${device.blocked ? `<button type="button" class="btn btn-secondary btn-sm" data-action="adm-unblock" data-id="${esc(device.id)}">Débloquer le téléphone</button>` : `<button type="button" class="btn btn-secondary btn-sm" data-action="adm-block" data-id="${esc(device.id)}">Bloquer ce téléphone</button>`}${shareIp || !device.ip ? '' : device.ipBlocked ? `<button type="button" class="btn btn-secondary btn-sm" data-action="adm-unblock-ip" data-ip="${esc(device.ip)}">Débloquer l’adresse</button>` : `<button type="button" class="btn btn-secondary btn-sm" data-action="adm-block-ip" data-ip="${esc(device.ip)}">Bloquer cette adresse</button>`}</div></div>` : '';
-  return `<article class="adm-phone ${device.blocked || device.ipBlocked ? 'is-blocked' : ''}"><header><div><b>${esc(deviceTitle(device))}</b><span>${esc(deviceSystem(device) || 'Système non reçu')}</span></div>${state ? `<em>${esc(state)}</em>` : ''}</header><p>${esc(where)}</p><button type="button" class="btn btn-secondary btn-sm" data-action="adm-device" data-id="${esc(device.id)}">${open ? 'Fermer' : 'Passages et blocage'}</button>${detail}</article>`;
+  return `<article class="adm-phone ${device.blocked || device.ipBlocked ? 'is-blocked' : ''}"><header><div><b>${esc(who)}</b><span>${esc([deviceTitle(device), deviceSystem(device)].filter(Boolean).join(' · ') || 'Système non reçu')}</span></div>${state ? `<em>${esc(state)}</em>` : ''}</header><p>${esc(where)}</p><button type="button" class="btn btn-secondary btn-sm" data-action="adm-device" data-id="${esc(device.id)}">${open ? 'Fermer' : 'Passages et blocage'}</button>${detail}</article>`;
 }
 
 function addressFoot(group) {
