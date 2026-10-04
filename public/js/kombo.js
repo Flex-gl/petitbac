@@ -5,7 +5,7 @@ const SPECS = {
   10: { phrase: 'Oko yoka moto', each: 4, tone: 'ten', pulse: [18, 28, 18, 36] },
   JOKER: { phrase: 'Azanga mawa', each: 5, tone: 'joker', pulse: [22, 36, 22, 36, 48] }
 };
-const VARIANTS = ['sweep', 'bloom', 'cut', 'rise'];
+const VARIANTS = ['lift', 'soft', 'glide'];
 
 let layer = null;
 let timer = 0;
@@ -18,19 +18,6 @@ const lastVariant = { two: '', ten: '', joker: '' };
 
 function reduced() {
   return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-}
-
-function sparks(tone, rich) {
-  const count = rich ? 6 : tone === 'joker' ? 14 : tone === 'ten' ? 12 : 8;
-  return Array.from({ length: count }, () => {
-    const angle = Math.random() * Math.PI * 2;
-    const distance = (rich ? 90 : 70) + Math.random() * (rich ? 70 : 110);
-    return `<i class="kombo-spark" style="--x:${Math.cos(angle) * distance}px;--y:${Math.sin(angle) * distance}px"></i>`;
-  }).join('');
-}
-
-function rings(power) {
-  return Array.from({ length: Math.min(3, power) }, (_, index) => `<span class="kombo-ring" style="--i:${index}"></span>`).join('');
 }
 
 function pickVariant(tone) {
@@ -56,20 +43,18 @@ export function showKombo(rank, { count = 1, buzz = true } = {}) {
   if (rank === recentRank && now - recentAt < 1400) return;
   recentRank = rank;
   recentAt = now;
-  const { cards, chain, power } = charge(rank, count);
+  const { cards, chain } = charge(rank, count);
   const rich = cards > 1 || chain > 0;
-  const variant = rich ? pickVariant(spec.tone) : '';
+  const variant = pickVariant(spec.tone);
   layer?.remove();
   clearTimeout(timer);
   const amount = spec.each * cards;
-  const mark = cards > 1 ? `<p class="kombo-mark">×${cards}</p>` : '';
-  const encore = chain > 0 ? ' · encore' : '';
-  const echo = power >= 3 ? `<p class="kombo-echo" aria-hidden="true">${spec.phrase}</p>` : '';
+  const badge = cards > 1 ? `×${cards}` : chain > 0 ? String(chain + 1) : '';
   const node = document.createElement('div');
-  node.className = `kombo is-${spec.tone}${rich ? ` is-rich is-${variant} is-x${power}` : ''}${reduced() ? ' is-still' : ''}`;
-  node.style.setProperty('--ox', `${Math.random() < 0.5 ? -28 : 28}px`);
+  node.className = `kombo is-${spec.tone} is-${variant}${rich ? ' is-rich' : ''}${reduced() ? ' is-still' : ''}`;
+  node.style.setProperty('--ox', `${Math.random() < 0.5 ? -12 : 12}px`);
   node.setAttribute('role', 'status');
-  node.innerHTML = `${rich ? rings(power) : ''}${sparks(spec.tone, rich)}<div class="kombo-plate">${mark}<p class="kombo-kicker">Ramasse ${amount}${encore}</p><div class="kombo-word">${echo}<p class="kombo-phrase">${spec.phrase}</p></div></div>`;
+  node.innerHTML = `${rich ? '<span class="kombo-ring"></span>' : ''}<div class="kombo-plate">${badge ? `<span class="kombo-count">${badge}</span>` : '<span class="kombo-pip"></span>'}<p class="kombo-phrase">${spec.phrase}</p><span class="kombo-total">+${amount}</span></div>`;
   document.body.appendChild(node);
   layer = node;
   const felt = document.querySelector('.felt');
@@ -80,7 +65,7 @@ export function showKombo(rank, { count = 1, buzz = true } = {}) {
     node.remove();
     if (layer === node) layer = null;
     document.querySelector('.felt')?.classList.remove('is-kombo', 'is-kombo-two', 'is-kombo-ten', 'is-kombo-joker', 'is-kombo-rich');
-  }, reduced() ? 1200 : rich ? 2100 : 1750);
+  }, reduced() ? 1100 : rich ? 1680 : 1420);
 }
 
 export function watchKombo(game, buzz = false) {
