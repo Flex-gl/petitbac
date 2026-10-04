@@ -7,6 +7,8 @@ import { armMusic, setMusic } from './inter-audio.js';
 import { celebrate as celebrateVictory, clearCelebration } from './fireworks.js';
 import { attachInter, followInter, handleInterAction, interPathCode, leaveInter, loadInterSession, openInterRules, renderInter, stopInter, submitInterCreate, submitInterJoin, submitInterSolo } from './inter-session.js';
 import { attachQuiz, followQuiz, handleQuizAction, leaveQuiz, loadQuizSession, openQuizRules, quizPathCode, renderQuiz, stopQuiz, submitQuizCreate, submitQuizEdit, submitQuizFilter, submitQuizImport, submitQuizJoin, submitQuizKey } from './quiz-session.js';
+import { attachAdmin, handleAdminAction, openAdmin, renderAdmin, submitAdminKey, submitAdminSearch } from './admin-session.js';
+import { bannedScreen } from './screens/admin.js';
 
 document.documentElement.dataset.appVersion = APP_VERSION;
 window.dispatchEvent(new CustomEvent('petitbac-version', { detail: APP_VERSION }));
@@ -77,6 +79,14 @@ function roomSignature(game) {
 }
 
 async function render() {
+  if (state.page === 'banned') {
+    root.innerHTML = bannedScreen();
+    return;
+  }
+  if (state.page === 'admin') {
+    renderAdmin(root);
+    return;
+  }
   if (state.page === 'home') {
     root.innerHTML = hubScreen({ online: state.online, canInstall: Boolean(state.deferredPrompt) || !matchMedia('(display-mode: standalone)').matches, profile: state.profile, interProfile: state.interProfile, quizProfile: state.quizProfile, name: state.name, filter: state.hubFilter, query: state.hubQuery });
   } else if (state.page === 'letters') {
@@ -546,6 +556,8 @@ async function handleSubmit(event) {
   if (form.id === 'quiz-filter') return submitQuizFilter(form);
   if (form.id === 'quiz-edit') return submitQuizEdit(form);
   if (form.id === 'quiz-import') return submitQuizImport(form);
+  if (form.id === 'admin-key') return submitAdminKey(form);
+  if (form.id === 'admin-search') return submitAdminSearch(form);
   if (form.id === 'answer-form') return submitAnswers(form);
   if (form.id === 'chat-form') {
     const input = form.elements.message;
@@ -557,6 +569,7 @@ async function handleSubmit(event) {
 async function handleAction(button) {
   const action = button.dataset.action;
   if (!action) return;
+  if (action.startsWith('adm-')) return handleAdminAction(button);
   if (action === 'theme') {
     const next = document.documentElement.dataset.theme === 'light' ? 'dark' : 'light';
     document.documentElement.dataset.theme = next;
@@ -730,9 +743,21 @@ setInterval(() => refreshScores(true), 30000);
 setInterval(updateTimers, 250);
 attachInter({ state, playerId, render });
 attachQuiz({ state, playerId, render });
+attachAdmin({ state, render });
+addEventListener('petitbac-banned', () => {
+  if (state.page === 'admin' || /^\/admin\/?$/.test(location.pathname)) return;
+  clearTimeout(state.pollTimer);
+  closeSse();
+  stopQuiz();
+  stopInter();
+  state.page = 'banned';
+  render();
+});
 armMusic();
 splash();
 setTimeout(async () => {
+  if (state.page === 'banned') return;
+  if (/^\/admin\/?$/.test(location.pathname)) return openAdmin();
   state.page = 'home';
   await render();
   if (!navigator.connection?.saveData) {

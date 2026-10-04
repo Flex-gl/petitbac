@@ -1,4 +1,5 @@
 import { createInter, createSolo, getInter, mutateInter, presentInter, InterError } from './_inter.js';
+import { guard } from './_presence.js';
 
 function response(body, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', 'Access-Control-Allow-Origin': '*' } });
@@ -48,8 +49,9 @@ function eventStream(request, roomCode, viewerId) {
 export const config = { runtime: 'edge' };
 
 export default async function handler(request) {
-  if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'GET,POST,OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type' } });
+  if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'GET,POST,OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type, x-petitbac-device, x-petitbac-name' } });
   try {
+    await guard(request);
     if (request.method === 'GET') {
       const url = new URL(request.url);
       if (url.searchParams.get('stream') === '1') return eventStream(request, url.searchParams.get('code'), url.searchParams.get('playerId') || '');
@@ -62,6 +64,6 @@ export default async function handler(request) {
     return response({ game: presentInter(game, input.playerId || '') });
   } catch (error) {
     const status = error instanceof InterError || error.status ? error.status || 400 : 500;
-    return response({ error: error.message || 'Erreur du salon INTER.' }, status);
+    return response({ error: error.message || 'Erreur du salon INTER.', banned: Boolean(error.banned) }, status);
   }
 }

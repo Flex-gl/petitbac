@@ -1,4 +1,5 @@
 import { QuizError, adminQuiz, createQuiz, createSolo, getQuiz, mutateQuiz, presentQuiz, quizMeta } from './_quiz.js';
+import { guard } from './_presence.js';
 
 function response(body, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -62,9 +63,10 @@ export const config = { runtime: 'edge' };
 
 export default async function handler(request) {
   if (request.method === 'OPTIONS') {
-    return new Response(null, { status: 204, headers: { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'GET,POST,OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type' } });
+    return new Response(null, { status: 204, headers: { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'GET,POST,OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type, x-petitbac-device, x-petitbac-name, x-admin-key' } });
   }
   try {
+    await guard(request);
     if (request.method === 'GET') {
       const url = new URL(request.url);
       if (url.searchParams.get('meta') === '1') return response({ meta: await quizMeta() });
@@ -79,6 +81,6 @@ export default async function handler(request) {
     return response({ game: presentQuiz(game, input.playerId || '') });
   } catch (error) {
     const status = error instanceof QuizError || error.status ? error.status || 400 : 500;
-    return response({ error: error.message || 'Erreur du salon Quiz Battle.' }, status);
+    return response({ error: error.message || 'Erreur du salon Quiz Battle.', banned: Boolean(error.banned) }, status);
   }
 }

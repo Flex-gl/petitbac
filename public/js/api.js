@@ -1,13 +1,33 @@
+function traceHeaders() {
+  let device = '';
+  let name = '';
+  try {
+    device = localStorage.getItem('petitbac.deviceId') || '';
+    if (!device) {
+      device = crypto.randomUUID();
+      localStorage.setItem('petitbac.deviceId', device);
+    }
+    name = localStorage.getItem('petitbac.playerName') || '';
+  } catch { /* stockage fermé */ }
+  return {
+    ...(device ? { 'x-petitbac-device': device } : {}),
+    ...(name ? { 'x-petitbac-name': encodeURIComponent(name).slice(0, 180) } : {})
+  };
+}
+
 async function request(url, options = {}) {
   let response;
   try {
-    response = await fetch(url, { ...options, headers: { 'Content-Type': 'application/json', ...options.headers }, cache: 'no-store' });
+    response = await fetch(url, { ...options, headers: { 'Content-Type': 'application/json', ...traceHeaders(), ...options.headers }, cache: 'no-store' });
   } catch {
     throw new Error('Connexion interrompue. Vérifie ton réseau puis réessaie.');
   }
   const body = await response.json().catch(() => ({}));
   const fallback = response.status === 504 ? 'Le serveur a mis trop de temps. Réessaie.' : `Le serveur a répondu ${response.status}.`;
-  if (!response.ok) throw new Error(body.error || fallback);
+  if (!response.ok) {
+    if (body.banned && typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('petitbac-banned'));
+    throw new Error(body.error || fallback);
+  }
   return body;
 }
 
@@ -42,5 +62,12 @@ export const api = {
     if (options.game) params.set('game', options.game);
     const query = params.toString();
     return request(`/api/scores${query ? `?${query}` : ''}`, { signal: options.signal });
+  },
+  admin(data) {
+    return request('/api/admin', {
+      method: 'POST',
+      headers: { 'x-admin-key': sessionStorage.getItem('petitbac.adminKey') || '' },
+      body: JSON.stringify(data)
+    });
   }
 };

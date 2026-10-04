@@ -1,4 +1,5 @@
 import { getJson, interLeaderboard, leaderboard, quizLeaderboard } from './_redis.js';
+import { guard } from './_presence.js';
 
 export const config = { runtime: 'edge' };
 
@@ -6,6 +7,7 @@ export default async function handler(request) {
   const headers = { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' };
   if (request.method !== 'GET') return new Response(JSON.stringify({ error: 'Méthode non prise en charge.' }), { status: 405, headers });
   try {
+    await guard(request);
     const url = new URL(request.url);
     const game = url.searchParams.get('game');
     const playerId = url.searchParams.has('playerId') ? String(url.searchParams.get('playerId')).slice(0, 80) : '';
@@ -17,6 +19,6 @@ export default async function handler(request) {
     ]);
     return new Response(JSON.stringify({ top, profile, updatedAt: Date.now() }), { headers });
   } catch (error) {
-    return new Response(JSON.stringify({ error: error.message || 'Classement indisponible.' }), { status: error.status || 500, headers });
+    return new Response(JSON.stringify({ error: error.message || 'Classement indisponible.', banned: Boolean(error.banned) }), { status: error.status || 500, headers });
   }
 }

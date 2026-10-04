@@ -1,4 +1,5 @@
 import { createGame, getGame, mutateGame, publicGame, GameError } from './_game.js';
+import { guard } from './_presence.js';
 
 function response(body, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', 'Access-Control-Allow-Origin': '*' } });
@@ -51,8 +52,9 @@ function eventStream(request, roomCode, viewerId) {
 export const config = { runtime: 'edge' };
 
 export default async function handler(request) {
-  if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'GET,POST,OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type' } });
+  if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'GET,POST,OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type, x-petitbac-device, x-petitbac-name' } });
   try {
+    await guard(request);
     if (request.method === 'GET') {
       const url = new URL(request.url);
       if (url.searchParams.get('stream') === '1') return eventStream(request, url.searchParams.get('code'), url.searchParams.get('playerId') || '');
@@ -64,6 +66,6 @@ export default async function handler(request) {
     const game = input.action === 'create' ? await createGame(input) : await mutateGame(input);
     return response({ game: publicGame(game, input.playerId || '') });
   } catch (error) {
-    return response({ error: error.message || 'Erreur du serveur de jeu.' }, error.status || 500);
+    return response({ error: error.message || 'Erreur du serveur de jeu.', banned: Boolean(error.banned) }, error.status || 500);
   }
 }

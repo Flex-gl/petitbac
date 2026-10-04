@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vercel dev",
     "deploy": "vercel --prod",
-    "test": "node --test games/inter/engine.test.js games/inter/ai.test.js games/inter/salon.test.js games/quiz/engine.test.js version.test.js"
+    "test": "node --test games/inter/engine.test.js games/inter/ai.test.js games/inter/salon.test.js games/quiz/engine.test.js games/admin/trace.test.js version.test.js"
   },
   "engines": {
     "node": ">=20"
