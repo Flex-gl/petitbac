@@ -41,6 +41,11 @@
 .qz-form .segment { flex:1 1 72px; }
 .qz-form textarea.text-input { min-height:88px; resize:vertical; }
 .btn-sm { min-height:40px; padding:8px 12px; }
+@media (min-width:700px) {
+  .qz { width:min(100%, 960px); }
+  .qz-options { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .qz-prompt { font-size:clamp(32px, 3vw, 48px); }
+}
 @media (prefers-reduced-motion: reduce) {
   .qz-option { transition:none; }
 }

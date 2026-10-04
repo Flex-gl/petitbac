@@ -12,7 +12,7 @@ function matches(query, ...parts) {
   return parts.join(' ').toLowerCase().includes(q);
 }
 
-export function hubScreen({ online = true, canInstall = false, savedRoom = null, savedInter = null, savedQuiz = null, profile = null, interProfile = null, quizProfile = null, name = '', filter = 'all', query = '' }) {
+export function hubScreen({ online = true, canInstall = false, profile = null, interProfile = null, quizProfile = null, name = '', filter = 'all', query = '' }) {
   const you = name.trim() ? esc(name.trim().slice(0, 2).toUpperCase()) : 'TO';
   const points = Number(profile?.totalScore || 0);
   const wins = Number(interProfile?.wins || 0);
@@ -25,9 +25,6 @@ export function hubScreen({ online = true, canInstall = false, savedRoom = null,
   const filters = [['all', 'Tous'], ['letters', 'Lettres'], ['cards', 'Cartes'], ['quiz', 'Questions']]
     .map(([id, label]) => `<button type="button" class="nx-filter" data-action="hub-filter" data-filter="${id}" aria-pressed="${filter === id}">${label}</button>`).join('');
   const jumps = [
-    savedRoom ? { action: 'resume', art: 'letters', cover: '/covers/petitbac.jpg', tag: 'Reprise', title: 'Petit Bac', meta: `Salle ${savedRoom.code}`, when: 'En cours' } : null,
-    savedInter ? { action: 'ix-resume', art: 'cards', cover: '/covers/inter.jpg', tag: 'Reprise', title: 'INTER', meta: `Salle ${savedInter.code}`, when: 'En cours' } : null,
-    savedQuiz ? { action: 'qz-resume', art: 'quiz', cover: '/covers/quiz.jpg', tag: 'Reprise', title: 'Quiz Battle', meta: `Salon ${savedQuiz.code}`, when: 'En cours' } : null,
     { action: 'open-game', game: 'petitbac', art: 'letters', cover: '/covers/petitbac.jpg', tag: 'Lettres', title: 'Petit Bac', meta: 'Entre amis', when: 'Prêt' },
     { action: 'open-game', game: 'inter', art: 'cards', cover: '/covers/inter.jpg', tag: 'Cartes', title: 'INTER', meta: 'Face à face', when: 'Prêt' },
     { action: 'open-game', game: 'quiz', art: 'quiz', cover: '/covers/quiz.jpg', tag: 'Questions', title: 'Quiz Battle', meta: 'Quatre réponses', when: 'Prêt' },
@@ -78,7 +75,7 @@ export function hubScreen({ online = true, canInstall = false, savedRoom = null,
       </div>
     </section>
     <section class="nx-block">
-      <div class="nx-head"><h2>Reprendre</h2><span>${jumps.length} prêt${jumps.length > 1 ? 's' : ''}</span></div>
+      <div class="nx-head"><h2>Jouer</h2><span>${jumps.length} prêt${jumps.length > 1 ? 's' : ''}</span></div>
       <div class="nx-shelf">${shelf}</div>
     </section>
     <section class="nx-block">
@@ -94,21 +91,19 @@ export function hubScreen({ online = true, canInstall = false, savedRoom = null,
   return shell(content, { active: 'home', chrome: 'deck', query });
 }
 
-export function lettersScreen({ top = [], scoresState = 'loading', online = true, profile = null, savedRoom = null }) {
+export function lettersScreen({ top = [], scoresState = 'loading', online = true, profile = null }) {
   const cards = boardCards(top, scoresState, 'petitbac');
-  const resume = savedRoom ? `<button class="btn btn-secondary" data-action="resume">${icon('crown', 16)}Reprendre ${esc(savedRoom.code)}${savedRoom.host ? ' · tu es l’hôte' : ''}</button>` : '';
   const welcome = profile ? `<div class="notice-row">${icon('spark', 16)}<span>Re-bienvenue ${esc(profile.name)} · ${Number(profile.totalScore || 0)} points cumulés</span></div>` : '';
   const scoreNote = scoresState === 'error' ? `<p class="form-note">Le classement en ligne n’a pas répondu. Les scores déjà vus sur cet appareil restent affichés.</p>` : '';
-  const content = `<div class="hero"><div class="eyebrow">Lettres</div><h1 class="display">Petit Bac</h1><p class="intro">Une lettre. Dix catégories. Zéro temps mort.</p><div class="game-cover"><img src="/covers/petitbac.jpg" alt=""></div><div class="home-actions"><button class="btn btn-primary" data-action="create">${icon('plus')}Créer une partie</button><button class="btn btn-secondary" data-action="join">${icon('users')}Rejoindre une salle<span style="margin-left:auto;color:var(--muted2)">${icon('arrow',16)}</span></button>${resume}</div>${welcome}<div class="notice-row"><span class="status-dot ${online ? '' : 'offline'}"></span><span>${online ? 'Connecté à l’arène' : 'Hors ligne · accueil et règles disponibles'}</span></div></div><section aria-labelledby="top-title"><div class="section-heading"><h2 class="section-title" id="top-title">Les légendes du Petit Bac</h2><button class="section-link" data-action="rankings">Tout voir ${icon('arrow',14)}</button></div>${scoreNote}<div class="leader-track" aria-label="Top 10 des joueurs">${cards}</div></section>`;
+  const content = `<div class="hero"><div class="eyebrow">Lettres</div><h1 class="display">Petit Bac</h1><p class="intro">Une lettre. Dix catégories. Zéro temps mort.</p><div class="game-cover"><img src="/covers/petitbac.jpg" alt=""></div><div class="home-actions"><button class="btn btn-primary" data-action="create">${icon('plus')}Créer une partie</button><button class="btn btn-secondary" data-action="join">${icon('users')}Rejoindre une salle<span style="margin-left:auto;color:var(--muted2)">${icon('arrow',16)}</span></button></div>${welcome}<div class="notice-row"><span class="status-dot ${online ? '' : 'offline'}"></span><span>${online ? 'Connecté à l’arène' : 'Hors ligne · accueil et règles disponibles'}</span></div></div><section aria-labelledby="top-title"><div class="section-heading"><h2 class="section-title" id="top-title">Les légendes du Petit Bac</h2><button class="section-link" data-action="rankings">Tout voir ${icon('arrow',14)}</button></div>${scoreNote}<div class="leader-track" aria-label="Top 10 des joueurs">${cards}</div></section>`;
   return shell(content, { active: 'home' });
 }
 
-export function cardsScreen({ top = [], scoresState = 'loading', online = true, profile = null, savedInter = null }) {
+export function cardsScreen({ top = [], scoresState = 'loading', online = true, profile = null }) {
   const cards = boardCards(top, scoresState, 'inter');
-  const resume = savedInter ? `<button class="btn btn-secondary" data-action="ix-resume">${icon('spark', 16)}Reprendre ${esc(savedInter.code)}${savedInter.host ? ' · tu es l’hôte' : ''}</button>` : '';
   const welcome = profile ? `<div class="notice-row">${icon('spark', 16)}<span>Re-bienvenue ${esc(profile.name)} · ${Number(profile.wins || 0)} victoire${Number(profile.wins) === 1 ? '' : 's'}</span></div>` : '';
   const scoreNote = scoresState === 'error' ? `<p class="form-note">Le classement en ligne n’a pas répondu. Les scores déjà vus sur cet appareil restent affichés.</p>` : '';
-  const content = `<div class="hero"><div class="eyebrow">Cartes</div><h1 class="display">INTER</h1><p class="intro">Même enseigne, même valeur, effets cumulés.<br>Ou une partie contre Poséidon.</p><div class="game-cover"><img src="/covers/inter.jpg" alt=""></div><div class="home-actions"><button class="btn btn-primary" data-action="ix-solo">${icon('spark')}Jouer contre Poséidon</button><button class="btn btn-secondary" data-action="ix-setup">${icon('plus')}Créer un salon</button><button class="btn btn-secondary" data-action="ix-join">${icon('users')}Rejoindre une salle<span style="margin-left:auto;color:var(--muted2)">${icon('arrow',16)}</span></button>${resume}</div>${welcome}<div class="notice-row"><span class="status-dot ${online ? '' : 'offline'}"></span><span>${online ? 'Connecté à l’arène' : 'Hors ligne · accueil et règles disponibles'}</span></div></div><section aria-labelledby="top-title"><div class="section-heading"><h2 class="section-title" id="top-title">Les légendes d’INTER</h2><button class="section-link" data-action="rankings">Tout voir ${icon('arrow',14)}</button></div>${scoreNote}<div class="leader-track" aria-label="Top 10 INTER">${cards}</div></section>`;
+  const content = `<div class="hero"><div class="eyebrow">Cartes</div><h1 class="display">INTER</h1><p class="intro">Même enseigne, même valeur, effets cumulés.<br>Ou une partie contre Poséidon.</p><div class="game-cover"><img src="/covers/inter.jpg" alt=""></div><div class="home-actions"><button class="btn btn-primary" data-action="ix-solo">${icon('spark')}Jouer contre Poséidon</button><button class="btn btn-secondary" data-action="ix-setup">${icon('plus')}Créer un salon</button><button class="btn btn-secondary" data-action="ix-join">${icon('users')}Rejoindre une salle<span style="margin-left:auto;color:var(--muted2)">${icon('arrow',16)}</span></button></div>${welcome}<div class="notice-row"><span class="status-dot ${online ? '' : 'offline'}"></span><span>${online ? 'Connecté à l’arène' : 'Hors ligne · accueil et règles disponibles'}</span></div></div><section aria-labelledby="top-title"><div class="section-heading"><h2 class="section-title" id="top-title">Les légendes d’INTER</h2><button class="section-link" data-action="rankings">Tout voir ${icon('arrow',14)}</button></div>${scoreNote}<div class="leader-track" aria-label="Top 10 INTER">${cards}</div></section>`;
   return shell(content, { active: 'home' });
 }
 

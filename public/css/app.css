@@ -1721,41 +1721,108 @@ body:has(.is-deck) { background:#121318; color:#e3e1e9 }
   text-transform:uppercase
 }
 .app-shell.is-deck .nav-item.active { color:#4cd7f6; text-shadow:0 0 12px rgba(76,215,246,.85) }
+html[data-theme="light"] body:has(.is-deck) {
+  background:radial-gradient(ellipse at 80% -8%,rgba(109,59,215,.12),transparent 32rem),radial-gradient(ellipse at 0% 42%,rgba(0,124,153,.08),transparent 28rem),#f3f0fa;
+  color:#1a1528
+}
+html[data-theme="light"] .app-shell.is-deck {
+  background:transparent;
+  color:#1a1528;
+  --ink:#1a1528;
+  --muted:#5c5470;
+  --muted2:#847c98;
+  --line:rgba(35,24,68,.12);
+  --panel:#ffffff;
+  --nav-bg:rgba(243,240,250,.94);
+  --accent:#6d3bd7;
+  --purple:#6d3bd7;
+  --cyan:#007c99
+}
+html[data-theme="light"] .nx { color:#1a1528 }
+html[data-theme="light"] .nx-hero-art,
+html[data-theme="light"] .nx-hero-art h1,
+html[data-theme="light"] .nx-hero-meta,
+html[data-theme="light"] .nx-squad { color:#e3e1e9 }
+html[data-theme="light"] .nx-top {
+  background:rgba(243,240,250,.92);
+  box-shadow:0 4px 20px rgba(36,24,68,.08)
+}
+html[data-theme="light"] .nx-id,
+html[data-theme="light"] .nx-search input,
+html[data-theme="light"] .nx-jump,
+html[data-theme="light"] .nx-lib-card,
+html[data-theme="light"] .nx-storage b,
+html[data-theme="light"] .nx-banner h2,
+html[data-theme="light"] .nx-head h2 { color:#1a1528 }
+html[data-theme="light"] .nx-search,
+html[data-theme="light"] .nx-pill,
+html[data-theme="light"] .nx-filter,
+html[data-theme="light"] .nx-jump,
+html[data-theme="light"] .nx-lib-card,
+html[data-theme="light"] .nx-banner,
+html[data-theme="light"] .nx-storage,
+html[data-theme="light"] .nx-lvl,
+html[data-theme="light"] .app-shell.is-deck .icon-btn {
+  background:#fff;
+  color:#1a1528;
+  border-color:rgba(35,24,68,.1)
+}
+html[data-theme="light"] .nx-search input { background:transparent }
+html[data-theme="light"] .nx-lib-copy span,
+html[data-theme="light"] .nx-jump-copy span,
+html[data-theme="light"] .nx-banner-foot,
+html[data-theme="light"] .nx-storage span,
+html[data-theme="light"] .nx-head span { color:#5c5470 }
+html[data-theme="light"] .app-shell.is-deck .bottom-nav {
+  background:rgba(243,240,250,.94);
+  border-color:rgba(35,24,68,.1);
+  box-shadow:none
+}
+html[data-theme="light"] .app-shell.is-deck .nav-item { color:#5c5470 }
+html[data-theme="light"] .app-shell.is-deck .nav-item.active { color:#6d3bd7; text-shadow:none }
+html[data-theme="light"] .nx-filter[aria-pressed="true"] { background:#6d3bd7; color:#fff }
+.guide-grid { display:grid; gap:16px }
+.guide-card {
+  display:flex; flex-direction:column; gap:10px; padding:12px;
+  border:1px solid var(--line); border-radius:22px; background:var(--panel); color:var(--ink)
+}
+.guide-card h2 { margin:0; font:700 22px/1.15 Sora,'Space Grotesk',sans-serif }
+.guide-card p { margin:0; color:var(--muted); line-height:1.45 }
+.guide-card .game-cover { margin:0 }
+.guide-actions { display:flex; flex-wrap:wrap; gap:8px; margin-top:auto }
+.guide-actions .btn { min-height:44px; flex:1 }
+.guide-prose h2, .bottom-sheet h2:not(.sheet-title) {
+  margin:20px 0 8px; color:var(--ink); font:700 18px/1.25 Sora,'Space Grotesk',sans-serif
+}
+.guide-prose .rules-list, .bottom-sheet .rules-list { font-size:14px }
 @media (min-width:700px) {
-  body:has(.is-deck) { background:#0d0e13 }
-  .app-shell.is-deck {
-    width:min(480px,100%);
-    max-width:480px;
-    margin:0 auto;
-    padding:0 16px calc(88px + env(safe-area-inset-bottom));
-    background:#121318
+  .nx {
+    display:grid;
+    grid-template-columns:minmax(300px,.9fr) minmax(0,1.15fr);
+    gap:20px 28px;
+    align-items:start
   }
-  .app-shell.is-deck .bottom-nav {
-    top:auto;
-    left:50%;
-    bottom:0;
-    transform:translateX(-50%);
-    width:min(480px,100%);
-    height:auto;
-    flex-direction:row;
-    justify-content:space-around;
-    align-items:center;
-    gap:0;
-    padding:8px 8px calc(10px + env(safe-area-inset-bottom));
-    border:0;
-    border-top:1px solid rgba(255,255,255,.06);
-    border-radius:0;
-    background:rgba(13,14,19,.92)
+  .nx > .nx-ribbon { grid-column:1 / -1 }
+  .nx > .nx-hero { grid-column:1; grid-row:2 / span 2 }
+  .nx > .nx-banner { grid-column:2 }
+  .nx > .nx-block:nth-child(4) { grid-column:2 }
+  .nx > .nx-block:nth-child(5) { grid-column:1 / -1 }
+  .nx-hero-art { min-height:460px }
+  .nx-shelf {
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    overflow:visible;
+    margin:0;
+    padding:0
   }
-  .app-shell.is-deck .nav-item {
-    flex-direction:column;
-    justify-content:center;
-    min-width:64px;
-    min-height:44px;
-    padding:6px 8px;
-    background:transparent;
-    font-size:11px
-  }
-  .nx-top { margin-inline:-16px }
+  .nx-jump { width:100% }
   .nx-title { display:inline }
+  .guide-grid { grid-template-columns:repeat(3,minmax(0,1fr)); align-items:stretch }
+  .guide-prose { max-width:860px }
+}
+@media (min-width:1100px) {
+  .nx { grid-template-columns:minmax(380px,.8fr) minmax(0,1.2fr) }
+  .nx-grid { grid-template-columns:repeat(3,minmax(0,1fr)) }
+  .nx-shelf { grid-template-columns:repeat(4,minmax(0,1fr)) }
+  .nx-hero-art { min-height:520px }
 }

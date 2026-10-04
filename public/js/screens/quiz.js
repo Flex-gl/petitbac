@@ -1,4 +1,5 @@
 import { esc, icon, shell } from '../ui.js';
+export { quizRulesHtml } from './guide.js';
 
 const LEVELS = { facile: 'Facile', moyen: 'Moyen', difficile: 'Difficile' };
 
@@ -6,19 +7,14 @@ function doorShell(content) {
   return shell(content, { active: 'home' });
 }
 
-export function quizRulesHtml() {
-  return `<p class="sheet-copy">Quiz Battle pose la même question à tout le salon. Quatre réponses, une seule est juste, et le serveur compte les points. Tu peux aussi jouer seul.</p><ol class="rules-list"><li>Seul, ton score est enregistré, sans victoire au classement. Un salon accueille jusqu’à vingt joueurs.</li><li>L’hôte choisit le nombre de questions, la catégorie, la difficulté et le temps.</li><li>Une bonne réponse rapide vaut jusqu’à 100 points. Une bonne réponse en fin de temps vaut 60. Une erreur ou un silence vaut 0.</li><li>La réponse envoyée ne peut plus être changée. Le temps est tenu par le serveur.</li><li>Après chaque question, la bonne réponse et le classement s’affichent, puis la suivante commence.</li><li>La revanche reprend les mêmes joueurs, avec d’autres questions.</li></ol>`;
-}
-
-export function quizDoorScreen({ top = [], scoresState = 'loading', online = true, profile = null, savedQuiz = null }) {
+export function quizDoorScreen({ top = [], scoresState = 'loading', online = true, profile = null }) {
   const cards = scoresState === 'loading'
     ? `<div class="leader-card skeleton skeleton-card" aria-label="Chargement du classement"></div>`
     : top.length
       ? top.map((player, index) => scoreLine(player, index)).join('')
       : `<div class="empty-state">Les victoires Quiz Battle apparaissent à la fin d’une partie.</div>`;
-  const resume = savedQuiz ? `<button class="btn btn-secondary" data-action="qz-resume">${icon('spark', 16)}Reprendre ${esc(savedQuiz.code)}${savedQuiz.host ? ' · tu es l’hôte' : ''}</button>` : '';
   const welcome = profile ? `<div class="notice-row">${icon('spark', 16)}<span>Re-bienvenue ${esc(profile.name)} · ${Number(profile.wins || 0)} victoire${Number(profile.wins) === 1 ? '' : 's'}</span></div>` : '';
-  const content = `<div class="hero qz-hero"><div class="eyebrow">Questions</div><h1 class="display">Quiz Battle</h1><p class="intro">Même question. Quatre réponses. Seul ou à plusieurs.</p><div class="game-cover"><img src="/covers/quiz.jpg" alt=""></div><div class="home-actions"><button class="btn btn-primary" data-action="qz-solo">${icon('spark')}Jouer seul</button><button class="btn btn-secondary" data-action="qz-setup">${icon('plus')}Créer un salon</button><button class="btn btn-secondary" data-action="qz-join">${icon('users')}Rejoindre une salle<span style="margin-left:auto;color:var(--muted2)">${icon('arrow', 16)}</span></button>${resume}<button class="btn btn-secondary" data-action="qz-admin">${icon('rules', 16)}Banque de questions</button></div>${welcome}<div class="notice-row"><span class="status-dot ${online ? '' : 'offline'}"></span><span>${online ? 'Connecté à l’arène' : 'Hors ligne · accueil et règles disponibles'}</span></div></div><section aria-labelledby="quiz-top"><div class="section-heading"><h2 class="section-title" id="quiz-top">Les légendes de Quiz Battle</h2><button class="section-link" data-action="rankings">Tout voir ${icon('arrow', 14)}</button></div><div class="leader-track" aria-label="Top 10 Quiz Battle">${cards}</div></section>`;
+  const content = `<div class="hero qz-hero"><div class="eyebrow">Questions</div><h1 class="display">Quiz Battle</h1><p class="intro">Même question. Quatre réponses. Seul ou à plusieurs.</p><div class="game-cover"><img src="/covers/quiz.jpg" alt=""></div><div class="home-actions"><button class="btn btn-primary" data-action="qz-solo">${icon('spark')}Jouer seul</button><button class="btn btn-secondary" data-action="qz-setup">${icon('plus')}Créer un salon</button><button class="btn btn-secondary" data-action="qz-join">${icon('users')}Rejoindre une salle<span style="margin-left:auto;color:var(--muted2)">${icon('arrow', 16)}</span></button><button class="btn btn-secondary" data-action="qz-admin">${icon('rules', 16)}Banque de questions</button></div>${welcome}<div class="notice-row"><span class="status-dot ${online ? '' : 'offline'}"></span><span>${online ? 'Connecté à l’arène' : 'Hors ligne · accueil et règles disponibles'}</span></div></div><section aria-labelledby="quiz-top"><div class="section-heading"><h2 class="section-title" id="quiz-top">Les légendes de Quiz Battle</h2><button class="section-link" data-action="rankings">Tout voir ${icon('arrow', 14)}</button></div><div class="leader-track" aria-label="Top 10 Quiz Battle">${cards}</div></section>`;
   return doorShell(content);
 }
 

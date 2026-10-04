@@ -2,6 +2,7 @@ import { APP_VERSION } from './version.js';
 import { api } from './api.js';
 import { esc, haptic, icon, pageHead, shell, showSheet, toast } from './ui.js';
 import { cardsScreen, hubScreen, lettersScreen, rankingsScreen } from './screens/home.js';
+import { guideArticleScreen, guideCatalogScreen, petitbacRulesHtml } from './screens/guide.js';
 import { armMusic, setMusic } from './inter-audio.js';
 import { celebrate as celebrateVictory, clearCelebration } from './fireworks.js';
 import { attachInter, followInter, handleInterAction, interPathCode, leaveInter, loadInterSession, openInterRules, renderInter, stopInter, submitInterCreate, submitInterJoin, submitInterSolo } from './inter-session.js';
@@ -77,11 +78,15 @@ function roomSignature(game) {
 
 async function render() {
   if (state.page === 'home') {
-    root.innerHTML = hubScreen({ online: state.online, canInstall: Boolean(state.deferredPrompt) || !matchMedia('(display-mode: standalone)').matches, savedRoom: state.savedRoom, savedInter: state.savedInter, savedQuiz: state.savedQuiz, profile: state.profile, interProfile: state.interProfile, quizProfile: state.quizProfile, name: state.name, filter: state.hubFilter, query: state.hubQuery });
+    root.innerHTML = hubScreen({ online: state.online, canInstall: Boolean(state.deferredPrompt) || !matchMedia('(display-mode: standalone)').matches, profile: state.profile, interProfile: state.interProfile, quizProfile: state.quizProfile, name: state.name, filter: state.hubFilter, query: state.hubQuery });
   } else if (state.page === 'letters') {
-    root.innerHTML = lettersScreen({ top: state.top, scoresState: state.scoresState, online: state.online, profile: state.profile, savedRoom: state.savedRoom });
+    root.innerHTML = lettersScreen({ top: state.top, scoresState: state.scoresState, online: state.online, profile: state.profile });
   } else if (state.page === 'cards') {
-    root.innerHTML = cardsScreen({ top: state.interTop, scoresState: state.scoresState, online: state.online, profile: state.interProfile, savedInter: state.savedInter });
+    root.innerHTML = cardsScreen({ top: state.interTop, scoresState: state.scoresState, online: state.online, profile: state.interProfile });
+  } else if (state.page === 'guide') {
+    root.innerHTML = guideCatalogScreen();
+  } else if (state.page === 'guide-read') {
+    root.innerHTML = guideArticleScreen(state.guideGame, state.guideKind);
   } else if (state.page === 'setup') {
     await loadGameFeatures();
     const { setupScreen } = await import('./screens/setup.js');
@@ -332,12 +337,9 @@ function restoreDraft(game) {
   }
 }
 
-function pauseSession() {
-  const session = loadSession();
-  if (!session?.code) return;
-  session.paused = true;
-  localStorage.setItem(sessionKey, JSON.stringify(session));
-  state.savedRoom = session;
+function forgetRoom() {
+  localStorage.removeItem(sessionKey);
+  state.savedRoom = null;
 }
 
 function goHome(pauseRoom = false, page = 'home') {
@@ -349,8 +351,8 @@ function goHome(pauseRoom = false, page = 'home') {
   state.page = page;
   state.game = null;
   state.code = '';
-  if (pauseRoom) pauseSession();
-  else state.savedRoom = loadSession();
+  if (pauseRoom) forgetRoom();
+  else state.savedRoom = null;
   history.replaceState(null, '', '/');
   return render();
 }
@@ -380,12 +382,16 @@ function openJoinSheet(initialCode = '') {
   state.sheet = showSheet(locked ? `Rejoindre ${code}` : 'Rejoindre une salle', inner, () => { state.sheet = null; });
 }
 
-async function followInvite(rawCode) {
+async function followInvite(rawCode, options = {}) {
   const code = roomCode(rawCode);
   if (code.length !== 6) return;
   try {
     const data = await api.game(code, playerId);
     const game = data.game;
+    if (options.dropFinished && game.status === 'finished') {
+      forgetRoom();
+      return;
+    }
     if (game.players.some(player => player.id === playerId)) {
       enterRoom(game);
       return;
@@ -429,8 +435,7 @@ function inviteScreen(code) {
 }
 
 function openRules() {
-  const inner = `<p class="sheet-copy">Le Petit Bac se joue en manches. L’hôte choisit les catégories, le temps et le nombre de tours. Une lettre apparaît : trouve un mot par catégorie avant la fin du compte à rebours.</p><ol class="rules-list"><li>Au moins deux catégories sont sélectionnées avant le départ.</li><li>Chaque mot doit commencer par la lettre de la manche.</li><li>Valide ta grille pour rejoindre l’attente. La correction démarre quand tout le monde a fini ou quand le temps est écoulé.</li><li>Celui qui a lancé le salon corrige chaque réponse, joueur après joueur. Tout le monde voit la correction en direct.</li><li>Les autres joueurs peuvent contester. Le vote du groupe tranche alors : une réponse unique vaut 2 points, un doublon 1 point.</li><li>Les manches s’enchaînent, puis le classement final est sauvegardé au classement global.</li></ol><p class="sheet-copy">Une arène signée Poséidon - Del'Hiver. Rejoins une salle avec le lien ou le QR.</p>`;
-  state.sheet = showSheet('Règles du jeu', inner, () => { state.sheet = null; });
+  state.sheet = showSheet('Règles du Petit Bac', petitbacRulesHtml(), () => { state.sheet = null; });
 }
 
 function openHubChooser(kind) {
@@ -580,14 +585,6 @@ async function handleAction(button) {
   if (action === 'ix-solo') { state.page = 'inter-solo'; state.gameMode = 'inter'; return render(); }
   if (action === 'ix-setup') { state.page = 'inter-setup'; state.gameMode = 'inter'; return render(); }
   if (action === 'ix-join') return openInterJoin();
-  if (action === 'ix-resume') {
-    const session = loadInterSession();
-    if (!session?.code) return;
-    session.paused = false;
-    localStorage.setItem('petitbac.inter.session', JSON.stringify(session));
-    state.savedInter = null;
-    return followInter(session.code);
-  }
   if (String(action).startsWith('ix-')) return handleInterAction(button);
   if (String(action).startsWith('qz-')) return handleQuizAction(button);
   if (action === 'home') {
@@ -597,14 +594,6 @@ async function handleAction(button) {
     return goHome(state.page === 'room');
   }
   if (action === 'leave') return goHome(true, 'letters');
-  if (action === 'resume') {
-    const session = loadSession();
-    if (!session?.code) return;
-    session.paused = false;
-    localStorage.setItem(sessionKey, JSON.stringify(session));
-    state.savedRoom = null;
-    return followInvite(session.code);
-  }
   if (action === 'create') {
     state.page = 'setup';
     return render();
@@ -622,14 +611,21 @@ async function handleAction(button) {
     await refreshScores(true);
     return render();
   }
+  if (action === 'guide-open') {
+    state.guideGame = ['petitbac', 'inter', 'quiz'].includes(button.dataset.game) ? button.dataset.game : 'petitbac';
+    state.guideKind = button.dataset.kind === 'play' ? 'play' : 'rules';
+    state.page = 'guide-read';
+    return render();
+  }
   if (action === 'rules') {
-    if (state.page === 'home') return openHubChooser('rules');
-    if (state.gameMode === 'quiz' || String(state.page).startsWith('quiz')) return openQuizRules();
-    if (state.gameMode === 'inter' || String(state.page).startsWith('inter')) return openInterRules();
+    const live = state.page === 'room' || state.page === 'inter-room' || state.page === 'quiz-room';
+    if (!live) { state.page = 'guide'; return render(); }
+    if (state.page === 'quiz-room') return openQuizRules();
+    if (state.page === 'inter-room') return openInterRules();
     return openRules();
   }
   if (action === 'rankings') {
-    if (state.page === 'home') return openHubChooser('rankings');
+    if (state.page === 'home' || state.page === 'guide' || state.page === 'guide-read') return openHubChooser('rankings');
     if (state.page === 'room') { clearTimeout(state.pollTimer); closeSse(); }
     if (state.page === 'quiz-room') stopQuiz();
     if (state.page === 'inter-room') stopInter();
@@ -638,6 +634,8 @@ async function handleAction(button) {
     return render();
   }
   if (action === 'back') {
+    if (state.page === 'guide-read') { state.page = 'guide'; return render(); }
+    if (state.page === 'guide') { state.page = 'home'; return render(); }
     if (state.page === 'inter-setup' || state.page === 'inter-solo' || state.page === 'inter-invite') {
       state.page = 'cards';
       return render();
@@ -654,7 +652,7 @@ async function handleAction(button) {
       const session = loadSession();
       if (state.page === 'rankings' && session?.code && !session.paused) return followInvite(session.code);
       state.page = state.page === 'setup' ? 'letters' : state.gameMode === 'inter' ? 'cards' : state.gameMode === 'quiz' ? 'quiz-door' : 'home';
-      state.savedRoom = session?.code ? session : null;
+      state.savedRoom = null;
       history.replaceState(null, '', '/');
       return render();
     }
@@ -752,39 +750,27 @@ setTimeout(async () => {
   const quizCode = quizPathCode();
   const interCode = interPathCode();
   const code = inviteCode();
-  const session = loadSession();
-  const interSession = loadInterSession();
-  const quizSession = loadQuizSession();
-  const pausedHere = (stored, current) => stored?.code && stored.code === current && stored.paused;
-  if (quizCode && pausedHere(quizSession, quizCode)) {
+  const rawQuiz = loadQuizSession();
+  const rawInter = loadInterSession();
+  const rawRoom = loadSession();
+  const abandoned = (stored, current) => Boolean(stored?.paused && current && stored.code === current);
+  if (rawQuiz?.paused) localStorage.removeItem('petitbac.quiz.session');
+  if (rawInter?.paused) localStorage.removeItem('petitbac.inter.session');
+  if (rawRoom?.paused) localStorage.removeItem(sessionKey);
+  if (abandoned(rawQuiz, quizCode) || abandoned(rawInter, interCode) || abandoned(rawRoom, code)) {
     history.replaceState(null, '', '/');
-    state.savedQuiz = quizSession;
-    if (state.page === 'home') render();
-  } else if (interCode && pausedHere(interSession, interCode)) {
-    history.replaceState(null, '', '/');
-    state.savedInter = interSession;
-    if (state.page === 'home') render();
-  } else if (code.length === 6 && pausedHere(session, code)) {
-    history.replaceState(null, '', '/');
-    state.savedRoom = session;
-    if (state.page === 'home') render();
   } else if (quizCode) followQuiz(quizCode);
   else if (interCode) followInter(interCode);
   else if (code.length === 6) followInvite(code);
   else {
+    const live = stored => (stored?.code && !stored.paused ? stored : null);
     const resumable = [
-      quizSession?.code && !quizSession.paused ? { kind: 'quiz', at: quizSession.savedAt || 0, code: quizSession.code } : null,
-      interSession?.code && !interSession.paused ? { kind: 'inter', at: interSession.savedAt || 0, code: interSession.code } : null,
-      session?.code && !session.paused ? { kind: 'letters', at: session.savedAt || 0, code: session.code } : null
+      live(rawQuiz) ? { kind: 'quiz', at: rawQuiz.savedAt || 0, code: rawQuiz.code } : null,
+      live(rawInter) ? { kind: 'inter', at: rawInter.savedAt || 0, code: rawInter.code } : null,
+      live(rawRoom) ? { kind: 'letters', at: rawRoom.savedAt || 0, code: rawRoom.code } : null
     ].filter(Boolean).sort((a, b) => b.at - a.at)[0];
-    if (resumable?.kind === 'quiz') followQuiz(resumable.code);
-    else if (resumable?.kind === 'inter') followInter(resumable.code);
-    else if (resumable?.kind === 'letters') followInvite(resumable.code);
-    else {
-      if (session?.code) state.savedRoom = session;
-      if (interSession?.code) state.savedInter = interSession;
-      if (quizSession?.code) state.savedQuiz = quizSession;
-      if (state.page === 'home') render();
-    }
+    if (resumable?.kind === 'quiz') followQuiz(resumable.code, { dropFinished: true });
+    else if (resumable?.kind === 'inter') followInter(resumable.code, { dropFinished: true });
+    else if (resumable?.kind === 'letters') followInvite(resumable.code, { dropFinished: true });
   }
 }, 620);

@@ -144,12 +144,17 @@ export async function openQuiz(game) {
   armTimer();
 }
 
-export async function followQuiz(rawCode) {
+export async function followQuiz(rawCode, options = {}) {
   const code = String(rawCode || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6);
   if (code.length !== 6) return;
   try {
     const data = await api.quiz(code, ctx.playerId);
     const game = data.game;
+    if (options.dropFinished && game.status === 'finished') {
+      localStorage.removeItem(sessionKey);
+      ctx.state.savedQuiz = null;
+      return;
+    }
     if (game.players.some(player => player.id === ctx.playerId)) return openQuiz(game);
     const stored = readSession();
     const secret = localStorage.getItem(`petitbac.quiz.secret.${code}`) || (stored?.code === code ? stored.secret : '');
@@ -182,12 +187,8 @@ export async function leaveQuiz(pause = true) {
   ctx.state.page = pause ? 'quiz-door' : 'home';
   ctx.state.quizGame = null;
   ctx.state.code = '';
-  const session = readSession();
-  if (pause && session?.code) {
-    session.paused = true;
-    localStorage.setItem(sessionKey, JSON.stringify(session));
-    ctx.state.savedQuiz = session;
-  }
+  ctx.state.savedQuiz = null;
+  localStorage.removeItem(sessionKey);
   history.replaceState(null, '', '/');
   return ctx.render();
 }
@@ -385,14 +386,6 @@ export async function handleQuizAction(button) {
   if (action === 'qz-join') return openQuizJoin();
   if (action === 'qz-admin') return openQuizAdmin();
   if (action === 'qz-rules') return openQuizRules();
-  if (action === 'qz-resume') {
-    const session = readSession();
-    if (!session?.code) return;
-    session.paused = false;
-    localStorage.setItem(sessionKey, JSON.stringify(session));
-    ctx.state.savedQuiz = null;
-    return followQuiz(session.code);
-  }
   if (action === 'qz-leave') return leaveQuiz(true);
   if (action === 'qz-hub') return leaveQuiz(false);
   if (action === 'qz-start') return run('start');
@@ -436,7 +429,7 @@ export async function handleQuizAction(button) {
 
 export async function renderQuiz(root) {
   const game = ctx.state.quizGame;
-  if (ctx.state.page === 'quiz-door') root.innerHTML = quizDoorScreen({ top: ctx.state.quizTop, scoresState: ctx.state.scoresState, online: ctx.state.online, profile: ctx.state.quizProfile, savedQuiz: ctx.state.savedQuiz });
+  if (ctx.state.page === 'quiz-door') root.innerHTML = quizDoorScreen({ top: ctx.state.quizTop, scoresState: ctx.state.scoresState, online: ctx.state.online, profile: ctx.state.quizProfile });
   else if (ctx.state.page === 'quiz-setup') root.innerHTML = quizSetupScreen(ctx.state.name, ctx.state.quizMeta, ctx.state.quizSolo);
   else if (ctx.state.page === 'quiz-invite') root.innerHTML = quizInviteScreen(ctx.state.code);
   else if (ctx.state.page === 'quiz-admin') root.innerHTML = quizAdminScreen(admin);

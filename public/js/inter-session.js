@@ -156,12 +156,17 @@ export async function openInter(game) {
   schedule(400);
 }
 
-export async function followInter(rawCode) {
+export async function followInter(rawCode, options = {}) {
   const code = String(rawCode || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6);
   if (code.length !== 6) return;
   try {
     const data = await api.inter(code, ctx.playerId);
     const game = data.game;
+    if (options.dropFinished && game.status === 'finished') {
+      localStorage.removeItem(sessionKey);
+      ctx.state.savedInter = null;
+      return;
+    }
     if (game.players.some(player => player.id === ctx.playerId)) return openInter(game);
     const stored = readSession();
     const secret = localStorage.getItem(`petitbac.inter.secret.${code}`) || (stored?.code === code ? stored.secret : '');
@@ -195,12 +200,8 @@ export async function leaveInter(pause = true) {
   ctx.state.page = 'cards';
   ctx.state.interGame = null;
   ctx.state.code = '';
-  const session = readSession();
-  if (pause && session?.code) {
-    session.paused = true;
-    localStorage.setItem(sessionKey, JSON.stringify(session));
-    ctx.state.savedInter = session;
-  }
+  ctx.state.savedInter = null;
+  localStorage.removeItem(sessionKey);
   history.replaceState(null, '', '/');
   return ctx.render();
 }

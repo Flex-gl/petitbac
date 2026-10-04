@@ -49,10 +49,8 @@ export function shell(content, options = {}) {
   return `<div class="app-shell ${options.wide ? 'wide' : ''} ${deck ? 'is-deck' : ''}">${header}<main id="main" class="${enter}">${content}</main>${nav}</div><div class="toast" role="status" aria-live="polite"></div>`;
 }
 export function pageHead(title, subtitle, back = true, extra = '') { return `<div class="page-head${extra ? ` ${extra}` : ''}">${back ? `<button class="back-btn" data-action="back" aria-label="Retour">${icon('back')}</button>` : ''}<div><h1>${esc(title)}</h1><p>${esc(subtitle)}</p></div></div>`; }
-export function button(label, action, style = 'primary', extra = '') { return `<button class="btn btn-${style} ${extra}" data-action="${action}">${label}</button>`; }
 export function haptic(pattern = 12) { if ('vibrate' in navigator && !matchMedia('(prefers-reduced-motion: reduce)').matches) navigator.vibrate(pattern); }
 export function toast(message) { const node = document.querySelector('.toast'); if (!node) return; node.textContent = message; node.classList.add('show'); clearTimeout(window.__arenaToast); window.__arenaToast = setTimeout(() => node.classList.remove('show'), 2400); }
-export function navIcon(name) { return icon(name, 19); }
 export function scoreCard(player, index, mode = 'petitbac') {
   const place = String(index + 1).padStart(2, '0');
   const inter = mode === 'inter';
