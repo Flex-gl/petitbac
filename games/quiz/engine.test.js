@@ -139,6 +139,23 @@ test('la revanche pioche d’autres questions', () => {
   assert.equal(game.players[0].score, 0);
 });
 
+test('une manche prend le même nombre de questions dans chaque catégorie', () => {
+  const categories = ['Géographie', 'Sciences & Technologie', 'Histoire & Culture', 'Sport', 'Arts'];
+  const pool = categories.flatMap(categorie => Array.from({ length: 12 }, (_, index) => ({
+    ...sample(`${categorie}-${index}`),
+    categorie,
+    question: `Quelle réponse retient-on pour ${categorie} ${index} ?`
+  })));
+  const picked = selectQuestions(pool, { count: 10, random: () => 0.3 });
+  const mix = {};
+  for (const card of picked) mix[card.categorie] = (mix[card.categorie] || 0) + 1;
+  assert.equal(picked.length, 10);
+  assert.deepEqual(Object.values(mix).sort((a, b) => a - b), [2, 2, 2, 2, 2]);
+  const sport = selectQuestions(pool, { count: 4, category: 'Sport', random: () => 0.2 });
+  assert.equal(sport.length, 4);
+  assert.ok(sport.every(card => card.categorie === 'Sport'));
+});
+
 test('le filtre de questions s’arrête s’il n’y en a pas assez', () => {
   assert.throws(() => selectQuestions([sample('q1')], { count: 5 }), QuizError);
 });
@@ -171,6 +188,12 @@ test('la banque contient plus de dix mille questions distinctes, en UTF-8', () =
   const picked = selectQuestions(bank.questions, { count: 10, random: () => 0.42 });
   assert.equal(picked.length, 10);
   assert.ok(picked.every(card => card.correct >= 0 && card.correct <= 3 && card.options.length === 4));
+  const mix = {};
+  for (const card of picked) mix[card.categorie] = (mix[card.categorie] || 0) + 1;
+  const spread = Object.values(mix);
+  assert.ok(spread.length > 1);
+  assert.ok(Math.max(...spread) - Math.min(...spread) <= 1);
+  assert.ok((mix['Géographie'] || 0) <= 3);
   assert.ok(Date.now() - started < 1500);
   const ids = selectIds(bank.questions.map(question => ({ id: question.id, categorie: question.categorie, difficulte: question.difficulte, actif: question.actif })), { count: 10, random: () => 0.2 });
   assert.equal(ids.length, 10);

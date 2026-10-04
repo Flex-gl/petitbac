@@ -139,7 +139,7 @@ const ARTICLES = {
         <li>Tu peux jouer seul. Ton score, ton record et ta réussite sont gardés. Ce n’est pas une victoire au classement.</li>
         <li>Un salon accueille jusqu’à vingt joueurs. L’hôte peut aussi lancer la partie seul, puis les autres ne rejoignent plus une fois que c’est parti.</li>
         <li>L’hôte choisit le nombre de questions, de 5 à 30, la catégorie, la difficulté et le temps : 5, 10, 15, 20 ou 30 secondes.</li>
-        <li>Les questions viennent de la banque du serveur. Une même question ne revient pas dans la partie. Celles déjà vues sont écartées tant qu’il en reste d’autres.</li>
+        <li>Les questions viennent de la banque du serveur. En mélange, chaque catégorie en donne autant : dix questions et cinq catégories, c’est deux questions chacune. Une même question ne revient pas dans la partie. Celles déjà vues sont écartées tant qu’il en reste d’autres.</li>
       </ol>
       <h2>La question</h2>
       <ol class="rules-list">

@@ -128,13 +128,45 @@ function drawSome(list, wanted, random, seen) {
 function chooseItems(eligible, wanted, used, recent, random) {
   const usedSet = new Set(used.map(String));
   const recentSet = new Set(recent.map(String));
-  const unused = eligible.filter(item => !usedSet.has(String(item.id)));
-  const fresh = unused.filter(item => !recentSet.has(String(item.id)));
   const seen = new Set();
-  const picked = drawSome(fresh, wanted, random, seen);
-  if (picked.length < wanted) picked.push(...drawSome(unused, wanted - picked.length, random, seen));
+  const picked = takeFrom(eligible, wanted, usedSet, recentSet, random, seen);
   if (picked.length < wanted) throw new QuizError(`Pas assez de questions pour ce filtre (${picked.length} disponibles, ${wanted} demandées).`);
   return picked;
+}
+
+function takeFrom(list, quota, usedSet, recentSet, random, seen) {
+  if (quota <= 0) return [];
+  const unused = list.filter(item => !usedSet.has(String(item.id)));
+  const fresh = unused.filter(item => !recentSet.has(String(item.id)));
+  const picked = drawSome(fresh, quota, random, seen);
+  if (picked.length < quota) picked.push(...drawSome(unused, quota - picked.length, random, seen));
+  return picked;
+}
+
+function chooseBalanced(eligible, wanted, used, recent, random) {
+  const groups = new Map();
+  for (const item of eligible) {
+    const key = String(item.categorie || 'Autres');
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(item);
+  }
+  const names = [...groups.keys()];
+  if (names.length <= 1) return chooseItems(eligible, wanted, used, recent, random);
+  const usedSet = new Set(used.map(String));
+  const recentSet = new Set(recent.map(String));
+  const order = shuffle(names, random);
+  const base = Math.floor(wanted / order.length);
+  let extra = wanted % order.length;
+  const seen = new Set();
+  const picked = [];
+  for (const name of order) {
+    const quota = base + (extra > 0 ? 1 : 0);
+    if (extra > 0) extra -= 1;
+    picked.push(...takeFrom(groups.get(name), quota, usedSet, recentSet, random, seen));
+  }
+  if (picked.length < wanted) picked.push(...takeFrom(eligible, wanted - picked.length, usedSet, recentSet, random, seen));
+  if (picked.length < wanted) throw new QuizError(`Pas assez de questions pour ce filtre (${picked.length} disponibles, ${wanted} demandées).`);
+  return shuffle(picked, random);
 }
 
 export function selectIds(pool, { count, category = 'toutes', difficulty = 'toutes', used = [], recent = [], random = Math.random } = {}) {
@@ -145,7 +177,7 @@ export function selectIds(pool, { count, category = 'toutes', difficulty = 'tout
     if (difficulty && difficulty !== 'toutes' && item.difficulte !== difficulty) return false;
     return true;
   });
-  return chooseItems(eligible, wanted, used, recent, random).map(item => String(item.id));
+  return chooseBalanced(eligible, wanted, used, recent, random).map(item => String(item.id));
 }
 
 export function plainPrompt(value) {
@@ -165,7 +197,7 @@ export function selectQuestions(pool, { count, category = 'toutes', difficulty =
     if (difficulty && difficulty !== 'toutes' && question.difficulte !== difficulty) return false;
     return true;
   });
-  return chooseItems(eligible, wanted, used, recent, random).map(packQuestion);
+  return chooseBalanced(eligible, wanted, used, recent, random).map(packQuestion);
 }
 
 function packQuestion(question) {
