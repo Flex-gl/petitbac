@@ -28,16 +28,12 @@ html[data-theme="light"] .splash {
   animation:loaderSpin 1s linear infinite
 }
 .loader-letter {
-  width:58px;
-  height:58px;
+  width:64px;
+  height:64px;
   display:grid;
-  place-items:center;
-  border-radius:18px;
-  background:linear-gradient(145deg,#d0bcff,#a078ff);
-  color:#3c0091;
-  font:700 28px 'Sora','Space Grotesk',sans-serif;
-  box-shadow:0 12px 28px rgba(160,120,255,.35)
+  place-items:center
 }
+.loader-letter img { width:58px; height:58px; object-fit:contain }
 .loader-caption {
   font-size:11px;
   font-weight:600;

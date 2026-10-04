@@ -144,12 +144,11 @@ a {
   display:grid;
   place-items:center;
   border-radius:50%;
-  background:#d0bcff;
+  background:#121318;
   box-shadow:0 0 16px rgba(160,120,255,.45);
-  font:700 18px 'Sora','Space Grotesk',sans-serif;
-  color:#3c0091;
-  transform:none
+  overflow:hidden
 }
+.brand-mark img { width:82%; height:82%; object-fit:contain }
 .brand-name {
   font:700 15px 'Space Grotesk',sans-serif;
   letter-spacing:-.4px
@@ -306,12 +305,9 @@ html[data-theme="light"] .display .gradient-text {
 .nx-hero-art {
   position:relative; min-height:340px; display:flex; flex-direction:column; justify-content:space-between;
   padding:16px; border-radius:16px; overflow:hidden; border:1px solid rgba(255,255,255,.08);
-  background:
-    radial-gradient(circle at 78% 22%, rgba(160,120,255,.72), transparent 28%),
-    radial-gradient(circle at 18% 78%, rgba(3,181,211,.45), transparent 34%),
-    linear-gradient(160deg, #24143f 0%, #121318 62%)
+  background:#121318 url('/covers/inter.jpg') center 42% / cover no-repeat
 }
-.nx-watermark { position:absolute; right:-12px; top:18px; font:800 168px/1 Sora,'Space Grotesk',sans-serif; color:rgba(255,255,255,.06); pointer-events:none }
+.nx-watermark { position:absolute; right:8px; top:18px; width:148px; height:148px; object-fit:contain; opacity:.22; pointer-events:none }
 .nx-scrim { position:absolute; inset:0; background:linear-gradient(to top, #0d0e13 0%, rgba(13,14,19,.55) 42%, transparent 68%), linear-gradient(to right, rgba(13,14,19,.78), transparent 58%); pointer-events:none }
 .nx-hero-top,.nx-hero-copy { position:relative; z-index:1 }
 .nx-hero-top { display:flex; justify-content:space-between; gap:8px }
@@ -360,6 +356,13 @@ html[data-theme="light"] .display .gradient-text {
 .nx-lib-card { display:flex; flex-direction:column; justify-content:space-between; gap:10px; min-height:168px; width:100%; padding:8px; border:0; border-radius:16px; background:#292a2f; color:#e3e1e9; text-align:left; cursor:pointer }
 .nx-lib-card.is-soon { opacity:.72; cursor:default }
 .nx-cover { width:48px; height:48px; display:grid; place-items:center; border-radius:12px; font:700 18px Sora,'Space Grotesk',sans-serif; color:#0d0e13 }
+.nx-photo { position:relative; display:block; overflow:hidden; border-radius:12px; background:#121318 }
+.nx-photo img { width:100%; height:100%; object-fit:cover; display:block }
+.nx-lib-card .nx-photo { height:104px }
+.nx-jump-art.nx-photo { height:128px }
+.nx-photo .nx-badge { position:absolute; top:8px; right:8px }
+.game-cover { margin:14px 0 4px; border-radius:18px; overflow:hidden; border:1px solid rgba(255,255,255,.08); aspect-ratio:16/8; background:#121318 }
+.game-cover img { width:100%; height:100%; object-fit:cover; object-position:center 42%; display:block }
 .nx-badge { padding:3px 6px; border-radius:6px; background:rgba(0,165,114,.28); color:#4edea3; font-size:10px }
 .nx-lib-card.is-soon .nx-badge { background:rgba(13,14,19,.8); color:#cbc3d7 }
 .nx-lib-copy { display:flex; flex-direction:column; gap:2px }
@@ -370,7 +373,7 @@ html[data-theme="light"] .display .gradient-text {
 .nx-go { width:28px; height:28px; border-radius:8px; background:#34343a; color:#d0bcff }
 .nx-art-letters { background:linear-gradient(145deg, #a078ff, #4cd7f6) }
 .nx-art-cards { background:linear-gradient(160deg, #1a1030, #03b5d3 80%) }
-.nx-art-poseidon { background:radial-gradient(circle at 70% 30%, #d0bcff, #121318 70%) }
+.nx-art-poseidon { background:#16141f url('/icons/mark.png') center 58% / 58% no-repeat }
 .nx-art-soon { background:#34343a; color:#958ea0 }
 .nx-art-quiz { background:linear-gradient(145deg, #4edea3, #4cd7f6) }
 .nx-storage { display:flex; flex-direction:column; gap:8px; margin-top:4px; padding:14px; border-radius:16px; background:#1a1b21 }
@@ -1687,8 +1690,9 @@ body:has(.is-deck) { background:#121318; color:#e3e1e9 }
 .nx-id { display:flex; align-items:center; gap:8px; text-decoration:none; color:#e3e1e9 }
 .nx-avatar {
   position:relative; width:32px; height:32px; display:grid; place-items:center; border-radius:50%;
-  background:#d0bcff; color:#3c0091; font:700 14px Sora,'Space Grotesk',sans-serif
+  background:#121318; overflow:visible
 }
+.nx-avatar img { width:24px; height:24px; object-fit:contain }
 .nx-avatar i { position:absolute; right:0; bottom:0; width:9px; height:9px; border-radius:50%; background:#4edea3; box-shadow:0 0 8px #4edea3 }
 .nx-lvl { padding:3px 6px; border-radius:6px; background:#292a2f; color:#4cd7f6; font:700 11px/1 'Space Grotesk',sans-serif; letter-spacing:.08em; text-transform:uppercase }
 .nx-title { display:none; font:600 16px/1 Sora,'Space Grotesk',sans-serif }

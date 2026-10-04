@@ -60,7 +60,7 @@ async function loadGameFeatures() {
 }
 
 function splash() {
-  root.innerHTML = `<div class="splash"><div class="loader-mark" aria-hidden="true"><span class="loader-ring"></span><span class="loader-letter">P</span></div><p>POSÉIDON · DEL'HIVER</p><b class="loader-caption">Ouverture de l’arène</b></div>`;
+  root.innerHTML = `<div class="splash"><div class="loader-mark" aria-hidden="true"><span class="loader-ring"></span><span class="loader-letter"><img src="/icons/mark.png" alt=""></span></div><p>POSÉIDON · DEL'HIVER</p><b class="loader-caption">Ouverture de l’arène</b></div>`;
 }
 
 function roomSignature(game) {
