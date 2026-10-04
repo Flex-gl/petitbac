@@ -19,6 +19,13 @@ test('les mêmes pseudos et la même adresse se regroupent', () => {
   const addresses = selectGroups(devices, { mode: 'ips', filter: 'all', now });
   assert.equal(addresses.length, 2);
   assert.equal(addresses[0].ips[0], '203.0.113.8');
+  const shared = [
+    { id: 'c', names: ['Clemence'], playerIds: ['c1'], ip: '203.0.113.8', lastSeen: now },
+    { id: 't', names: ['Tracy'], playerIds: ['t1'], ip: '203.0.113.8', lastSeen: now - 1 },
+    { id: 's', names: [], playerIds: ['c1', 't1'], ip: '203.0.113.8', lastSeen: now - 2 }
+  ];
+  assert.equal(selectGroups(shared, { mode: 'people', filter: 'players', now }).length, 2);
+  assert.equal(selectGroups(shared, { mode: 'ips', filter: 'all', now })[0].devices.length, 3);
   const html = adminScreen({ unlocked: true, tab: 'people', filter: 'players', devices, shown: 6 });
   assert.equal((html.match(/adm-group-toggle/g) || []).length, 1);
   assert.match(html, /Doriana ANYASEBO/);

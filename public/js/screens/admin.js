@@ -90,37 +90,53 @@ export function groupDevices(devices, mode = 'people') {
       devices: members
     }));
   }
-  const parent = list.map((_, index) => index);
-  const find = index => {
-    let cursor = index;
-    while (parent[cursor] !== cursor) cursor = parent[cursor];
-    parent[index] = cursor;
+  const named = new Map();
+  const loose = [];
+  for (const device of list) {
+    const name = norm((device.names || []).find(Boolean));
+    if (!name) { loose.push(device); continue; }
+    if (!named.has(name)) named.set(name, []);
+    named.get(name).push(device);
+  }
+  const keys = [...named.keys()];
+  const parent = new Map(keys.map(key => [key, key]));
+  const find = key => {
+    let cursor = key;
+    while (parent.get(cursor) !== cursor) cursor = parent.get(cursor);
+    parent.set(key, cursor);
     return cursor;
   };
-  const unite = (left, right) => {
-    const a = find(left);
-    const b = find(right);
-    if (a !== b) parent[a] = b;
-  };
-  const seen = new Map();
-  list.forEach((device, index) => {
-    const tokens = [
-      ...(device.names || []).map(name => `n:${norm(name)}`),
-      ...(device.playerIds || []).map(id => `p:${norm(id)}`)
-    ].filter(token => token.length > 2);
-    for (const token of tokens) {
-      if (seen.has(token)) unite(index, seen.get(token));
-      else seen.set(token, index);
+  const samePerson = (left, right) => left === right || left.startsWith(`${right} `) || right.startsWith(`${left} `);
+  for (let i = 0; i < keys.length; i += 1) {
+    for (let j = i + 1; j < keys.length; j += 1) {
+      if (samePerson(keys[i], keys[j])) parent.set(find(keys[i]), find(keys[j]));
     }
-  });
-  const buckets = new Map();
-  list.forEach((device, index) => {
-    const named = (device.names || []).some(Boolean) || (device.playerIds || []).some(Boolean);
-    const key = named ? `who:${find(index)}` : `solo:${device.id || index}`;
-    if (!buckets.has(key)) buckets.set(key, []);
-    buckets.get(key).push(device);
-  });
-  return [...buckets.values()].map(members => ({
+  }
+  const merged = new Map();
+  for (const [key, members] of named) {
+    const root = find(key);
+    if (!merged.has(root)) merged.set(root, []);
+    merged.get(root).push(...members);
+  }
+  const owner = new Map();
+  for (const [root, members] of merged) {
+    for (const device of members) {
+      for (const id of device.playerIds || []) {
+        const token = norm(id);
+        if (!token) continue;
+        const previous = owner.get(token);
+        owner.set(token, previous && previous !== root ? '*' : root);
+      }
+    }
+  }
+  for (const device of loose) {
+    const ids = unique((device.playerIds || []).map(norm));
+    const homes = unique(ids.map(id => owner.get(id)).filter(home => home && home !== '*'));
+    const single = ids.length > 0 && homes.length === 1 && ids.every(id => owner.get(id) === homes[0]);
+    if (single) merged.get(homes[0]).push(device);
+    else merged.set(`solo:${device.id || loose.indexOf(device)}`, [device]);
+  }
+  return [...merged.values()].map(members => ({
     id: members.map(device => device.id).sort().join('|'),
     devices: members
   }));
