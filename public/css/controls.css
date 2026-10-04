@@ -32,7 +32,7 @@ button {
 }
 .answer-field:focus-within {
   border-color:var(--accent);
-  box-shadow:0 0 0 3px rgba(255,106,61,.16)
+  box-shadow:0 0 0 3px rgba(160,120,255,.22)
 }
 .intro {
   font-size:var(--text-md);

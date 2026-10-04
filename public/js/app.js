@@ -538,7 +538,7 @@ async function handleAction(button) {
     document.documentElement.dataset.theme = next;
     localStorage.setItem('petitbac.theme', next);
     const meta = document.querySelector('meta[name="theme-color"]');
-    if (meta) meta.content = next === 'light' ? '#f6f1e7' : '#101614';
+    if (meta) meta.content = next === 'light' ? '#f3f0fa' : '#121318';
     return;
   }
   if (action === 'music') {

@@ -31,7 +31,7 @@ export function celebrate() {
   document.body.append(canvas);
   const ctx = canvas.getContext('2d');
   ctx.scale(devicePixelRatio, devicePixelRatio);
-  const colors = ['#ff6a3d', '#f0c14a', '#3ddec0', '#ff8a5b', '#b6f25c'];
+  const colors = ['#d0bcff', '#4cd7f6', '#4edea3', '#a078ff', '#ffffff'];
   const pieces = Array.from({ length: 105 }, () => ({ x: innerWidth * (.18 + Math.random() * .64), y: -20 - Math.random() * innerHeight * .4, vx: (Math.random() - .5) * 5, vy: 2 + Math.random() * 4, size: 4 + Math.random() * 5, spin: Math.random() * 6, color: colors[Math.floor(Math.random() * colors.length)] }));
   let frame = 0;
   const paint = () => {

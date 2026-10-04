@@ -1,4 +1,4 @@
-const COLORS = ['#ff6a3d', '#f0c14a', '#3ddec0', '#fff4d2', '#ff8a5b'];
+const COLORS = ['#d0bcff', '#4cd7f6', '#4edea3', '#a078ff', '#ffffff'];
 const MANCHE = [
   { at: 80, count: 42, speed: 4.1, life: 74 },
   { at: 520, count: 26, speed: 3.3, life: 68, side: -0.7 },
@@ -43,7 +43,7 @@ function point(side = 0) {
 }
 
 function burst(origin, count, speed, life, willow) {
-  const palette = willow ? ['#f0c14a', '#fff4d2', '#ff8a5b'] : COLORS;
+  const palette = willow ? ['#d0bcff', '#efe8ff', '#4cd7f6'] : COLORS;
   for (let index = 0; index < count; index += 1) {
     const angle = (Math.PI * 2 * index) / count + (Math.random() - 0.5) * 0.18;
     const velocity = speed * (0.45 + Math.random() * 0.75);
@@ -71,7 +71,7 @@ function launch(spec) {
     ty: origin.y,
     age: 0,
     fly: 16 + Math.random() * 8,
-    color: spec.willow ? '#f0c14a' : COLORS[rockets.length % COLORS.length],
+    color: spec.willow ? '#d0bcff' : COLORS[rockets.length % COLORS.length],
     count: spec.count,
     speed: spec.speed,
     life: spec.life,

@@ -5,11 +5,11 @@
   justify-items:center;
   gap:17px;
   position:relative;
-  background:radial-gradient(ellipse at 50% 42%,rgba(255,106,61,.18),transparent 36%),var(--bg,#101614);
+  background:radial-gradient(ellipse at 50% 42%,rgba(160,120,255,.22),transparent 36%),var(--bg,#121318);
   color:var(--ink,#f8f6ff)
 }
 html[data-theme="light"] .splash {
-  background:radial-gradient(ellipse at 50% 42%,rgba(255,106,61,.12),transparent 36%),#f6f1e7
+  background:radial-gradient(ellipse at 50% 42%,rgba(109,59,215,.14),transparent 36%),#f3f0fa
 }
 .loader-mark {
   position:relative;
@@ -23,8 +23,8 @@ html[data-theme="light"] .splash {
   inset:0;
   border-radius:50%;
   border:2px solid color-mix(in srgb, var(--line) 80%, transparent);
-  border-top-color:#ff6a3d;
-  border-right-color:#f0c14a;
+  border-top-color:#a078ff;
+  border-right-color:#4cd7f6;
   animation:loaderSpin 1s linear infinite
 }
 .loader-letter {
@@ -33,10 +33,10 @@ html[data-theme="light"] .splash {
   display:grid;
   place-items:center;
   border-radius:18px;
-  background:linear-gradient(145deg,#ffb15a,#ff6a3d);
-  color:#1c140c;
-  font:700 28px 'Space Grotesk',sans-serif;
-  box-shadow:0 12px 28px rgba(255,106,61,.28)
+  background:linear-gradient(145deg,#d0bcff,#a078ff);
+  color:#3c0091;
+  font:700 28px 'Sora','Space Grotesk',sans-serif;
+  box-shadow:0 12px 28px rgba(160,120,255,.35)
 }
 .loader-caption {
   font-size:11px;
